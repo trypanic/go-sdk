@@ -1,0 +1,28 @@
+# build / test
+*.test
+*.out
+coverage.*
+dist/
+bin/
+
+# editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# tool reports
+sentrux-report.json
+.semgrep-report.json
+.semgrep-plan.md
+semgrep.sarif
+
+# env
+.env
+.env.local
+.env.dev*
+.env.prod*
+*.pem
+*.key
