@@ -1,0 +1,67 @@
+# Sentrux Architectural Rules for trypanic/go-sdk
+# Derived from observed inter-package imports.
+
+[constraints]
+max_cycles = 0
+max_cc = 25
+max_fn_lines = 100
+no_god_files = false
+
+# Layer order: lower number = higher abstraction. Lower may depend on higher.
+[[layers]]
+name = "clients"
+paths = ["llmclient/*"]
+order = 0
+
+[[layers]]
+name = "composite"
+paths = ["httprequest/*", "messaging/*"]
+order = 1
+
+[[layers]]
+name = "primitives"
+paths = [
+  "envs/*",
+  "httpclient/*",
+  "httpserver/*",
+  "ioutils/*",
+  "logger/*",
+  "marshal/*",
+  "mongo/*",
+  "postgres/*",
+  "storage/*",
+  "urlkit/*",
+  "validators/*",
+]
+order = 2
+
+[[layers]]
+name = "foundation"
+paths = ["algorithms/*", "errorkit/*", "slices/*", "stringutils/*", "telemetry/*"]
+order = 3
+
+# Boundary rules: forbid cross-domain shortcuts
+[[boundaries]]
+from = "logger/*"
+to = "telemetry/*"
+reason = "Logger should stay independent of tracing/metrics pipeline"
+
+[[boundaries]]
+from = "httpclient/*"
+to = "httpserver/*"
+reason = "Client must not depend on server"
+
+[[boundaries]]
+from = "httpserver/*"
+to = "httpclient/*"
+reason = "Server must not depend on client"
+
+[[boundaries]]
+from = "mongo/*"
+to = "postgres/*"
+reason = "DB drivers must stay isolated"
+
+[[boundaries]]
+from = "postgres/*"
+to = "mongo/*"
+reason = "DB drivers must stay isolated"

@@ -1,0 +1,151 @@
+rules:
+  - id: no-fmt-print-in-library
+    pattern-either:
+      - pattern: fmt.Println(...)
+      - pattern: fmt.Printf(...)
+      - pattern: fmt.Print(...)
+    message: "Library code must not write to stdout. Use the logger package."
+    languages: [go]
+    severity: WARNING
+    paths:
+      exclude:
+        - "*_test.go"
+        - "**/example_*.go"
+        - "**/cmd/**"
+
+  - id: no-panic-outside-init
+    patterns:
+      - pattern: panic(...)
+      - pattern-not-inside: |
+          func init() {
+            ...
+          }
+    message: "Avoid panic in library code. Return an error instead. For stdlib-style `Must*` helpers, suppress with `// nosemgrep: no-panic-outside-init` and document why."
+    languages: [go]
+    severity: ERROR
+    paths:
+      exclude:
+        - "*_test.go"
+
+  - id: no-os-exit-in-library
+    pattern: os.Exit(...)
+    message: "Library code must not call os.Exit. Return errors and let callers decide. For named fatal helpers, suppress with `// nosemgrep: no-os-exit-in-library` and document why."
+    languages: [go]
+    severity: ERROR
+    paths:
+      exclude:
+        - "**/cmd/**"
+        - "*_test.go"
+
+  - id: context-must-be-first-param
+    pattern-regex: 'func\s+\w+\s*\([^,\n]+,\s*\w+\s+context\.Context'
+    message: "context.Context must be the first parameter of any function."
+    languages: [go]
+    severity: WARNING
+
+  - id: no-context-background-in-request-path
+    patterns:
+      - pattern: context.Background()
+      - pattern-not-inside: |
+          func init() {
+            ...
+          }
+      - pattern-not-inside: |
+          func main() {
+            ...
+          }
+    message: "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    languages: [go]
+    severity: WARNING
+    paths:
+      include:
+        - "httpserver/**"
+        - "httpclient/**"
+        - "messaging/**"
+      exclude:
+        - "*_test.go"
+
+  - id: error-wrapping-required
+    patterns:
+      - pattern: fmt.Errorf($FMT, $ERR)
+      - metavariable-regex:
+          metavariable: $ERR
+          regex: ^err$
+      - metavariable-regex:
+          metavariable: $FMT
+          regex: ^"([^"\\]|\\.)*%[^w]([^"\\]|\\.)*"$
+    message: "Wrap errors with %w to preserve the chain (errors.Is / errors.As)."
+    languages: [go]
+    severity: WARNING
+
+  - id: no-hardcoded-credentials
+    pattern-either:
+      - pattern: |
+          $X = "AKIA..."
+      - pattern-regex: '(?i)(password|passwd|secret|api[_-]?key|token)\s*[:=]\s*"[^"]{8,}"'
+    message: "Possible hardcoded credential. Move to env config (envs package)."
+    languages: [go]
+    severity: ERROR
+    paths:
+      exclude:
+        - "*_test.go"
+
+  - id: sql-string-concat
+    pattern-either:
+      - pattern: |
+          $DB.Query("..." + $X, ...)
+      - pattern: |
+          $DB.QueryRow("..." + $X, ...)
+      - pattern: |
+          $DB.Exec("..." + $X, ...)
+    message: "SQL injection risk. Use parameterized queries ($1, $2 placeholders)."
+    languages: [go]
+    severity: ERROR
+
+  - id: weak-crypto-md5-sha1
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: md5.Sum(...)
+      - pattern: sha1.New()
+      - pattern: sha1.Sum(...)
+    message: "Weak hash. Use sha256 or stronger for security-sensitive code."
+    languages: [go]
+    severity: WARNING
+
+  - id: math-rand-for-security
+    pattern-either:
+      - pattern: math/rand.Read(...)
+      - pattern: math/rand.Intn(...)
+    message: "math/rand not cryptographically secure. Use crypto/rand for tokens, IDs, secrets."
+    languages: [go]
+    severity: WARNING
+
+  - id: http-no-timeout
+    patterns:
+      - pattern: $C := &http.Client{...}
+      - pattern-not: |
+          $C := &http.Client{..., Timeout: ..., ...}
+    message: "http.Client without Timeout will hang forever. Set a Timeout."
+    languages: [go]
+    severity: WARNING
+    paths:
+      exclude:
+        - "*_test.go"
+
+  - id: defer-rows-close
+    patterns:
+      - pattern: |
+          $ROWS, $ERR := $DB.Query(...)
+          ...
+      - pattern-not: |
+          $ROWS, $ERR := $DB.Query(...)
+          ...
+          defer $ROWS.Close()
+          ...
+    message: "*sql.Rows must be closed. Add `defer rows.Close()` after the err check."
+    languages: [go]
+    severity: WARNING
+
+# nil-context detection moved to staticcheck SA1012 (type-aware).
+# Semgrep's syntactic matcher fires on `(*T)(nil)` type conversions and
+# unrelated nil args (io.Reader, error, etc.). See SECURITY.md.

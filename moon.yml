@@ -1,0 +1,36 @@
+$schema: .moon/cache/schemas/project.json
+project:
+  maintainers:
+    - David N <trypanic@proton.me>
+  description: opinionated Go SDK with custom logging, errors, tracing, and metrics for building distributed systems
+  owner: development
+  title: go-sdk
+language: go
+layer: library
+
+tasks:
+  precommit-install:
+    description: Install pre-commit hooks into .git/hooks
+    command: pre-commit install --install-hooks
+    options:
+      cache: false
+
+  precommit-run:
+    description: Run all pre-commit hooks against every tracked file
+    command: pre-commit run --all-files
+    options:
+      cache: false
+
+  staticanalysis:
+    description: Run static analysis (vet, staticcheck, semgrep) against the codebase
+    command: bash staticanalysis.sh
+    env:
+      QG_FULL: "1"
+    options:
+      cache: false
+
+  install-skills:
+    description: Install skills and sync between different agents
+    command: skillshare install && skillshare sync
+    options:
+      cache: false

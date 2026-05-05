@@ -1,0 +1,33 @@
+# BEGIN SKILLSHARE MANAGED - DO NOT EDIT
+logs/
+trash/
+skills/golang-benchmark/
+skills/golang-cli/
+skills/golang-code-style/
+skills/golang-concurrency/
+skills/golang-context/
+skills/golang-continuous-integration/
+skills/golang-data-structures/
+skills/golang-database/
+skills/golang-dependency-injection/
+skills/golang-dependency-management/
+skills/golang-design-patterns/
+skills/golang-documentation/
+skills/golang-error-handling/
+skills/golang-google-wire/
+skills/golang-lint/
+skills/golang-modernize/
+skills/golang-naming/
+skills/golang-observability/
+skills/golang-performance/
+skills/golang-popular-libraries/
+skills/golang-safety/
+skills/golang-security/
+skills/golang-stay-updated/
+skills/golang-stretchr-testify/
+skills/golang-structs-interfaces/
+skills/golang-swagger/
+skills/golang-testing/
+skills/golang-troubleshooting/
+skills/go-code-quality-check/
+# END SKILLSHARE MANAGED

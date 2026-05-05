@@ -1,0 +1,44 @@
+default_install_hook_types: [pre-commit, commit-msg]
+fail_fast: false
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+      - id: detect-private-key
+
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+
+      - id: goimports
+        name: goimports
+        entry: goimports -w
+        language: system
+        types: [go]
+        require_serial: true
+
+      - id: go-test
+        name: go test (short)
+        entry: bash -c 'go test -short ./...'
+        language: system
+        pass_filenames: false
+        types: [go]
+
+      - id: staticanalysis
+        name: staticanalysis (vet + staticcheck + semgrep)
+        entry: bash .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+        language: system
+        pass_filenames: false
+        types: [go]
+        verbose: true
