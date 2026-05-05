@@ -1,0 +1,46 @@
+# trypanic/go-sdk
+
+> Opinionated Go SDK for distributed systems. Bundles structured logging, classified errors, OpenTelemetry tracing, retrying HTTP client, RabbitMQ messaging, and Postgres/Mongo/storage primitives behind a small, explicit API surface.
+
+Module path: `github.com/trypanic/go-sdk` · Go `1.26.1`. Every public function that can fail returns `*errorkit.AppError` with a documented `ErrorCode`. Tracing and logging are opt-in but uniformly wired: pass a `*telemetry.Instrumenter` at construction.
+
+## Docs
+
+- [README](https://github.com/trypanic/go-sdk/blob/main/README.md): package map, status table, developer setup, quality gates
+- [AGENTS.md](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md): operational guide for AI agents — package selection, conventions, anti-patterns, canonical bootstrap
+- [CHANGELOG](https://github.com/trypanic/go-sdk/blob/main/CHANGELOG.md): per-phase change log
+- [SECURITY](https://github.com/trypanic/go-sdk/blob/main/SECURITY.md): static-analysis runner contract, env knobs, semgrep rule promotion
+
+## Packages
+
+- [errorkit](https://github.com/trypanic/go-sdk/blob/main/errorkit/README.md): typed `AppError` with stack trace, ULID, HTTP status, retriability, registry of `ErrorCode` constants
+- [logger](https://github.com/trypanic/go-sdk/blob/main/logger/README.md): zerolog wrapper, OTLP log provider, trace correlation, `ErrorCtx` / `LogInfoWithTrace` helpers
+- [telemetry](https://github.com/trypanic/go-sdk/blob/main/telemetry/README.md): OTel span factory with consistent naming (`Job`, `Batch`, `External`, `Messaging`, `DB`); `Instrumenter` is the standard tracing handle
+- [httpclient](https://github.com/trypanic/go-sdk/blob/main/httpclient/README.md): production-tuned `*http.Client` factory with shared pool, redirect policy, opt-in transport wrappers (e.g. `otelhttp`)
+- [httprequest](https://github.com/trypanic/go-sdk/blob/main/httprequest/README.md): retrying outbound HTTP with exponential backoff, status→errorkit mapping, body redaction, audit log
+- [httpserver](https://github.com/trypanic/go-sdk/blob/main/httpserver/README.md): framework-agnostic server contracts; only Hertz adapter shipped under `httpserver/hertz/`
+- [postgres](https://github.com/trypanic/go-sdk/blob/main/postgres/README.md) (package `database`): pgx pool, generic `StoredProcedure[T]` helper with explicit instrumenter wrapping
+- [mongo](https://github.com/trypanic/go-sdk/blob/main/mongo/README.md) (package `mongodb`): mongo-driver wrapper with the standard tracing constructor triplet
+- [messaging](https://github.com/trypanic/go-sdk/blob/main/messaging/README.md): RabbitMQ pub/sub, declarative topology loader (`RABBITMQ_TOPOLOGY_FILE`), reconnection backoff
+- [storage](https://github.com/trypanic/go-sdk/blob/main/storage/README.md): KV + append-only log generic store with file and in-memory backends
+- [llmclient](https://github.com/trypanic/go-sdk/blob/main/llmclient/README.md): OpenAI-compatible chat client, non-streaming, built on top of `httprequest`
+- [envs](https://github.com/trypanic/go-sdk/blob/main/envs/README.md): typed env loader, thin wrapper around `caarlos0/env`
+- [marshal](https://github.com/trypanic/go-sdk/blob/main/marshal/README.md): JSON encode/decode helpers
+- [stringutils](https://github.com/trypanic/go-sdk/blob/main/stringutils/README.md): string normalization and markdown stripping
+- [urlkit](https://github.com/trypanic/go-sdk/blob/main/urlkit/README.md): URL build and path join helpers
+- [validators](https://github.com/trypanic/go-sdk/blob/main/validators/README.md): input validators (email, ULID, etc.)
+- [slices](https://github.com/trypanic/go-sdk/blob/main/slices/README.md): generic slice helpers (chunks, dedupe)
+- [algorithms](https://github.com/trypanic/go-sdk/blob/main/algorithms/README.md): exponential backoff factory for custom retry loops
+
+## Conventions
+
+- [Tracing constructor triplet](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#22-tracing): `New`, `NewWithoutTracing`, `NewWithInstrumenter`. Exceptions: `postgres` traces at `StoredProcedure` layer; `messaging` takes a plain `trace.Tracer`.
+- [Error wrapping rules](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#4-idiomatic-error-handling): wrap once at boundaries, preserve original `ErrorCode`, never double-wrap an `*AppError` with `ERR_INTERNAL`.
+- [Body redaction](https://github.com/trypanic/go-sdk/blob/main/httprequest/README.md): bodies redacted by default in error payloads and audit logs; `WithRawBodies()` is dev-only.
+- [Built-in error codes](https://github.com/trypanic/go-sdk/blob/main/errorkit/README.md#built-in-error-codes-reference): full reference table with HTTP status and retriability per code.
+
+## Optional
+
+- [Anti-patterns](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#5-anti-patterns-do-not-write-this-code): mistakes to avoid when consuming the SDK
+- [Canonical bootstrap](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#3-canonical-service-bootstrap): wire-up template for a new service using logging + tracing + HTTP + Postgres + RabbitMQ
+- [Quality gates](https://github.com/trypanic/go-sdk/blob/main/README.md#quality-gates): `go test -short ./...`, `moon run repo:staticanalysis`, `moon run repo:precommit-run`
