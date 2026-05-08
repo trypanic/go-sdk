@@ -42,11 +42,21 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
 		)
 	}
 
-	// Pool tuning
-	poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
-	poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
-	poolCfg.MaxConns = cfg.MaxConns
-	poolCfg.MinConns = cfg.MinConns
+	// Pool tuning. Only override pgx's parsed defaults when the caller
+	// supplied a non-zero value; a zero MaxConns would make pgxpool reject
+	// the config ("MaxConns must be greater than 0").
+	if cfg.MaxConnLifetime > 0 {
+		poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
+	}
+	if cfg.MaxConnIdleTime > 0 {
+		poolCfg.MaxConnIdleTime = cfg.MaxConnIdleTime
+	}
+	if cfg.MaxConns > 0 {
+		poolCfg.MaxConns = cfg.MaxConns
+	}
+	if cfg.MinConns > 0 {
+		poolCfg.MinConns = cfg.MinConns
+	}
 
 	// Connect with timeout for production reliability
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
