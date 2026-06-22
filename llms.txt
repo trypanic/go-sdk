@@ -19,6 +19,7 @@ Module path: `github.com/trypanic/go-sdk` · Go `1.26.1`. Every public function 
 - [httpclient](https://github.com/trypanic/go-sdk/blob/main/httpclient/README.md): production-tuned `*http.Client` factory with shared pool, redirect policy, opt-in transport wrappers (e.g. `otelhttp`)
 - [httprequest](https://github.com/trypanic/go-sdk/blob/main/httprequest/README.md): retrying outbound HTTP with exponential backoff, status→errorkit mapping, body redaction, audit log
 - [httpserver](https://github.com/trypanic/go-sdk/blob/main/httpserver/README.md): framework-agnostic server contracts; only Hertz adapter shipped under `httpserver/hertz/`
+- [grpc](https://github.com/trypanic/go-sdk/blob/main/grpc/README.md): gRPC server + client factories (CloudWeGo Kitex-backed), OTel tracing + panic recovery; independent of `httpserver/hertz`, codegen-bound (pass generated `*serviceinfo.ServiceInfo`)
 - [postgres](https://github.com/trypanic/go-sdk/blob/main/postgres/README.md) (package `database`): pgx pool, generic `StoredProcedure[T]` helper with explicit instrumenter wrapping
 - [mongo](https://github.com/trypanic/go-sdk/blob/main/mongo/README.md) (package `mongodb`): mongo-driver wrapper with the standard tracing constructor triplet
 - [messaging](https://github.com/trypanic/go-sdk/blob/main/messaging/README.md): RabbitMQ pub/sub, declarative topology loader (`RABBITMQ_TOPOLOGY_FILE`), reconnection backoff

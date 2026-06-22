@@ -182,3 +182,48 @@ func TestNewFileStorage_InvalidPath_ReturnsAppError(t *testing.T) {
 		t.Fatalf("expected code %s, got %s", ERR_STORAGE_ERROR, appErr.Code())
 	}
 }
+
+// TestListDoesNotAliasInternalBuffer guards the defensive copy: a list returned
+// by Append/List must not change when a later Append grows the internal slice.
+func TestListDoesNotAliasInternalBuffer(t *testing.T) {
+	ms := NewMemory[int]()
+
+	a, b := 1, 2
+	first, err := ms.Append("k", &a)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	if len(*first) != 1 || (*first)[0] != 1 {
+		t.Fatalf("first snapshot = %v, want [1]", *first)
+	}
+
+	if _, err := ms.Append("k", &b); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	// The earlier snapshot must be untouched by the second Append.
+	if len(*first) != 1 || (*first)[0] != 1 {
+		t.Fatalf("snapshot aliased internal buffer: %v, want [1]", *first)
+	}
+
+	got, _, err := ms.List("k")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	(*got)[0] = 99 // mutating the returned copy must not corrupt storage
+	again, _, _ := ms.List("k")
+	if (*again)[0] == 99 {
+		t.Fatalf("List returned an aliased slice; storage was corrupted by caller")
+	}
+}
+
+func TestPutAndAppendRejectNil(t *testing.T) {
+	ms := NewMemory[int]()
+
+	if err := ms.Put("k", nil); err == nil {
+		t.Fatal("Put(nil) expected error, got nil")
+	}
+	if _, err := ms.Append("k", nil); err == nil {
+		t.Fatal("Append(nil) expected error, got nil")
+	}
+}

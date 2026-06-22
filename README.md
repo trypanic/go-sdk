@@ -13,6 +13,7 @@ go-sdk/
 ├── algorithms/        exponential backoff factory
 ├── envs/              caarlos0/env wrapper
 ├── errorkit/          typed AppError + registry
+├── grpc/              gRPC server + client factories (Kitex-backed)
 ├── httpclient/        net/http.Client factory
 ├── httprequest/       retrying HTTP requester
 ├── httpserver/        framework-agnostic HTTPServer contracts
@@ -41,6 +42,7 @@ go-sdk/
 | `httpclient`, `httprequest`                      | Stable; concurrent-safe; opt-in tracing |
 | `httpserver`                                     | Contracts stable; only Hertz adapter shipped |
 | `httpserver/hertz`                               | Adapter; pulls Hertz transitively     |
+| `grpc`                                           | Stable; gRPC server + client (Kitex-backed); pulls Kitex transitively |
 | `postgres`, `mongo`, `storage`                   | Stable                                |
 | `messaging`                                      | Stable; topology + transport flat     |
 | `envs`                                           | Stable                                |

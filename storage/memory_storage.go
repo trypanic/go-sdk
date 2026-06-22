@@ -1,6 +1,10 @@
 package storage
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/trypanic/go-sdk/errorkit"
+)
 
 // MemoryStorage is a generic, thread-safe in-memory store. It implements
 // both KVStorager (Put/Get with overwrite semantics) and AppendLogStorager
@@ -21,6 +25,11 @@ func NewMemory[T any]() *MemoryStorage[T] {
 
 // Put stores a single value at key, replacing any previous value.
 func (ms *MemoryStorage[T]) Put(key string, value *T) error {
+	if value == nil {
+		return errorkit.NewError(ERR_STORAGE_ERROR).With(
+			errorkit.WithReason("Put: value must not be nil"),
+		)
+	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.single[key] = *value
@@ -38,16 +47,24 @@ func (ms *MemoryStorage[T]) Get(key string) (*T, bool, error) {
 	return &value, true, nil
 }
 
-// Append appends an item to the list at key.
+// Append appends an item to the list at key and returns a copy of the list.
+// The copy prevents callers from aliasing the internal backing array, which a
+// later Append could overwrite out from under them.
 func (ms *MemoryStorage[T]) Append(key string, item *T) (*[]T, error) {
+	if item == nil {
+		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
+			errorkit.WithReason("Append: item must not be nil"),
+		)
+	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.list[key] = append(ms.list[key], *item)
-	result := ms.list[key]
-	return &result, nil
+	out := append([]T(nil), ms.list[key]...)
+	return &out, nil
 }
 
-// List retrieves the appended list for key.
+// List retrieves a copy of the appended list for key. The copy is taken under
+// the read lock so callers never alias the internal backing array.
 func (ms *MemoryStorage[T]) List(key string) (*[]T, bool, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -55,7 +72,8 @@ func (ms *MemoryStorage[T]) List(key string) (*[]T, bool, error) {
 	if !ok {
 		return nil, false, nil
 	}
-	return &slice, true, nil
+	out := append([]T(nil), slice...)
+	return &out, true, nil
 }
 
 // Delete removes key from both single-value and list storage.
