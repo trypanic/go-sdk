@@ -2,38 +2,68 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/cloudwego/kitex/pkg/endpoint"
-
-	"github.com/trypanic/go-sdk/errorkit"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
-func TestRecoveryMiddlewareConvertsPanic(t *testing.T) {
-	mw := recoveryMiddleware()
-	wrapped := mw(func(ctx context.Context, req, resp any) error {
-		panic("boom")
-	})
+// fakeServerStream is a minimal grpc.ServerStream for interceptor unit tests.
+type fakeServerStream struct{ ctx context.Context }
 
-	err := wrapped(context.Background(), nil, nil) // must not propagate the panic
-	wantCode(t, err, errorkit.ERR_SYSTEM_UNEXPECTED)
+func (f *fakeServerStream) Context() context.Context     { return f.ctx }
+func (f *fakeServerStream) SetHeader(metadata.MD) error  { return nil }
+func (f *fakeServerStream) SendHeader(metadata.MD) error { return nil }
+func (f *fakeServerStream) SetTrailer(metadata.MD)       {}
+func (f *fakeServerStream) SendMsg(any) error            { return nil }
+func (f *fakeServerStream) RecvMsg(any) error            { return nil }
+
+func TestRecoveryUnaryInterceptor_PanicReturnsInternal(t *testing.T) {
+	interceptor := recoveryUnaryInterceptor(nil)
+	_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+		func(context.Context, any) (any, error) { panic("boom") })
+
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("code = %s, want %s", status.Code(err), codes.Internal)
+	}
 }
 
-func TestRecoveryMiddlewarePassesThrough(t *testing.T) {
-	sentinel := errorkit.NewError(errorkit.ERR_VALIDATION)
-	mw := recoveryMiddleware()
+func TestRecoveryUnaryInterceptor_NoPanicPassesThrough(t *testing.T) {
+	want := errors.New("handler error")
+	interceptor := recoveryUnaryInterceptor(nil)
+	resp, err := interceptor(context.Background(), "req", &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+		func(_ context.Context, req any) (any, error) { return req, want })
 
-	called := false
-	wrapped := mw(func(ctx context.Context, req, resp any) error {
-		called = true
-		return sentinel
-	})
+	if !errors.Is(err, want) {
+		t.Fatalf("err = %v, want %v", err, want)
+	}
+	if resp != "req" {
+		t.Fatalf("resp = %v, want %q", resp, "req")
+	}
+}
 
-	if err := wrapped(context.Background(), nil, nil); err != sentinel {
-		t.Fatalf("middleware altered a non-panic return: got %v", err)
+func TestRecoveryStreamInterceptor_PanicReturnsInternal(t *testing.T) {
+	interceptor := recoveryStreamInterceptor(nil)
+	ss := &fakeServerStream{ctx: context.Background()}
+	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
+		func(any, grpc.ServerStream) error { panic("boom") })
+
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("code = %s, want %s", status.Code(err), codes.Internal)
 	}
-	if !called {
-		t.Fatal("middleware did not invoke the next endpoint")
+}
+
+func TestRecoveryStreamInterceptor_NoPanicPassesThrough(t *testing.T) {
+	want := errors.New("stream error")
+	interceptor := recoveryStreamInterceptor(nil)
+	ss := &fakeServerStream{ctx: context.Background()}
+	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
+		func(any, grpc.ServerStream) error { return want })
+
+	if !errors.Is(err, want) {
+		t.Fatalf("err = %v, want %v", err, want)
 	}
-	var _ endpoint.Endpoint = wrapped
 }

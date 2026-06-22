@@ -34,6 +34,10 @@ pool, err := database.NewPostgresClientFromEnv(database.Config{}) // call by pac
 
 If the compiler complains that `postgres` or `mongo` is undefined, this is why.
 
+The `grpc` package matches its directory, but its identifier collides with
+upstream `google.golang.org/grpc`. When you import both, alias ours:
+`import sdkgrpc "github.com/trypanic/go-sdk/grpc"`.
+
 ---
 
 ## 1. Package selection table
@@ -48,6 +52,7 @@ Pick by task, then read the linked sub-`README.md` for the exact API.
 | Build an `*http.Client` (pool, timeouts, TLS)         | `httpclient`                                            | [httpclient](./httpclient/README.md)                 |
 | Make outbound HTTP with retries + structured errors   | `httprequest`                                           | [httprequest](./httprequest/README.md)               |
 | Run an HTTP server (Hertz today)                      | `httpserver` + `httpserver/hertz`                       | [httpserver](./httpserver/README.md)                 |
+| Run a gRPC server / client (4 call modes, tracing, recovery) | `grpc`                                           | [grpc](./grpc/README.md)                             |
 | Talk to PostgreSQL (pgx pool, stored procs)           | `postgres`                                              | [postgres](./postgres/README.md)                     |
 | Talk to MongoDB                                       | `mongo`                                                 | [mongo](./mongo/README.md)                           |
 | Publish/consume RabbitMQ                              | `messaging`                                             | [messaging](./messaging/README.md)                   |

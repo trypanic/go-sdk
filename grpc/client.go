@@ -1,65 +1,78 @@
 package grpc
 
 import (
-	"github.com/cloudwego/kitex/client"
-	"github.com/cloudwego/kitex/pkg/serviceinfo"
-	"github.com/cloudwego/kitex/transport"
-	"github.com/kitex-contrib/obs-opentelemetry/tracing"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-// DialOptions assembles the Kitex client options for a gRPC-transport client
-// following the SDK conventions (gRPC transport, configured timeouts, opt-in
-// OTel tracing). Pass the result straight to a codegen client constructor:
+// Dial creates a *grpc.ClientConn for cfg.Target, wired with the SDK's tracing
+// and keepalive conventions. The caller wraps the returned connection with a
+// generated client (e.g. pb.NewEchoClient(cc)) and is responsible for
+// cc.Close().
 //
-//	cli, err := echo.NewClient("echo-svc", sdkgrpc.DialOptions(cfg, sdkgrpc.DefaultClientOptions())...)
-//
-// This is the reusable unit; NewClient is a thin generic wrapper over it.
-func DialOptions(cfg ClientConfig, opts ClientOptions) []client.Option {
-	out := []client.Option{
-		client.WithTransportProtocol(transport.GRPC),
-		client.WithHostPorts(cfg.Hosts...),
-	}
-	if cfg.RPCTimeout > 0 {
-		out = append(out, client.WithRPCTimeout(cfg.RPCTimeout))
-	}
-	if cfg.ConnectTimeout > 0 {
-		out = append(out, client.WithConnectTimeout(cfg.ConnectTimeout))
-	}
-	if opts.EnableTracing {
-		out = append(out, client.WithSuite(tracing.NewClientSuite()))
-	}
-	return out
-}
-
-// NewClient builds a generic Kitex client.Client for svcInfo over the gRPC
-// transport with DefaultClientOptions. Most callers use a codegen-typed
-// client instead — feed DialOptions to its NewClient. Use this for generic
-// (reflection-style) calls.
-func NewClient(svcInfo *serviceinfo.ServiceInfo, cfg ClientConfig) (client.Client, error) {
-	return NewClientWithOptions(svcInfo, cfg, DefaultClientOptions())
-}
-
-// NewClientWithOptions is NewClient with explicit toggles.
-func NewClientWithOptions(svcInfo *serviceinfo.ServiceInfo, cfg ClientConfig, opts ClientOptions) (client.Client, error) {
-	if svcInfo == nil {
+// Transport security defaults to insecure when cfg.Creds is nil; set cfg.Creds
+// to wire TLS. The connection is lazy — grpc.NewClient does not connect until
+// the first RPC.
+func Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error) {
+	if cfg.Target == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
-			errorkit.WithReason("grpc: svcInfo is required"),
-		)
-	}
-	if len(cfg.Hosts) == 0 {
-		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
-			errorkit.WithReason("grpc: at least one host is required"),
+			errorkit.WithReason("grpc: client target is required"),
 		)
 	}
 
-	cli, err := client.NewClient(svcInfo, DialOptions(cfg, opts)...)
+	b := defaultClientBuild()
+	for _, o := range opts {
+		o(b)
+	}
+
+	creds := cfg.Creds
+	if creds == nil {
+		creds = insecure.NewCredentials()
+	}
+
+	do := []grpc.DialOption{grpc.WithTransportCredentials(creds)}
+
+	if cfg.Keepalive.isSet() {
+		do = append(do, grpc.WithKeepaliveParams(cfg.Keepalive.clientParameters()))
+	}
+	if cfg.MaxRecvMsgSize > 0 || cfg.MaxSendMsgSize > 0 {
+		var co []grpc.CallOption
+		if cfg.MaxRecvMsgSize > 0 {
+			co = append(co, grpc.MaxCallRecvMsgSize(cfg.MaxRecvMsgSize))
+		}
+		if cfg.MaxSendMsgSize > 0 {
+			co = append(co, grpc.MaxCallSendMsgSize(cfg.MaxSendMsgSize))
+		}
+		do = append(do, grpc.WithDefaultCallOptions(co...))
+	}
+	if len(b.unary) > 0 {
+		do = append(do, grpc.WithChainUnaryInterceptor(b.unary...))
+	}
+	if len(b.stream) > 0 {
+		do = append(do, grpc.WithChainStreamInterceptor(b.stream...))
+	}
+	if b.tracing {
+		var hopts []otelgrpc.Option
+		if b.tracerProvider != nil {
+			hopts = append(hopts, otelgrpc.WithTracerProvider(b.tracerProvider))
+		}
+		if b.propagator != nil {
+			hopts = append(hopts, otelgrpc.WithPropagators(b.propagator))
+		}
+		do = append(do, grpc.WithStatsHandler(otelgrpc.NewClientHandler(hopts...)))
+	}
+
+	do = append(do, b.raw...)
+
+	cc, err := grpc.NewClient(cfg.Target, do...)
 	if err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
-			errorkit.WithReason("grpc: new client: %v", err),
+			errorkit.WithReason("grpc: dial %q: %v", cfg.Target, err),
 			errorkit.WithWrapped(err),
 		)
 	}
-	return cli, nil
+	return cc, nil
 }

@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/kitex/pkg/serviceinfo"
-
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
@@ -23,54 +21,85 @@ func wantCode(t *testing.T, err error, code errorkit.ErrorCode) {
 	}
 }
 
-func TestServerConfigAddress(t *testing.T) {
-	cfg := ServerConfig{Host: "0.0.0.0", Port: 8888}
-	if got := cfg.Address(); got != "0.0.0.0:8888" {
-		t.Fatalf("Address() = %q, want %q", got, "0.0.0.0:8888")
-	}
-}
-
-func TestDefaultOptions(t *testing.T) {
-	s := DefaultServerOptions()
-	if !s.EnableTracing || !s.EnableRecovery {
-		t.Fatalf("DefaultServerOptions = %+v, want tracing+recovery on", s)
-	}
-	if !DefaultClientOptions().EnableTracing {
-		t.Fatalf("DefaultClientOptions tracing should default on")
-	}
-}
-
-func TestNewServerValidation(t *testing.T) {
-	// nil svcInfo/handler -> config invalid
-	_, err := New(ServerConfig{Host: "127.0.0.1", Port: 9000}, nil, nil)
-	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
-
-	// unresolvable address -> config invalid
-	svcInfo := &serviceinfo.ServiceInfo{ServiceName: "t"}
-	_, err = New(ServerConfig{Host: "bad host", Port: -1}, svcInfo, struct{}{})
+func TestNew_EmptyAddressIsConfigError(t *testing.T) {
+	_, err := New(ServerConfig{})
 	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
 }
 
-func TestNewClientValidation(t *testing.T) {
-	_, err := NewClient(nil, ClientConfig{Hosts: []string{"127.0.0.1:9000"}})
-	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
-
-	svcInfo := &serviceinfo.ServiceInfo{ServiceName: "t"}
-	_, err = NewClient(svcInfo, ClientConfig{})
+func TestDial_EmptyTargetIsConfigError(t *testing.T) {
+	_, err := Dial(ClientConfig{})
 	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
 }
 
-func TestDialOptions(t *testing.T) {
-	// transport + hostports always present; tracing adds one.
-	base := DialOptions(ClientConfig{Hosts: []string{"a:1"}}, ClientOptions{EnableTracing: false})
-	if len(base) != 2 {
-		t.Fatalf("base DialOptions len = %d, want 2", len(base))
+func TestDefaultServerBuild_TracingAndRecoveryOn(t *testing.T) {
+	b := defaultServerBuild()
+	if !b.tracing || !b.recovery {
+		t.Fatalf("defaultServerBuild = %+v, want tracing+recovery on", b)
 	}
-	full := DialOptions(
-		ClientConfig{Hosts: []string{"a:1"}, RPCTimeout: time.Second, ConnectTimeout: time.Second},
-		ClientOptions{EnableTracing: true},
-	)
-	if len(full) != 5 {
-		t.Fatalf("full DialOptions len = %d, want 5", len(full))
+}
+
+func TestDefaultClientBuild_TracingOn(t *testing.T) {
+	if !defaultClientBuild().tracing {
+		t.Fatal("defaultClientBuild tracing should default on")
+	}
+}
+
+func TestServerOptions_Accumulate(t *testing.T) {
+	b := defaultServerBuild()
+	for _, o := range []ServerOption{
+		WithServerTracing(false),
+		WithServerRecovery(false),
+		WithUnaryInterceptors(nil, nil),
+		WithStreamInterceptors(nil),
+		WithRawServerOptions(nil, nil, nil),
+	} {
+		o(b)
+	}
+	if b.tracing || b.recovery {
+		t.Fatalf("toggles not applied: %+v", b)
+	}
+	if len(b.unary) != 2 || len(b.stream) != 1 || len(b.raw) != 3 {
+		t.Fatalf("appends wrong: unary=%d stream=%d raw=%d", len(b.unary), len(b.stream), len(b.raw))
+	}
+}
+
+func TestServerKeepalive_Builders(t *testing.T) {
+	k := ServerKeepalive{
+		Time:                10 * time.Second,
+		Timeout:             3 * time.Second,
+		MinTime:             5 * time.Second,
+		PermitWithoutStream: true,
+		MaxConnectionAge:    time.Hour,
+	}
+	if !k.hasParams() || !k.hasEnforcement() {
+		t.Fatal("populated keepalive should report hasParams and hasEnforcement")
+	}
+	sp := k.serverParameters()
+	if sp.Time != k.Time || sp.Timeout != k.Timeout || sp.MaxConnectionAge != k.MaxConnectionAge {
+		t.Fatalf("serverParameters mismatch: %+v", sp)
+	}
+	ep := k.enforcementPolicy()
+	if ep.MinTime != k.MinTime || !ep.PermitWithoutStream {
+		t.Fatalf("enforcementPolicy mismatch: %+v", ep)
+	}
+
+	var zero ServerKeepalive
+	if zero.hasParams() || zero.hasEnforcement() {
+		t.Fatal("zero keepalive should report no params and no enforcement (preserve gRPC defaults)")
+	}
+}
+
+func TestClientKeepalive_Builder(t *testing.T) {
+	var zero ClientKeepalive
+	if zero.isSet() {
+		t.Fatal("zero client keepalive should report isSet=false")
+	}
+	k := ClientKeepalive{Time: 20 * time.Second, Timeout: 5 * time.Second, PermitWithoutStream: true}
+	if !k.isSet() {
+		t.Fatal("populated client keepalive should report isSet=true")
+	}
+	cp := k.clientParameters()
+	if cp.Time != k.Time || cp.Timeout != k.Timeout || !cp.PermitWithoutStream {
+		t.Fatalf("clientParameters mismatch: %+v", cp)
 	}
 }
