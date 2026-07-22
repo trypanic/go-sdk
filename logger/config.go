@@ -288,10 +288,10 @@ func maskEmailDomain(value string) string {
 
 // newLogger creates a zerolog.Logger configured for env.
 //
-// Dev:  Pretty console output with colors · Debug level · caller info
-// Prod: JSON to stdout · Info level · caller info
+// Dev:  Pretty console output with colors · Debug level
+// Prod: JSON to stdout · Info level
 //
-// Both environments include timestamp and caller information.
+// Both environments include timestamp information.
 func newLogger(env Environment, appName, version string) zerolog.Logger {
 	return newLoggerWithWriter(newWriter(env, appName, version), env)
 }
@@ -309,7 +309,7 @@ func newLoggerWithWriter(w io.Writer, env Environment) zerolog.Logger {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	return zerolog.New(newRedactingWriter(w)).With().Timestamp().Caller().Logger()
+	return zerolog.New(newRedactingWriter(w)).With().Timestamp().Logger()
 }
 
 type redactingWriter struct {
