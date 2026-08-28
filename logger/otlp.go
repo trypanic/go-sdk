@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 	otelglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/trace"
@@ -50,7 +51,7 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 		// Malformed line — emit as plain text so nothing is silently lost.
 		var r log.Record
 		r.SetTimestamp(time.Now())
-		r.SetBody(log.StringValue(string(p)))
+		r.SetBody(attribute.StringValue(string(p)))
 		r.SetSeverity(log.SeverityError)
 		w.logger.Emit(context.Background(), r)
 		return len(p), nil
@@ -74,7 +75,7 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 
 	// ── Body: the human-readable message ─────────────────────────────────────
 	if msg, ok := fields["message"].(string); ok {
-		r.SetBody(log.StringValue(msg))
+		r.SetBody(attribute.StringValue(msg))
 	}
 
 	// ── Trace correlation ─────────────────────────────────────────────────────
@@ -109,13 +110,13 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 		"level": true, "time": true, "message": true,
 		"trace_id": true, "span_id": true, "caller": true,
 	}
-	attrs := make([]log.KeyValue, 0, len(fields))
+	attrs := make([]attribute.KeyValue, 0, len(fields))
 	for k, v := range fields {
 		if skip[k] {
 			continue
 		}
-		attrs = append(attrs, log.KeyValue{
-			Key:   k,
+		attrs = append(attrs, attribute.KeyValue{
+			Key:   attribute.Key(k),
 			Value: anyToLogValue(v),
 		})
 	}
@@ -145,25 +146,25 @@ func zerologLevelToOTEL(level string) log.Severity {
 	}
 }
 
-// anyToLogValue converts a JSON-unmarshalled value to an OTEL log.Value.
-func anyToLogValue(v any) log.Value {
+// anyToLogValue converts a JSON-unmarshalled value to an OTEL attribute.Value.
+func anyToLogValue(v any) attribute.Value {
 	switch val := v.(type) {
 	case string:
-		return log.StringValue(val)
+		return attribute.StringValue(val)
 	case float64:
-		return log.Float64Value(val)
+		return attribute.Float64Value(val)
 	case bool:
-		return log.BoolValue(val)
+		return attribute.BoolValue(val)
 	case map[string]any:
 		b, _ := json.Marshal(val)
-		return log.StringValue(string(b))
+		return attribute.StringValue(string(b))
 	case []any:
 		b, _ := json.Marshal(val)
-		return log.StringValue(string(b))
+		return attribute.StringValue(string(b))
 	case nil:
-		return log.StringValue("null")
+		return attribute.StringValue("null")
 	default:
 		b, _ := json.Marshal(val)
-		return log.StringValue(string(b))
+		return attribute.StringValue(string(b))
 	}
 }
