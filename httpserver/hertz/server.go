@@ -2,9 +2,7 @@ package hertz
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
-	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
@@ -157,10 +155,10 @@ func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc 
 		redact = httpserver.DefaultBodyRedactor
 	}
 	return func(ctx context.Context, c *app.RequestContext) {
-		start := time.Now()
-
-		method := string(c.Method())
-		path := string(c.Path())
+		//start := time.Now()
+		//
+		//method := string(c.Method())
+		//path := string(c.Path())
 
 		reqBodyRaw := c.Request.Body()
 		reqBody := make([]byte, len(reqBodyRaw))
@@ -175,8 +173,8 @@ func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc 
 
 		c.Next(ctx)
 
-		statusCode := c.Response.StatusCode()
-		respBody := c.Response.Body()
+		//statusCode := c.Response.StatusCode()
+		//respBody := c.Response.Body()
 
 		respHeaders := make(map[string]string)
 		c.Response.Header.VisitAll(func(key, value []byte) {
@@ -185,24 +183,24 @@ func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc 
 			}
 		})
 
-		reqHeadersJSON, _ := json.Marshal(reqHeaders)
-		respHeadersJSON, _ := json.Marshal(respHeaders)
+		//reqHeadersJSON, _ := json.Marshal(reqHeaders)
+		//respHeadersJSON, _ := json.Marshal(respHeaders)
+		//
+		//reqBodyOut := redact(reqBody)
+		//respBodyOut := redact(respBody)
 
-		reqBodyOut := redact(reqBody)
-		respBodyOut := redact(respBody)
-
-		logger.
-			WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
-			Str("event", "http.audit.inbound").
-			Str("method", method).
-			Str("path", path).
-			Int("status_code", statusCode).
-			RawJSON("request.headers", reqHeadersJSON).
-			Str("request.body", string(reqBodyOut)).
-			RawJSON("response.headers", respHeadersJSON).
-			Str("response.body", string(respBodyOut)).
-			Int64("duration_ms", time.Since(start).Milliseconds()).
-			Msg("http: inbound audit")
+		//logger.
+		//	WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
+		//	Str("event", "http.audit.inbound").
+		//	Str("method", method).
+		//	Str("path", path).
+		//	Int("status_code", statusCode).
+		//	RawJSON("request.headers", reqHeadersJSON).
+		//	Str("request.body", string(reqBodyOut)).
+		//	RawJSON("response.headers", respHeadersJSON).
+		//	Str("response.body", string(respBodyOut)).
+		//	Int64("duration_ms", time.Since(start).Milliseconds()).
+		//	Msg("http: inbound audit")
 	}
 }
 
