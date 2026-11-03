@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
@@ -214,6 +215,12 @@ func (r *fakeRows) RawValues() [][]byte {
 
 func (r *fakeRows) Conn() *pgx.Conn {
 	return nil
+}
+
+// TypeMap satisfies pgx.Rows (method added in pgx v5.12). The fake decodes
+// values itself, so a default map is enough to honour the contract.
+func (r *fakeRows) TypeMap() *pgtype.Map {
+	return pgtype.NewMap()
 }
 
 func (r *fakeRows) currentRow() ([]any, error) {
