@@ -36,4 +36,5 @@ semgrep.sarif
 .staticanalysis/*.*
 !.gitkeep
 
-.moon/cache
+# task runner checksums
+.task/

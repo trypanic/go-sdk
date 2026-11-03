@@ -44,4 +44,4 @@ Module path: `github.com/trypanic/go-sdk` · Go `1.26.1`. Every public function 
 
 - [Anti-patterns](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#5-anti-patterns-do-not-write-this-code): mistakes to avoid when consuming the SDK
 - [Canonical bootstrap](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#3-canonical-service-bootstrap): wire-up template for a new service using logging + tracing + HTTP + Postgres + RabbitMQ
-- [Quality gates](https://github.com/trypanic/go-sdk/blob/main/README.md#quality-gates): `go test -short ./...`, `moon run repo:staticanalysis`, `moon run repo:precommit-run`
+- [Quality gates](https://github.com/trypanic/go-sdk/blob/main/README.md#quality-gates): `go test -short ./...`, `task staticanalysis`, `task precommit:run`, `task deps:update`

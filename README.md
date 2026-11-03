@@ -70,34 +70,64 @@ go-sdk/
 
 ## Developer setup
 
+Tool versions are pinned in [`.prototools`](./.prototools) and installed by
+[proto](https://moonrepo.dev/proto): Go, Python, [Task](https://taskfile.dev),
+staticcheck, skillshare and sentrux. Third-party tools resolve through the
+plugins in [`trypanic/proto-plugins`](https://github.com/trypanic/proto-plugins).
+
 System packages required for `semgrep` (one-time, host install):
 
 ```bash
 sudo apt install build-essential python3-dev clang
-python -m pip install --upgrade pip
-pipx install semgrep==1.95.0     # or: pip install semgrep
-pipx install pre-commit          # or: pip install pre-commit
-go install golang.org/x/tools/cmd/goimports@latest
-go install honnef.co/go/tools/cmd/staticcheck@latest
+```
+
+Then, from the repository root:
+
+```bash
+bash <(curl -fsSL https://moonrepo.dev/install/proto.sh)   # once per machine
+proto trust .prototools   # allow the pinned plugins, env and auto-install
+proto install             # go, python, task, staticcheck, skillshare, sentrux
+task tools:install        # goimports, pre-commit and semgrep on top
 ```
 
 Install git hooks:
 
 ```bash
-moon run repo:precommit-install
+task precommit:install
 ```
 
 ## Quality gates
 
 The full vet + staticcheck + semgrep stack runs through a single script,
-`staticanalysis.sh`, wired into both pre-commit (staged-files mode) and the
-`moon` task (full-repo mode).
+`staticanalysis.sh`, wired into both pre-commit (staged-files mode) and
+[Task](https://taskfile.dev) (full-repo mode). Run `task --list` to see every
+task defined in [`Taskfile.yml`](./Taskfile.yml).
 
 ```bash
-moon run repo:staticanalysis        # full repo (vet + staticcheck + semgrep)
-moon run repo:precommit-run         # all pre-commit hooks across the tree
-go test -short ./...                # unit tests, no external deps
+task staticanalysis        # full repo (vet + staticcheck + semgrep)
+task precommit:run         # all pre-commit hooks across the tree
+task test                  # unit tests per package, in parallel, no external deps
+task check                 # all of the above
 ```
+
+## Updating dependencies
+
+Every task below takes an optional list of SDK packages after `--`; without it,
+the task covers all packages (`task packages` lists them).
+
+```bash
+task deps:outdated                       # available updates, per package, in parallel
+task deps:outdated -- logger mongo       # same, for selected packages
+task deps:update -- postgres             # update one package's dependencies
+task deps:update -- postgres mongo grpc  # update several
+task deps:update                         # update all
+UPGRADE=-u=patch task deps:update        # patch releases only
+```
+
+All packages share one `go.mod`, so `deps:update` resolves the upgrade in a
+single `go get` call (concurrent `go get` runs would race on `go.mod`), runs
+`go mod tidy`, and then builds, vets and tests each selected package in
+parallel.
 
 Per-tool reports and grouped fix-plans land in `.staticanalysis/`. See
 [`SECURITY.md`](./SECURITY.md) for the full runner contract, env knobs, CI

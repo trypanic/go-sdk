@@ -295,10 +295,14 @@ Rules:
 ## 7. Quality gates (run before committing)
 
 ```bash
-go test -short ./...                      # unit tests
-moon run repo:staticanalysis              # vet + staticcheck + semgrep
-moon run repo:precommit-run               # all pre-commit hooks across the tree
+task test                                 # unit tests (go test -short), per package in parallel
+task staticanalysis                       # vet + staticcheck + semgrep
+task precommit:run                        # all pre-commit hooks across the tree
 ```
+
+To update dependencies, use `task deps:update -- <pkg> [<pkg>...]` (or no
+arguments for every package). Do not run several `go get` commands in
+parallel: all packages share one `go.mod`.
 
 Per-tool reports land in `.staticanalysis/`. See [`SECURITY.md`](./SECURITY.md)
 for the full runner contract, env knobs, and CI workflow.
@@ -306,7 +310,7 @@ for the full runner contract, env knobs, and CI workflow.
 If you only changed one package, scope tests:
 
 ```bash
-go test -short ./postgres/...
+task test -- postgres        # or: go test -short ./postgres/...
 ```
 
 ---
