@@ -133,6 +133,33 @@ Per-tool reports and grouped fix-plans land in `.staticanalysis/`. See
 [`SECURITY.md`](./SECURITY.md) for the full runner contract, env knobs, CI
 workflow, and rule-promotion process.
 
+## Releases
+
+The SDK is a single Go module, so every package shares one version
+(`vX.Y.Z` tags on the repository root).
+
+Releases are automated by [release-please](https://github.com/googleapis/release-please)
+from [Conventional Commits](https://www.conventionalcommits.org) (enforced by a
+`commit-msg` hook):
+
+1. Each push to `main` updates an open **release PR** that bumps the version
+   (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE:` → major) and
+   prepends the new entry to [`CHANGELOG.md`](./CHANGELOG.md).
+2. Merging the release PR creates the tag and the GitHub Release.
+3. The [`release`](./.github/workflows/release.yml) workflow then verifies the
+   tagged tree and attaches a CycloneDX SBOM, a source archive and
+   `checksums.txt`, and warms the Go module proxy.
+
+Before merging a release PR:
+
+```bash
+task release:check   # gorelease: API diff against the last tag + suggested version
+task changelog       # git-cliff: preview of the unreleased changelog entry
+```
+
+Use `fix(deps): ...` for dependency updates; `chore` commits never trigger a
+release.
+
 ## Changelog
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for the full per-phase change log.

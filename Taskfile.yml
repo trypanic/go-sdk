@@ -39,7 +39,7 @@ tasks:
       - go install golang.org/x/tools/cmd/goimports@latest
       # Python CLIs go into the proto-managed Python pinned in .prototools;
       # its bin/ directory must be on PATH (see README "Common issues").
-      - python -m pip install --upgrade pre-commit semgrep==1.95.0
+      - python -m pip install --upgrade pre-commit semgrep==1.95.0 git-cliff==2.14.2
 
   skills:install:
     desc: Install agent skills and sync them across agents (was moon install-skills)
@@ -97,6 +97,27 @@ tasks:
       - task: test
       - task: staticanalysis
       - task: precommit:run
+
+  # ----------------------------------------------------------------- release
+
+  changelog:
+    desc: Preview the changelog entry for commits since the last tag (git-cliff; CHANGELOG.md is written by release-please)
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is not installed; run `task tools:install`"
+    cmds:
+      - git-cliff --unreleased --strip all
+
+  release:check:
+    desc: Diff the public API against the last tag and suggest the next semver version (gorelease)
+    vars:
+      BASE:
+        sh: git describe --tags --abbrev=0 --match 'v[0-9]*'
+    preconditions:
+      - sh: test -z "$(git status --porcelain)"
+        msg: "gorelease needs a clean working tree; commit or stash your changes first"
+    cmds:
+      - go run golang.org/x/exp/cmd/gorelease@latest -base={{.BASE}}
 
   # ------------------------------------------------------------ dependencies
 
