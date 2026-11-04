@@ -60,3 +60,19 @@ release-please derives the next version and the release notes in
   race tests on Go 1.26.x and 1.27.x, static analysis, govulncheck, and
   `go mod tidy -diff` / `go mod verify`. The `gorelease` job reports API
   changes and does not block.
+
+## Local infrastructure integration tests
+
+Run `task test:integration:pull` once to download the digest-pinned PostgreSQL
+18.6, MongoDB 9.0.4, RabbitMQ 4.4.0 and Testcontainers Ryuk 0.14.0 images.
+Then run `task test:integration`. Tests require a local Docker Unix socket,
+use ephemeral ports and disposable state, and fail if images are not cached.
+They never use a configured application database or broker. Testcontainers
+v0.44.0 is an integration-only dependency in the single SDK module.
+
+The `integration` build tag excludes the suites from normal builds; `-short`
+also skips them before Docker access. To verify this guard, run
+`go test -tags integration -short ./...`. Containers have bounded readiness
+and cleanup contexts; clients close before their containers. Keep Ryuk enabled
+for crash cleanup. To repeat the real suites with shuffled ordering, run
+`go test -race -tags integration -run Integration -count=2 -shuffle=on -timeout=10m ./postgres ./mongo ./messaging`.
