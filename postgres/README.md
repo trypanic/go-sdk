@@ -261,14 +261,14 @@ A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
 
 `NewStoredProcedure[T]`, `WrapWithTracing[T]`, and `WrapWithInstrumenter[T]` install a wrapper
 that opens one span per call. The span name is derived from the SQL string by extracting the
-function name in `SELECT * FROM <fn>(...)`:
+unquoted, optionally schema-qualified routine in `SELECT ... FROM <fn>(...)` or `CALL <fn>(...)`:
 
 ```
-SELECT * FROM get_item($1)             → span: "postgres.get_item"
-SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items"
+SELECT * FROM get_item($1)             → span: "postgres.get_item.query"
+SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items.query"
 ```
 
-If the regular expression does not match the SQL, the span name falls back to `"postgres.query"`.
+If the regular expression does not match the SQL, the span name falls back to `"postgres.unknown.query"`.
 
 Pass `nil` to `WrapWithInstrumenter` to skip the wrapper and use the bare `StoredProcedure[T]`
 directly.
@@ -393,3 +393,5 @@ metadata description (or "operation failed"), excluding private reasons, wrapped
 errors, payloads and stacks. Successful spans retain their existing status.
 
 PostgreSQL operation spans carry `db.system=postgresql`.
+
+Span names now follow `postgres.<routine>.query`; for example, `CALL audit.clean($1)` produces `postgres.audit.clean.query`. Update dashboards that used the previous names. SQL text and argument values are not span-name components.

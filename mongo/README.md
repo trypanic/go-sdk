@@ -251,7 +251,7 @@ collection operation, named `mongo.<collection>.<operation>` (e.g.
 `mongo.products.insertOne`). The cursor returned by `Find` opens a second span,
 `mongo.<collection>.find.all`, around `Cursor.All`, because fetching further
 batches and decoding happen after `Find` returns. `ClientPort.Ping` and
-`ClientPort.Close` open `mongo.ping` and `mongo.close`.
+`ClientPort.Close` open `mongo.client.ping` and `mongo.client.close`.
 
 The wrapper holds an explicit `*telemetry.Instrumenter`, so consumers can:
 
@@ -379,3 +379,5 @@ errors, payloads and stacks. Successful spans retain their existing status.
 `FindOne` reports deferred operation/decode failures in a child
 `mongo.<collection>.findOne.decode` span when `Decode` is called. The initial
 find span always ends when FindOne returns, even if the result is never decoded.
+
+Span names use the shared `Instrumenter.DB` convention. Update dashboards that previously selected `mongo.ping` or `mongo.close` to use `mongo.client.ping` or `mongo.client.close`.

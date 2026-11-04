@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"net/url"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -129,7 +129,7 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 	require.NoError(t, r.Do(t.Context(), RequestConfig{Method: http.MethodPost, URL: srv.URL + "/v1/chat/completions"}, nil))
 	spans := recorder.Ended()
 	require.Len(t, spans, 1)
-	require.Equal(t, "http.0.POST.chat.completions", spans[0].Name(), "loopback host keyword is the second-to-last label of 127.0.0.1")
+	require.Equal(t, "external.http.127.0.0.1.POST", spans[0].Name(), "path segments do not enter the span name")
 
 	plain := NewWithInstrumenter(srv.Client(), nil)
 	require.Nil(t, plain.instrumenter, "a nil instrumenter disables tracing")
@@ -141,10 +141,10 @@ func TestHTTPSpanName(t *testing.T) {
 	t.Parallel()
 
 	for rawURL, want := range map[string]string{
-		"https://openapi.taobao.com/purchase/order/render": "http.taobao.POST.order.render",
-		"http://localhost:8080/items":                      "http.localhost.POST.items",
-		"https://api.example.com/":                         "http.example.POST.root",
-		"://bad":                                           "http.unknown.POST.unknown",
+		"https://openapi.taobao.com/purchase/order/render": "external.http.openapi.taobao.com.POST",
+		"http://localhost:8080/items":                      "external.http.localhost.POST",
+		"https://api.example.com/":                         "external.http.api.example.com.POST",
+		"://bad":                                           "external.http.unknown.POST",
 	} {
 		require.Equal(t, want, httpSpanName("post", rawURL), rawURL)
 	}
@@ -204,14 +204,10 @@ func FuzzSpanNameHelpers(f *testing.F) {
 	f.Add("", "")
 	f.Add("[::1]:80", "///")
 	f.Fuzz(func(t *testing.T, host, path string) {
-		_ = hostKeyword(host)
-		seg := lastTwoPathSegments(path)
-		if seg == "" {
-			t.Fatalf("lastTwoPathSegments(%q) is empty", path)
-		}
-		if strings.Trim(path, "/") == "" && seg != "root" {
-			t.Fatalf("lastTwoPathSegments(%q) = %q, want root", path, seg)
-		}
+		require.NotEmpty(t, hostKeyword(host))
+		// Arbitrary resource identifiers must not affect the operation name.
+		base := "https://api.example.com/"
+		require.Equal(t, httpSpanName("GET", base), httpSpanName("GET", base+url.PathEscape(path)))
 	})
 }
 

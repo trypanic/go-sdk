@@ -42,8 +42,8 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 	}
 
 	spans := recorder.Ended()
-	if len(spans) != 1 || spans[0].Name() != "llm.gpt-x" {
-		t.Fatalf("spans = %v, want one span named llm.gpt-x", spans)
+	if len(spans) != 1 || spans[0].Name() != "external.llm.execute" {
+		t.Fatalf("spans = %v, want one span named external.llm.execute", spans)
 	}
 	if stub.parent.SpanID() != spans[0].SpanContext().SpanID() {
 		t.Fatal("the HTTP call must run inside the llm span")
@@ -74,13 +74,17 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 	}
 }
 
-func TestLLMSpanName(t *testing.T) {
-	t.Parallel()
-
-	if got := llmSpanName("m1"); got != "llm.m1" {
-		t.Fatalf("llmSpanName(m1) = %q", got)
+func TestLLMSpanNamesStayBounded(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	instr := telemetry.NewInstrumenter(telemetry.InstrumenterConfig{TracerProvider: provider})
+	for _, model := range []string{"m1", "m2", ""} {
+		_, span := llmSpan(instr, t.Context(), model)
+		span.End()
 	}
-	if got := llmSpanName(""); got != "llm.execute" {
-		t.Fatalf("llmSpanName(\"\") = %q", got)
+	for _, span := range recorder.Ended() {
+		if span.Name() != "external.llm.execute" {
+			t.Fatalf("unbounded model span %s", span.Name())
+		}
 	}
 }

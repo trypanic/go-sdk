@@ -2,6 +2,7 @@ package httprequest
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"strings"
 
@@ -10,33 +11,8 @@ import (
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
-// WrapWithTracing wraps an HTTPRequester with automatic span creation.
-//
-// Each call to Do opens a span derived from the request URL and method:
-//
-//	"http.<domain>.<METHOD>.<parent>.<last>"
-//
-// Domain extraction: takes the second-to-last part of the hostname.
-//
-//	"openapi.taobao.com" → "taobao"
-//	"api.example.com"   → "example"
-//	"localhost"         → "localhost"
-//
-// Path extraction: takes the last two non-empty segments of the URL path,
-// providing resource context alongside the action name.
-//
-// Examples:
-//
-//	GET  https://openapi.taobao.com/product/spus/get      → span: "http.taobao.GET.spus.get"
-//	POST https://openapi.taobao.com/product/details/query → span: "http.taobao.POST.details.query"
-//	POST https://openapi.taobao.com/purchase/order/render → span: "http.taobao.POST.order.render"
-//
-// The span becomes the parent of the underlying HTTP transport spans, making the
-// trace tree immediately readable without any instrumentation in datasource methods.
-//
-// Usage (in bootstrap):
-//
-//	datasources.NewTaobao(httprequest.WrapWithTracing(httpClient), ...)
+// WrapWithTracing adds bounded external.http.<host>.<method> client spans.
+// The URL path is an attribute; query strings and credentials are omitted.
 func WrapWithTracing(inner HTTPRequester) HTTPRequester {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
@@ -57,53 +33,45 @@ type tracingHTTPRequester struct {
 }
 
 func (t *tracingHTTPRequester) Do(ctx context.Context, config RequestConfig, out any) (err error) {
-	ctx, span := t.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL), telemetry.WithSpanKind(trace.SpanKindClient))
+	ctx, span := httpSpan(t.instrumenter, ctx, config)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Do(ctx, config, out)
 }
 
+func httpSpan(i *telemetry.Instrumenter, ctx context.Context, config RequestConfig) (context.Context, telemetry.Span) {
+	host, method, path := httpSpanParts(config.Method, config.URL)
+	return i.External(ctx, "http."+host, method, telemetry.WithSpanKind(trace.SpanKindClient), telemetry.WithString("server.address", host), telemetry.WithString("http.request.method", method), telemetry.WithString("url.path", path))
+}
+
 func httpSpanName(method, rawURL string) string {
+	host, method, _ := httpSpanParts(method, rawURL)
+	return "external.http." + host + "." + method
+}
+
+func httpSpanParts(method, rawURL string) (string, string, string) {
+	method = strings.ToUpper(method)
+	switch method {
+	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE":
+	default:
+		method = "OTHER"
+	}
 	u, err := url.Parse(rawURL)
-	if err != nil {
-		return "http.unknown." + strings.ToUpper(method) + ".unknown"
+	if err != nil || u.Host == "" {
+		return "unknown", method, ""
 	}
-	return "http." + hostKeyword(u.Host) + "." + strings.ToUpper(method) + "." + lastTwoPathSegments(u.Path)
+	return hostKeyword(u.Host), method, u.EscapedPath()
 }
 
-// hostKeyword extracts the meaningful identifier from a hostname.
-// Takes the second-to-last label (before the TLD) for multi-part domains,
-// or the full label for single-part hostnames like "localhost".
+// hostKeyword strips an optional port without truncating IPv6 addresses.
 func hostKeyword(host string) string {
-	// Strip port if present
-	if idx := strings.LastIndex(host, ":"); idx != -1 {
-		host = host[:idx]
+	if name, _, err := net.SplitHostPort(host); err == nil {
+		host = name
 	}
-	parts := strings.Split(host, ".")
-	switch len(parts) {
-	case 0:
+	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	if host == "" {
 		return "unknown"
-	case 1:
-		return parts[0]
-	default:
-		return parts[len(parts)-2]
 	}
-}
-
-// lastTwoPathSegments returns the last two non-empty segments of a URL path joined by a dot.
-// "/product/spus/get"      → "spus.get"
-// "/purchase/order/render" → "order.render"
-// "/items"                 → "items"
-// "/"                      → "root"
-func lastTwoPathSegments(p string) string {
-	parts := strings.FieldsFunc(p, func(r rune) bool { return r == '/' })
-	switch len(parts) {
-	case 0:
-		return "root"
-	case 1:
-		return parts[0]
-	default:
-		return parts[len(parts)-2] + "." + parts[len(parts)-1]
-	}
+	return strings.ToLower(host)
 }
 
 // Unwrap returns the request implementation enclosed by this decorator.

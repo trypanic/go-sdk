@@ -157,8 +157,8 @@ func TestTracingClientPortTracesPingAndClose(t *testing.T) {
 	for _, span := range exporter.GetSpans() {
 		names = append(names, span.Name)
 	}
-	if len(names) != 2 || names[0] != "mongo.ping" || names[1] != "mongo.close" {
-		t.Fatalf("spans = %v, want [mongo.ping mongo.close]", names)
+	if len(names) != 2 || names[0] != "mongo.client.ping" || names[1] != "mongo.client.close" {
+		t.Fatalf("spans = %v, want [mongo.client.ping mongo.client.close]", names)
 	}
 }
 

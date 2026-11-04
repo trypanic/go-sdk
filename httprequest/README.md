@@ -356,3 +356,14 @@ Tracing adapters emit client-kind spans and finalize failures through
 errors, `error.code` and `error.retriable`. Exception text uses the registered
 metadata description (or "operation failed"), excluding private reasons, wrapped
 errors, payloads and stacks. Successful spans retain their existing status.
+
+### Stable operation names
+
+Client spans use `external.http.<host>.<METHOD>`, for example
+`external.http.api.example.com.GET`. The hostname excludes credentials and
+ports and preserves IPv6 addresses. Standard methods are normalized to uppercase;
+custom methods use `OTHER`. Missing or invalid hosts use `unknown`.
+`server.address`, `http.request.method`, and `url.path` carry request details;
+query values and userinfo are excluded from these attributes. Paths and resource
+IDs do not affect span names. Update dashboards that selected the previous
+host/path-based names.

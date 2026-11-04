@@ -108,12 +108,12 @@ func TestProcSpanName(t *testing.T) {
 		sql  string
 		want string
 	}{
-		{"SELECT * FROM check_or_create_job($1, $2)", "postgres.check_or_create_job"},
-		{"select * from Get_Job ($1)", "postgres.Get_Job"},
-		{"SELECT *\n  FROM\tlist_jobs()", "postgres.list_jobs"},
-		{"SELECT 1", "postgres.query"},
-		{"SELECT * FROM jobs WHERE id = $1", "postgres.query"},
-		{"", "postgres.query"},
+		{"SELECT * FROM check_or_create_job($1, $2)", "postgres.check_or_create_job.query"},
+		{"select * from Get_Job ($1)", "postgres.Get_Job.query"},
+		{"SELECT *\n  FROM\tlist_jobs()", "postgres.list_jobs.query"},
+		{"SELECT 1", "postgres.unknown.query"},
+		{"SELECT * FROM jobs WHERE id = $1", "postgres.unknown.query"},
+		{"", "postgres.unknown.query"},
 	}
 	for _, tt := range tests {
 		if got := procSpanName(tt.sql); got != tt.want {

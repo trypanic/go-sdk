@@ -55,13 +55,13 @@ func (t *tracingClientPort) Collection(name string) Collection {
 }
 
 func (t *tracingClientPort) Ping(ctx context.Context) (err error) {
-	ctx, span := t.instrumenter.Start(ctx, "mongo.ping", telemetry.WithSpanKind(trace.SpanKindClient))
+	ctx, span := t.instrumenter.DB(ctx, "mongo", "client", "ping", telemetry.WithSpanKind(trace.SpanKindClient))
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Ping(ctx)
 }
 
 func (t *tracingClientPort) Close(ctx context.Context) (err error) {
-	ctx, span := t.instrumenter.Start(ctx, "mongo.close", telemetry.WithSpanKind(trace.SpanKindClient))
+	ctx, span := t.instrumenter.DB(ctx, "mongo", "client", "close", telemetry.WithSpanKind(trace.SpanKindClient))
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Close(ctx)
 }
@@ -73,7 +73,7 @@ type tracingCollection struct {
 }
 
 func (c tracingCollection) span(ctx context.Context, op string) (context.Context, telemetry.Span) {
-	return c.instrumenter.Start(ctx, "mongo."+c.name+"."+op, telemetry.WithSpanKind(trace.SpanKindClient))
+	return c.instrumenter.DB(ctx, "mongo", c.name, op, telemetry.WithSpanKind(trace.SpanKindClient))
 }
 
 func (c tracingCollection) InsertOne(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (result InsertOneResult, err error) {

@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"time"
 
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httprequest"
 	"github.com/trypanic/go-sdk/marshal"
@@ -153,7 +151,7 @@ func (c *Client) timeout() time.Duration {
 func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (result string, err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, llmSpanName(reqConfig.Model), telemetry.WithSpanKind(trace.SpanKindClient))
+		ctx, span = llmSpan(c.instrumenter, ctx, reqConfig.Model)
 		defer func() { telemetry.End(span, err) }()
 	}
 

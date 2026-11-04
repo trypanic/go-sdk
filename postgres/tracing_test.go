@@ -31,8 +31,8 @@ func TestWrapWithInstrumenterUsesExplicitInstrumenter(t *testing.T) {
 	if len(spans) != 1 {
 		t.Fatalf("exported spans = %d, want 1", len(spans))
 	}
-	if spans[0].Name != "postgres.amz_test_proc" {
-		t.Fatalf("span name = %q, want postgres.amz_test_proc", spans[0].Name)
+	if spans[0].Name != "postgres.amz_test_proc.query" {
+		t.Fatalf("span name = %q, want postgres.amz_test_proc.query", spans[0].Name)
 	}
 	if spans[0].InstrumentationScope.Name != "database-test" {
 		t.Fatalf("scope name = %q, want database-test", spans[0].InstrumentationScope.Name)

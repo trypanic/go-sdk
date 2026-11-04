@@ -89,8 +89,8 @@ call may be billed twice.
 
 ## Tracing
 
-`New` and `NewWithInstrumenter` open a span named `llm.<model>` (or
-`llm.execute` if the model is empty). The span is the parent of the
+`New` and `NewWithInstrumenter` open a span named `external.llm.execute`.
+The selected model is recorded as `gen_ai.request.model`, rather than in the name. The span is the parent of the
 `httprequest` span produced by the underlying HTTP call, so end-to-end LLM
 latency is visible in the trace tree without instrumenting call sites.
 
@@ -110,3 +110,5 @@ Tracing adapters emit client-kind spans and finalize failures through
 errors, `error.code` and `error.retriable`. Exception text uses the registered
 metadata description (or "operation failed"), excluding private reasons, wrapped
 errors, payloads and stacks. Successful spans retain their existing status.
+
+Update dashboards that used `llm.<model>` or `llm.execute` to select `external.llm.execute`. Model changes no longer create new operation names.

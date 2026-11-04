@@ -110,7 +110,7 @@ func (c *Client) Collection(name string) Collection {
 func (c *Client) Ping(ctx context.Context) (err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, "mongo.ping", telemetry.WithSpanKind(trace.SpanKindClient))
+		ctx, span = c.instrumenter.DB(ctx, "mongo", "client", "ping", telemetry.WithSpanKind(trace.SpanKindClient))
 		defer func() { telemetry.End(span, err) }()
 	}
 	if err := c.client.Ping(ctx, readpref.Primary()); err != nil {
@@ -123,7 +123,7 @@ func (c *Client) Ping(ctx context.Context) (err error) {
 func (c *Client) Close(ctx context.Context) (err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, "mongo.close", telemetry.WithSpanKind(trace.SpanKindClient))
+		ctx, span = c.instrumenter.DB(ctx, "mongo", "client", "close", telemetry.WithSpanKind(trace.SpanKindClient))
 		defer func() { telemetry.End(span, err) }()
 	}
 	if c.borrowed {
