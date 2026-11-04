@@ -82,7 +82,7 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		engine.NoMethod(noMethodHandler(srvOpts))
 	}
 	if srvOpts.EnableHealth {
-		engine.GET("/health", health())
+		engine.GET(srvOpts.HealthPath, health(srvOpts.HealthCheck))
 	}
 
 	return w
@@ -101,6 +101,9 @@ func applyOptionDefaults(o httpserver.ServerOptions) httpserver.ServerOptions {
 	}
 	if o.Audit.BodyRedactor == nil {
 		o.Audit.BodyRedactor = d.Audit.BodyRedactor
+	}
+	if o.HealthPath == "" {
+		o.HealthPath = d.HealthPath
 	}
 	if o.Reply.Layout == "" {
 		o.Reply.Layout = d.Reply.Layout
@@ -239,8 +242,21 @@ func inboundHeaderValue(key, value string) string {
 	return value
 }
 
-func health() app.HandlerFunc {
+// health answers the built-in health endpoint. With a check it is a
+// readiness probe; the check error is logged, never sent to the client.
+func health(check func(context.Context) error) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		c.JSON(200, map[string]any{"status": "healthy"})
+		if check != nil {
+			if err := check(ctx); err != nil {
+				appErr := errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
+					errorkit.WithReason("health check failed"),
+					errorkit.WithWrapped(err),
+				)
+				logger.WarnCtx(ctx, appErr, "httpserver: health check failed")
+				c.JSON(consts.StatusServiceUnavailable, map[string]any{"status": "unhealthy"})
+				return
+			}
+		}
+		c.JSON(consts.StatusOK, map[string]any{"status": "healthy"})
 	}
 }

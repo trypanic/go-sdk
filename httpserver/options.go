@@ -1,6 +1,9 @@
 package httpserver
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // BodyRedactor turns a raw HTTP body into a representation safe for logs.
 // The default redactor replaces any non-empty body with `[REDACTED]`.
@@ -62,6 +65,16 @@ type ServerOptions struct {
 	// NoMethodStatus is the HTTP status returned by the default NoMethod
 	// handler. Defaults to 405. Ignored when NoMethodHandler is non-nil.
 	NoMethodStatus int
+	// HealthPath is the route of the built-in health endpoint installed by
+	// EnableHealth. Defaults to DefaultHealthPath ("/health"). The path is
+	// reserved: registering the same GET route again panics in the
+	// framework, so pick another path or disable EnableHealth.
+	HealthPath string
+	// HealthCheck, when non-nil, turns the health endpoint into a
+	// readiness probe: a non-nil error answers 503 {"status":"unhealthy"}
+	// (the error text is logged, never sent). Nil keeps a liveness probe
+	// that always answers 200 {"status":"healthy"}.
+	HealthCheck func(ctx context.Context) error
 	// NoRouteHandler overrides the built-in NoRoute response.
 	NoRouteHandler HandlerFunc
 	// NoMethodHandler overrides the built-in NoMethod response.
@@ -70,6 +83,9 @@ type ServerOptions struct {
 	Audit AuditOptions
 	Reply ReplyOptions
 }
+
+// DefaultHealthPath is the default route of the built-in health endpoint.
+const DefaultHealthPath = "/health"
 
 // DefaultServerOptions returns the compatibility profile: every built-in
 // middleware enabled, audit body capture OFF (redaction by default),
@@ -84,6 +100,7 @@ func DefaultServerOptions() ServerOptions {
 		EnableNoMethod: true,
 		NoRouteStatus:  404,
 		NoMethodStatus: 405,
+		HealthPath:     DefaultHealthPath,
 		Audit: AuditOptions{
 			CaptureBodies: false,
 			BodyRedactor:  DefaultBodyRedactor,

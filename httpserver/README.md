@@ -102,6 +102,8 @@ type ServerOptions struct {
 
     NoRouteStatus   int
     NoMethodStatus  int
+    HealthPath      string                          // default "/health"
+    HealthCheck     func(ctx context.Context) error // optional readiness hook
     NoRouteHandler  HandlerFunc
     NoMethodHandler HandlerFunc
 
@@ -117,11 +119,20 @@ type ServerOptions struct {
 | `EnableTracing` / `EnableRecovery` / `EnableAudit` / `EnableHealth` / `EnableNoRoute` / `EnableNoMethod` | `true` |
 | `NoRouteStatus` | `404` |
 | `NoMethodStatus` | `405` |
+| `HealthPath` | `"/health"` (`DefaultHealthPath`) |
+| `HealthCheck` | `nil` (liveness: always 200) |
 | `NoRouteHandler` / `NoMethodHandler` | `nil` (use status defaults) |
 | `Audit.CaptureBodies` | `false` |
 | `Audit.BodyRedactor` | `DefaultBodyRedactor` (replaces non-empty body with `[REDACTED]`) |
 | `Reply.Layout` | `"2006-01-02 15:04:05"` |
 | `Reply.Clock` | `time.Now` |
+
+**Health endpoint.** With `EnableHealth`, `GET <HealthPath>` answers
+`200 {"status":"healthy"}`. The path is reserved: registering your own
+`GET /health` on a default server panics in the framework, so set
+`HealthPath` (e.g. `"/livez"`) or `EnableHealth = false`. Set
+`HealthCheck` to make it a readiness probe: a non-nil error answers
+`503 {"status":"unhealthy"}` and is logged at warn level, never sent.
 
 `EnableRecovery` is the only recovery layer. When `true`, the adapter's
 `RecoveryHandler` is the outermost middleware (it also covers the built-in

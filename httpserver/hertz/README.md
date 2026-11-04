@@ -20,6 +20,9 @@ does not.
 ## Defaults from `DefaultServerOptions()`
 
 - Tracing, recovery, audit, `/health`, NoRoute, NoMethod all enabled.
+- `/health` is reserved while `EnableHealth` is true (registering it again
+  panics in Hertz); move it with `HealthPath` and add readiness with
+  `HealthCheck`.
 - Audit body capture OFF; non-empty bodies redacted to `[REDACTED]`.
 - Unknown route → HTTP 404. Unknown method → HTTP 405.
 - Reply timestamp: `time.Now().Format("2006-01-02 15:04:05")`.
