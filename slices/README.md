@@ -66,7 +66,9 @@ The final chunk may be shorter than `size`. Returns `nil` when `size <= 0`
 or when `items` is `nil`.
 
 Sub-slices are views into the original backing array; mutating an element
-through a chunk affects `items`.
+through a chunk affects `items`. Each chunk's capacity is clipped to its length
+(`items[i:end:end]`, as in the standard library `slices.Chunk`), so `append` on
+a chunk allocates a new array instead of overwriting the next chunk or `items`.
 
 ```go
 chunks := slices.Chunk([]int{1, 2, 3, 4, 5}, 2)

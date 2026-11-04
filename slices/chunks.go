@@ -13,7 +13,7 @@ func Chunk[T any](items []T, size int) [][]T {
 		if end > len(items) {
 			end = len(items)
 		}
-		chunks = append(chunks, items[i:end])
+		chunks = append(chunks, items[i:end:end])
 	}
 	return chunks
 }

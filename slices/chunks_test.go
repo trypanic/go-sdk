@@ -67,3 +67,24 @@ func TestMergeUniqueStringsPreservesOrderAndDedupes(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
+
+// Each chunk is clipped to its length, so appending to one chunk
+// reallocates instead of overwriting the next chunk and the caller's
+// backing array (stdlib slices.Chunk does the same).
+func TestChunkAppendDoesNotOverwriteNextChunk(t *testing.T) {
+	t.Parallel()
+
+	items := []int{1, 2, 3, 4}
+	c := Chunk(items, 2)
+	if cap(c[0]) != len(c[0]) {
+		t.Fatalf("cap(c[0]) = %d, want %d", cap(c[0]), len(c[0]))
+	}
+	c[0] = append(c[0], 99)
+
+	if want := []int{1, 2, 3, 4}; !reflect.DeepEqual(items, want) {
+		t.Fatalf("items after append = %v, want %v", items, want)
+	}
+	if want := []int{3, 4}; !reflect.DeepEqual(c[1], want) {
+		t.Fatalf("c[1] after append = %v, want %v", c[1], want)
+	}
+}
