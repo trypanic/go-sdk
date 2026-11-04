@@ -1,0 +1,53 @@
+{"name": "integration-repeat", "command": "go test -v -race -tags integration -run \"Integration|TestBindLoopback\" -count=2 -shuffle=on -timeout=10m ./postgres ./mongo ./messaging ./internal/integrationtest", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 9.46}
+{"name": "check", "command": "task check", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 26.06}
+{"name": "task-test", "command": "task test", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 2.69}
+{"name": "tagged-vet", "command": "go vet -tags integration ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.55}
+{"name": "tagged-staticcheck", "command": "staticcheck -tags integration ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 1.03}
+{"name": "tagged-vuln", "command": "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -tags=integration -test ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 4.53}
+{"name": "lint", "command": "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download GOSUMDB=off task lint", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.83}
+{"name": "matrix-1.26.x-test-2-negative", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 1, "seconds": 0.01}
+{"name": "matrix-1.26.x-test-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "matrix-1.26.x-test-3", "command": "go build ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.53}
+{"name": "matrix-1.26.x-test-4", "command": "go vet ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 1.14}
+{"name": "matrix-1.26.x-test-5", "command": "go test -race -shuffle=on -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 5.25}
+{"name": "matrix-1.26.x-vuln-2-negative", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 1, "seconds": 0.01}
+{"name": "matrix-1.26.x-vuln-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "release-default", "command": "task release:check", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 201, "seconds": 11.39}
+{"name": "matrix-1.26.x-vuln-3", "command": "go run \"golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}\" ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 4.22}
+{"name": "matrix-1.26.x-tagged-short", "command": "go test -count=1 -tags integration -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 2.12}
+{"name": "matrix-1.27.x-test-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "matrix-1.27.x-test-3", "command": "go build ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.13}
+{"name": "matrix-1.27.x-test-4", "command": "go vet ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.21}
+{"name": "matrix-1.27.x-test-5", "command": "go test -race -shuffle=on -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 3.95}
+{"name": "matrix-1.27.x-vuln-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "release-comparison", "command": "task release:check RELEASE_VERSION=v2.0.0", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 6.88}
+{"name": "release-initial", "command": "task release:check BASE=none RELEASE_VERSION=v2.0.0", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 3.07}
+{"name": "coverage", "command": "go test -short -count=1 -coverprofile=/tmp/DEPS-review2/coverage.out ./... && go tool cover -func=/tmp/DEPS-review2/coverage.out", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 3.37}
+{"name": "short-no-docker", "command": "DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -tags integration -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 1.97}
+{"name": "matrix-1.27.x-vuln-3", "command": "go run \"golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}\" ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 8.98}
+{"name": "short-no-docker-verbose", "command": "DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -v -tags integration -short -run \"Integration|TestBindLoopback\" ./postgres ./mongo ./messaging ./internal/integrationtest", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.91}
+{"name": "format", "command": "gofmt -l .", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.24}
+{"name": "status", "command": "git status --porcelain", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "matrix-1.27.x-tagged-short", "command": "go test -count=1 -tags integration -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 1.91}
+{"name": "service-wildcard", "command": "go test -v -race -tags integration -run TestPostgresIntegration -count=1 -timeout=3m ./postgres", "cwd": "/tmp/DEPS-review2/service-wildcard", "exit": 1, "expected": 1, "seconds": 3.35}
+{"name": "reaper-wildcard", "command": "go test -v -race -tags integration -run TestPostgresIntegration -count=1 -timeout=3m ./postgres", "cwd": "/tmp/DEPS-review2/reaper-wildcard", "exit": 1, "expected": 1, "seconds": 3.31}
+{"name": "crash-build", "command": "go test -c -race -tags integration -o /tmp/DEPS-review2/crash.test ./internal/integrationtest", "cwd": "/tmp/DEPS-review2/crash", "exit": 0, "expected": 0, "seconds": 0.68}
+{"name": "modules-5e57bba", "command": "go list -m all", "cwd": "/tmp/DEPS-review2/modules-5e57bba", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "graph-5e57bba", "command": "go mod graph", "cwd": "/tmp/DEPS-review2/modules-5e57bba", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "modules-ac8ab8e", "command": "go list -m all", "cwd": "/tmp/DEPS-review2/modules-ac8ab8e", "exit": 0, "expected": 0, "seconds": 0.02}
+{"name": "graph-ac8ab8e", "command": "go mod graph", "cwd": "/tmp/DEPS-review2/modules-ac8ab8e", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "modules-ddf7afd", "command": "go list -m all", "cwd": "/tmp/DEPS-review2/modules-ddf7afd", "exit": 0, "expected": 0, "seconds": 0.02}
+{"name": "graph-ddf7afd", "command": "go mod graph", "cwd": "/tmp/DEPS-review2/modules-ddf7afd", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "normal-closure", "command": "go list -deps -test ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.18}
+{"name": "tagged-closure", "command": "go list -tags integration -deps -test ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.19}
+{"name": "packages", "command": "go list ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.11}
+{"name": "format-diff", "command": "git diff --check 5e57bba..HEAD", "cwd": "/tmp/DEPS-review2/clone", "exit": 2, "expected": 2, "seconds": 0.02}
+{"name": "hooks-full", "command": "task precommit:run", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 6.48}
+{"name": "xp-positive", "command": "go test -race -short -count=5 -run \"TestChunkedJSONTrailingLimit|TestSubscribeOutlivesConstructionContext\" ./httprequest ./messaging", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 1.48}
+{"name": "docker-final", "command": "docker ps -a --filter label=org.testcontainers=true --format json", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}
+{"name": "xp-json", "command": "go test -race -count=1 -run TestChunkedJSONTrailingLimit ./httprequest", "cwd": "/tmp/DEPS-review2/xp-json", "exit": 1, "expected": 1, "seconds": 1.16}
+{"name": "xp-lifetime", "command": "go test -race -count=1 -run TestSubscribeOutlivesConstructionContext ./messaging", "cwd": "/tmp/DEPS-review2/xp-lifetime", "exit": 1, "expected": 1, "seconds": 1.24}
+{"name": "AGENTS.md-0-build", "command": "go build -o /tmp/DEPS-review2/AGENTS.md-0 /tmp/DEPS-review2/AGENTS.md-0.go", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.7}
+{"name": "AGENTS.md-0-vet", "command": "go vet /tmp/DEPS-review2/AGENTS.md-0.go", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.15}
+{"name": "README.md-0-build", "command": "go build -o /tmp/DEPS-review2/README.md-0 /tmp/DEPS-review2/README.md-0.go", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.28}
+{"name": "README.md-0-vet", "command": "go vet /tmp/DEPS-review2/README.md-0.go", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.08}

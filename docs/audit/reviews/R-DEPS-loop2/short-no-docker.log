@@ -1,0 +1,32 @@
+$ DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -tags integration -short ./...
+ok      github.com/trypanic/go-sdk/v2/algorithms    0.014s
+ok      github.com/trypanic/go-sdk/v2/batch 0.006s
+ok      github.com/trypanic/go-sdk/v2/envs  0.018s
+ok      github.com/trypanic/go-sdk/v2/errorkit  0.016s
+ok      github.com/trypanic/go-sdk/v2/grpc  0.379s
+?       github.com/trypanic/go-sdk/v2/grpc/internal/testsvc [no test files]
+ok      github.com/trypanic/go-sdk/v2/httpclient    0.016s
+ok      github.com/trypanic/go-sdk/v2/httprequest   0.213s
+ok      github.com/trypanic/go-sdk/v2/httpserver    0.005s
+ok      github.com/trypanic/go-sdk/v2/httpserver/hertz  0.347s
+ok      github.com/trypanic/go-sdk/v2/httpserver/httpservertest 0.011s
+ok      github.com/trypanic/go-sdk/v2/internal/apicontract  0.008s
+ok      github.com/trypanic/go-sdk/v2/internal/backoff  0.005s
+ok      github.com/trypanic/go-sdk/v2/internal/integrationtest  0.087s
+?       github.com/trypanic/go-sdk/v2/internal/logctx   [no test files]
+ok      github.com/trypanic/go-sdk/v2/internal/redact   0.012s
+ok      github.com/trypanic/go-sdk/v2/ioutils   0.011s
+ok      github.com/trypanic/go-sdk/v2/llmclient 0.011s
+ok      github.com/trypanic/go-sdk/v2/logger    0.169s
+ok      github.com/trypanic/go-sdk/v2/logger/otlp   0.533s
+ok      github.com/trypanic/go-sdk/v2/marshal   0.005s
+ok      github.com/trypanic/go-sdk/v2/messaging 0.177s
+ok      github.com/trypanic/go-sdk/v2/messaging/messagingtest   0.005s
+ok      github.com/trypanic/go-sdk/v2/mongo 0.045s
+ok      github.com/trypanic/go-sdk/v2/mongo/mongotest   0.004s
+ok      github.com/trypanic/go-sdk/v2/postgres  0.034s
+ok      github.com/trypanic/go-sdk/v2/storage   0.010s
+ok      github.com/trypanic/go-sdk/v2/stringutils   0.004s
+ok      github.com/trypanic/go-sdk/v2/telemetry 0.007s
+ok      github.com/trypanic/go-sdk/v2/urlkit    0.005s
+ok      github.com/trypanic/go-sdk/v2/validators    0.004s

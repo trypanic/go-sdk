@@ -1,0 +1,10 @@
+{
+  "exit": 23,
+  "cleanup_callback_ran": false,
+  "session": "77d4d77b6dac6f9809f716b00ebd2940d70133a2d21b02e7f929d962539677e1",
+  "initial_containers": [
+    "ebb0fd72bed3",
+    "8ce6c5d0d6ec"
+  ],
+  "remaining": []
+}

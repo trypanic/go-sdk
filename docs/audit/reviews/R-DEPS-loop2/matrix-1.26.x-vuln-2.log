@@ -1,0 +1,8 @@
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.26.10

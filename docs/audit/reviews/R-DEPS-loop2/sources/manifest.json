@@ -1,0 +1,52 @@
+[
+  {
+    "file": "archive-advisory.json",
+    "url": "https://vuln.go.dev/ID/GO-2026-6253.json",
+    "sha256": "4f337e5aad0f8e83e3db2fc67d058fe0e80017b8c68f494b7e82be87e7120872"
+  },
+  {
+    "file": "crypto-advisory.json",
+    "url": "https://vuln.go.dev/ID/GO-2026-5932.json",
+    "sha256": "bde8769150ec1368d9a8dbd61fbbde52296de692c57147e02e3ae295e1981f11"
+  },
+  {
+    "file": "crypto-tags.txt",
+    "url": "https://proxy.golang.org/golang.org/x/crypto/@v/list",
+    "sha256": "343897e8f41f6038af49b228235a5d5dedfcfc91bda6909f8f6d20e7206b17b9"
+  },
+  {
+    "file": "testcontainers-release.json",
+    "url": "https://api.github.com/repos/testcontainers/testcontainers-go/releases/tags/v0.44.0",
+    "sha256": "f6ca8153dbe70b06c6277c392e9685b0ef16c2825aac01dc571f562537f74686"
+  },
+  {
+    "file": "archive-release.json",
+    "url": "https://api.github.com/repos/moby/go-archive/releases/tags/v0.3.0",
+    "sha256": "d51914d99cd547d7323d3c82d4e9401847c26dbd6c1c7c1ba77d297876959174"
+  },
+  {
+    "file": "archive-previous-release.json",
+    "url": "https://api.github.com/repos/moby/go-archive/releases/tags/v0.2.1",
+    "sha256": "4c09bc15927c7a5b05353666f6832e45b09366566ddeb569834b9b621af307bb"
+  },
+  {
+    "file": "user-release.json",
+    "url": "https://api.github.com/repos/moby/sys/releases/tags/user/v0.4.1",
+    "sha256": "33cc08bdcc2bc0fb81ecd21ff13bce9da294e0ee8afb918e6bf94c2f37108eea"
+  },
+  {
+    "file": "testcontainers.mod",
+    "url": "https://raw.githubusercontent.com/testcontainers/testcontainers-go/v0.44.0/go.mod",
+    "sha256": "d6ee7109c50c5a3557f86dd5e2d4eb88dd3e00d5d3b44e0a395447a0213c6dd0"
+  },
+  {
+    "file": "archive.mod",
+    "url": "https://raw.githubusercontent.com/moby/go-archive/v0.3.0/go.mod",
+    "sha256": "5e848da6d91fd4d66420a8695dde1ea8e3747103742bba45e4d1151fc7225f7e"
+  },
+  {
+    "file": "user.mod",
+    "url": "https://raw.githubusercontent.com/moby/sys/user/v0.4.1/user/go.mod",
+    "sha256": "b32137c4588ee86da690b1cbdd5d6d086fb2254625893b6cb590fb2c02672cb6"
+  }
+]

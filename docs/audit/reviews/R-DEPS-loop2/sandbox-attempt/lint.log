@@ -1,0 +1,7 @@
+$ GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download GOSUMDB=off task lint
+pattern ./...: open /home/trypanic/.cache/go-build/48/4826249f4664b1aeb6dd08e031b81ec4893433923700b1ad06487026bc602904-d: read-only file system
+task: [lint] go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run ./...
+level=error msg="[linters_context] typechecking error: pattern ./...: open /home/trypanic/.cache/go-build/48/4826249f4664b1aeb6dd08e031b81ec4893433923700b1ad06487026bc602904-d: read-only file system"
+0 issues.
+exit status 7
+task: Failed to run task "lint": exit status 1

@@ -1,0 +1,1 @@
+$ docker ps -a --filter label=org.testcontainers=true --format json

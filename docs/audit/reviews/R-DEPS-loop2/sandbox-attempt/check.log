@@ -1,0 +1,5 @@
+$ task check
+pattern ./...: open /home/trypanic/.cache/go-build/48/4826249f4664b1aeb6dd08e031b81ec4893433923700b1ad06487026bc602904-d: read-only file system
+task: [test:race] go build ./...
+pattern ./...: open /home/trypanic/.cache/go-build/48/4826249f4664b1aeb6dd08e031b81ec4893433923700b1ad06487026bc602904-d: read-only file system
+task: Failed to run task "check": task: Failed to run task "test:race": exit status 1

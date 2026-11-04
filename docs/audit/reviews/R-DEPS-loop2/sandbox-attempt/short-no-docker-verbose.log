@@ -1,0 +1,14 @@
+$ DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -v -tags integration -short -run "Integration|TestBindLoopback" ./postgres ./mongo ./messaging ./internal/integrationtest
+# ./postgres
+open /home/trypanic/.cache/go-build/b7/b73454b86c5cc00fa94ad4ab58d1d82fa88f3186bb7b23c947676ca4eb6e4f46-d: read-only file system
+FAIL    ./postgres [setup failed]
+# ./mongo
+open /home/trypanic/.cache/go-build/af/af703ecd9bbb8fb171fad978f272ad58983b31e9c28f8ed84d71f58ad46d9d1a-d: read-only file system
+FAIL    ./mongo [setup failed]
+# ./messaging
+open /home/trypanic/.cache/go-build/03/036ab043c688a6b51c7d353f663ca3b2b0e5dd9704dc901815fb900d2620e45d-d: read-only file system
+FAIL    ./messaging [setup failed]
+# ./internal/integrationtest
+open /home/trypanic/.cache/go-build/fc/fc0d232186a5f409dc0e8f08f7fed006ea300db5f7f524e6b1d978f8989acfcf-d: read-only file system
+FAIL    ./internal/integrationtest [setup failed]
+FAIL

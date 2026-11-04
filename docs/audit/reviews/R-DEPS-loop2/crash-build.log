@@ -1,0 +1,1 @@
+$ go test -c -race -tags integration -o /tmp/DEPS-review2/crash.test ./internal/integrationtest
