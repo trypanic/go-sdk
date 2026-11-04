@@ -1,4 +1,4 @@
-package mongodb
+package mongo
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type namedDoc struct {
@@ -30,7 +30,7 @@ func requireCode(t *testing.T, err error, want errorkit.ErrorCode) *errorkit.App
 func newCursor(t *testing.T, docs []any, preloadedErr error) cursorAdapter {
 	t.Helper()
 
-	cursor, err := mongo.NewCursorFromDocuments(docs, preloadedErr, nil)
+	cursor, err := mongodriver.NewCursorFromDocuments(docs, preloadedErr, nil)
 	if err != nil {
 		t.Fatalf("NewCursorFromDocuments: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestSingleResultAdapterDecode(t *testing.T) {
 		wantCode errorkit.ErrorCode
 	}{
 		{"decode failure", bson.D{{Key: "name", Value: int32(7)}}, nil, ERR_DB_MONGO_DECODE_FAILED},
-		{"no documents", bson.D{}, mongo.ErrNoDocuments, ERR_DB_MONGO_NOT_FOUND},
+		{"no documents", bson.D{}, mongodriver.ErrNoDocuments, ERR_DB_MONGO_NOT_FOUND},
 		{"operation failure", bson.D{}, errors.New("server said no"), ERR_DB_MONGO_ERROR},
 		{"operation deadline", bson.D{}, context.DeadlineExceeded, ERR_DB_MONGO_TIMEOUT},
 	}
@@ -59,7 +59,7 @@ func TestSingleResultAdapterDecode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			adapter := singleResultAdapter{result: mongo.NewSingleResultFromDocument(tt.doc, tt.opErr, nil)}
+			adapter := singleResultAdapter{result: mongodriver.NewSingleResultFromDocument(tt.doc, tt.opErr, nil)}
 			var out namedDoc
 			appErr := requireCode(t, adapter.Decode(&out), tt.wantCode)
 			if tt.opErr != nil && !errors.Is(appErr, tt.opErr) {
@@ -72,7 +72,7 @@ func TestSingleResultAdapterDecode(t *testing.T) {
 func TestSingleResultAdapterDecodeSuccess(t *testing.T) {
 	t.Parallel()
 
-	adapter := singleResultAdapter{result: mongo.NewSingleResultFromDocument(bson.D{{Key: "name", Value: "widget"}}, nil, nil)}
+	adapter := singleResultAdapter{result: mongodriver.NewSingleResultFromDocument(bson.D{{Key: "name", Value: "widget"}}, nil, nil)}
 	var out namedDoc
 	if err := adapter.Decode(&out); err != nil {
 		t.Fatalf("Decode: %v", err)
@@ -194,7 +194,7 @@ func TestCursorAdapterStreamErrors(t *testing.T) {
 func TestBulkWriteResultAdapterGetters(t *testing.T) {
 	t.Parallel()
 
-	var result BulkWriteResult = bulkWriteResultAdapter{result: &mongo.BulkWriteResult{
+	var result BulkWriteResult = bulkWriteResultAdapter{result: &mongodriver.BulkWriteResult{
 		InsertedCount: 1, MatchedCount: 2, ModifiedCount: 3, DeletedCount: 4, UpsertedCount: 5,
 		UpsertedIDs: map[int64]any{7: "id-7"},
 	}}

@@ -1,43 +1,43 @@
-package mongodb
+package mongo
 
 import (
 	"context"
 	"fmt"
 	"reflect"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var _ ClientPort = (*Client)(nil)
 
 type collectionAdapter struct {
-	collection *mongo.Collection
+	collection *mongodriver.Collection
 }
 
 type insertOneResultAdapter struct {
-	result *mongo.InsertOneResult
+	result *mongodriver.InsertOneResult
 }
 
 func (r insertOneResultAdapter) GetInsertedID() any { return r.result.InsertedID }
 
 type insertManyResultAdapter struct {
-	result *mongo.InsertManyResult
+	result *mongodriver.InsertManyResult
 }
 
 func (r insertManyResultAdapter) GetInsertedIDs() []any { return r.result.InsertedIDs }
 
 type cursorAdapter struct {
-	cursor *mongo.Cursor
+	cursor *mongodriver.Cursor
 }
 
 // All decodes every remaining document into results, which must be a
 // pointer to a slice, and closes the cursor. It iterates with Next/Decode
-// instead of mongo.Cursor.All so that a failure while fetching a batch is
+// instead of mongodriver.Cursor.All so that a failure while fetching a batch is
 // classified by WrapOperationError and only a failure while decoding a
 // document is ERR_DB_MONGO_DECODE_FAILED. Existing elements of the slice are
 // reused and the slice is truncated to the number of documents, as
-// mongo.Cursor.All does.
+// mongodriver.Cursor.All does.
 func (c cursorAdapter) All(ctx context.Context, results any) error {
 	defer func() { _ = c.cursor.Close(context.WithoutCancel(ctx)) }()
 
@@ -90,11 +90,11 @@ func (c cursorAdapter) Close(ctx context.Context) error {
 }
 
 type singleResultAdapter struct {
-	result *mongo.SingleResult
+	result *mongodriver.SingleResult
 }
 
 // Decode reports the error of the FindOne operation (including
-// mongo.ErrNoDocuments) through WrapOperationError and a failure to decode
+// mongodriver.ErrNoDocuments) through WrapOperationError and a failure to decode
 // the returned document as ERR_DB_MONGO_DECODE_FAILED.
 func (s singleResultAdapter) Decode(v any) error {
 	if err := s.result.Err(); err != nil {
@@ -107,7 +107,7 @@ func (s singleResultAdapter) Decode(v any) error {
 }
 
 type bulkWriteResultAdapter struct {
-	result *mongo.BulkWriteResult
+	result *mongodriver.BulkWriteResult
 }
 
 func (r bulkWriteResultAdapter) GetInsertedCount() int64       { return r.result.InsertedCount }
@@ -118,14 +118,14 @@ func (r bulkWriteResultAdapter) GetUpsertedCount() int64       { return r.result
 func (r bulkWriteResultAdapter) GetUpsertedIDs() map[int64]any { return r.result.UpsertedIDs }
 
 type updateResultAdapter struct {
-	result *mongo.UpdateResult
+	result *mongodriver.UpdateResult
 }
 
 func (r updateResultAdapter) GetMatchedCount() int64  { return r.result.MatchedCount }
 func (r updateResultAdapter) GetModifiedCount() int64 { return r.result.ModifiedCount }
 
 type deleteResultAdapter struct {
-	result *mongo.DeleteResult
+	result *mongodriver.DeleteResult
 }
 
 func (r deleteResultAdapter) GetDeletedCount() int64 { return r.result.DeletedCount }
@@ -178,7 +178,7 @@ func (c collectionAdapter) FindOne(
 
 func (c collectionAdapter) BulkWrite(
 	ctx context.Context,
-	models []mongo.WriteModel,
+	models []mongodriver.WriteModel,
 	opts ...options.Lister[options.BulkWriteOptions],
 ) (BulkWriteResult, error) {
 	result, err := c.collection.BulkWrite(ctx, models, opts...)

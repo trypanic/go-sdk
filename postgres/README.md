@@ -1,6 +1,6 @@
-# `database` — PostgreSQL Pool & Generic Stored-Procedure Runner
+# `postgres` — PostgreSQL Pool & Generic Stored-Procedure Runner
 
-Package `database` provides:
+Package `postgres` provides:
 
 1. A pgx/v5 connection-pool factory with explicit DSN handling and pool tuning.
 2. A generic stored-procedure runner that scans rows into `T` via `pgx.RowToStructByNameLax`
@@ -61,10 +61,10 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/postgres" // package identifier: database
+    "github.com/trypanic/go-sdk/postgres" // package identifier: postgres
 )
 
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.NewPostgresClient(postgres.Config{
     DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
     MaxConnLifetime: time.Hour,
     MaxConnIdleTime: time.Minute,
@@ -81,7 +81,7 @@ type Item struct {
     Name string `db:"name"`
 }
 
-sp := database.NewStoredProcedure[Item](pool)
+sp := postgres.NewStoredProcedure[Item](pool)
 
 ctx := context.Background()
 
@@ -135,7 +135,7 @@ Behavior:
    correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
    5-second timeout context by default. The context variants preserve caller deadlines.
-4. Pings the database. If the ping fails the pool is closed before returning the error.
+4. Pings the postgres. If the ping fails the pool is closed before returning the error.
 
 Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
 parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
@@ -300,7 +300,7 @@ inherit the dependency.
 
 ```go
 // Wire pool + repository
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.NewPostgresClient(postgres.Config{
     DSN:             cfg.Postgres.DSN,
     MaxConnLifetime: cfg.Postgres.MaxConnLifetime,
     MaxConnIdleTime: cfg.Postgres.MaxConnIdleTime,
@@ -312,14 +312,14 @@ if err != nil {
 }
 defer pool.Close()
 
-sp := database.NewStoredProcedure[entities.Item](pool)
+sp := postgres.NewStoredProcedure[entities.Item](pool)
 repo := repository.NewItem(sp)
 ```
 
 ```go
 // Repository methods
 type ItemRepo struct {
-    sp database.StoredProcedurer[entities.Item]
+    sp postgres.StoredProcedurer[entities.Item]
 }
 
 func (r *ItemRepo) Get(ctx context.Context, id int64) (*entities.Item, error) {

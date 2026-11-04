@@ -1,8 +1,8 @@
-// Package database provides a pgx/v5 connection-pool factory and a generic
+// Package postgres provides a pgx/v5 connection-pool factory and a generic
 // stored-procedure runner for PostgreSQL.
 //
 // Import it as github.com/trypanic/go-sdk/postgres; the package identifier
-// is database.
+// is postgres.
 //
 //   - NewPostgresClient builds a *pgxpool.Pool from an explicit Config and
 //     pings it; NewPostgresClientFromEnv reads the DSN from POSTGRES_DSN.
@@ -16,4 +16,4 @@
 //
 // A pool and a StoredProcedure are safe for concurrent use. Create one pool
 // per process, share it, and close it at shutdown.
-package database
+package postgres

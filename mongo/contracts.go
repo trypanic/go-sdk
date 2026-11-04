@@ -1,27 +1,27 @@
-package mongodb
+package mongo
 
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// ClientPort is a connected MongoDB client bound to one database.
+// ClientPort is a connected MongoDB client bound to one postgres.
 type ClientPort interface {
 	Collection(name string) Collection
 	Ping(ctx context.Context) error
 	Close(ctx context.Context) error
 }
 
-// Collection mirrors the *mongo.Collection methods the SDK supports. Errors
+// Collection mirrors the *mongodriver.Collection methods the SDK supports. Errors
 // are classified by WrapOperationError.
 type Collection interface {
 	InsertOne(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (InsertOneResult, error)
 	InsertMany(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (InsertManyResult, error)
 	Find(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (Cursor, error)
 	FindOne(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) SingleResult
-	BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (BulkWriteResult, error)
+	BulkWrite(ctx context.Context, models []mongodriver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (BulkWriteResult, error)
 	ReplaceOne(
 		ctx context.Context,
 		filter any,
@@ -74,7 +74,7 @@ type Cursor interface {
 }
 
 // SingleResult is the document returned by FindOne. Decode reports the
-// operation error (mongo.ErrNoDocuments is ERR_DB_MONGO_NOT_FOUND) or
+// operation error (mongodriver.ErrNoDocuments is ERR_DB_MONGO_NOT_FOUND) or
 // ERR_DB_MONGO_DECODE_FAILED.
 type SingleResult interface {
 	Decode(v any) error

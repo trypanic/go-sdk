@@ -620,7 +620,7 @@ Declared in `types.go`. Several groups are reserved for downstream code that reg
 | `GroupClient`       | `client`          |
 | `GroupAuth`         | `auth`            |
 | `GroupStorage`      | `storage`         |
-| `GroupDatabase`     | `database`        |
+| `GroupDatabase`     | `postgres`        |
 | `GroupMessageQueue` | `message_queue`   |
 
 ---

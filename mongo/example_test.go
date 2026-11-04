@@ -1,10 +1,10 @@
-package mongodb_test
+package mongo_test
 
 import (
 	"context"
 	"log"
 
-	mongodb "github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/mongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -17,7 +17,7 @@ type product struct {
 // needs a server, so it is compiled but not run.
 func ExampleCursor() {
 	ctx := context.Background()
-	client, err := mongodb.New(ctx, mongodb.Config{URI: "mongodb://localhost:27017", Database: "shop"})
+	client, err := mongo.New(ctx, mongo.Config{URI: "mongodb://localhost:27017", Database: "shop"})
 	if err != nil {
 		log.Fatal(err)
 	}

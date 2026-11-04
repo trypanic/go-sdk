@@ -4,7 +4,7 @@ package mongotest
 import (
 	"context"
 
-	mongodb "github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/mongo"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -12,16 +12,16 @@ import (
 // Client implements ClientPort with explicit callbacks. Unset callbacks panic.
 // Configure before use; callbacks own any synchronization and resource cleanup.
 type Client struct {
-	CollectionFunc func(string) mongodb.Collection
+	CollectionFunc func(string) mongo.Collection
 	PingFunc       func(context.Context) error
 	CloseFunc      func(context.Context) error
 }
 
-func (c *Client) Collection(name string) mongodb.Collection { return c.CollectionFunc(name) }
-func (c *Client) Ping(ctx context.Context) error            { return c.PingFunc(ctx) }
-func (c *Client) Close(ctx context.Context) error           { return c.CloseFunc(ctx) }
+func (c *Client) Collection(name string) mongo.Collection { return c.CollectionFunc(name) }
+func (c *Client) Ping(ctx context.Context) error          { return c.PingFunc(ctx) }
+func (c *Client) Close(ctx context.Context) error         { return c.CloseFunc(ctx) }
 
-var _ mongodb.ClientPort = (*Client)(nil)
+var _ mongo.ClientPort = (*Client)(nil)
 
 // SingleResult adapts a decoding callback to the SDK result contract.
 type SingleResult func(any) error
@@ -31,46 +31,46 @@ func (s SingleResult) Decode(out any) error { return s(out) }
 // Collection delegates operations to callbacks. Unset callbacks panic, exposing
 // unexpected calls. Configure before use; callbacks own synchronization.
 type Collection struct {
-	InsertOneFunc      func(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (mongodb.InsertOneResult, error)
-	InsertManyFunc     func(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (mongodb.InsertManyResult, error)
-	FindFunc           func(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (mongodb.Cursor, error)
-	FindOneFunc        func(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) mongodb.SingleResult
-	BulkWriteFunc      func(ctx context.Context, models []driver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (mongodb.BulkWriteResult, error)
-	ReplaceOneFunc     func(ctx context.Context, filter, replacement any, opts ...options.Lister[options.ReplaceOptions]) (mongodb.UpdateResult, error)
+	InsertOneFunc      func(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (mongo.InsertOneResult, error)
+	InsertManyFunc     func(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (mongo.InsertManyResult, error)
+	FindFunc           func(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (mongo.Cursor, error)
+	FindOneFunc        func(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) mongo.SingleResult
+	BulkWriteFunc      func(ctx context.Context, models []driver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (mongo.BulkWriteResult, error)
+	ReplaceOneFunc     func(ctx context.Context, filter, replacement any, opts ...options.Lister[options.ReplaceOptions]) (mongo.UpdateResult, error)
 	CountDocumentsFunc func(ctx context.Context, filter any, opts ...options.Lister[options.CountOptions]) (int64, error)
-	UpdateOneFunc      func(ctx context.Context, filter, update any, opts ...options.Lister[options.UpdateOneOptions]) (mongodb.UpdateResult, error)
-	DeleteOneFunc      func(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (mongodb.DeleteResult, error)
+	UpdateOneFunc      func(ctx context.Context, filter, update any, opts ...options.Lister[options.UpdateOneOptions]) (mongo.UpdateResult, error)
+	DeleteOneFunc      func(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (mongo.DeleteResult, error)
 }
 
-func (c *Collection) InsertOne(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (mongodb.InsertOneResult, error) {
+func (c *Collection) InsertOne(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (mongo.InsertOneResult, error) {
 	return c.InsertOneFunc(ctx, doc, opts...)
 }
-func (c *Collection) InsertMany(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (mongodb.InsertManyResult, error) {
+func (c *Collection) InsertMany(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (mongo.InsertManyResult, error) {
 	return c.InsertManyFunc(ctx, docs, opts...)
 }
-func (c *Collection) Find(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (mongodb.Cursor, error) {
+func (c *Collection) Find(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (mongo.Cursor, error) {
 	return c.FindFunc(ctx, filter, opts...)
 }
-func (c *Collection) FindOne(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) mongodb.SingleResult {
+func (c *Collection) FindOne(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) mongo.SingleResult {
 	return c.FindOneFunc(ctx, filter, opts...)
 }
-func (c *Collection) BulkWrite(ctx context.Context, models []driver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (mongodb.BulkWriteResult, error) {
+func (c *Collection) BulkWrite(ctx context.Context, models []driver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (mongo.BulkWriteResult, error) {
 	return c.BulkWriteFunc(ctx, models, opts...)
 }
-func (c *Collection) ReplaceOne(ctx context.Context, filter, replacement any, opts ...options.Lister[options.ReplaceOptions]) (mongodb.UpdateResult, error) {
+func (c *Collection) ReplaceOne(ctx context.Context, filter, replacement any, opts ...options.Lister[options.ReplaceOptions]) (mongo.UpdateResult, error) {
 	return c.ReplaceOneFunc(ctx, filter, replacement, opts...)
 }
 func (c *Collection) CountDocuments(ctx context.Context, filter any, opts ...options.Lister[options.CountOptions]) (int64, error) {
 	return c.CountDocumentsFunc(ctx, filter, opts...)
 }
-func (c *Collection) UpdateOne(ctx context.Context, filter, update any, opts ...options.Lister[options.UpdateOneOptions]) (mongodb.UpdateResult, error) {
+func (c *Collection) UpdateOne(ctx context.Context, filter, update any, opts ...options.Lister[options.UpdateOneOptions]) (mongo.UpdateResult, error) {
 	return c.UpdateOneFunc(ctx, filter, update, opts...)
 }
-func (c *Collection) DeleteOne(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (mongodb.DeleteResult, error) {
+func (c *Collection) DeleteOne(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (mongo.DeleteResult, error) {
 	return c.DeleteOneFunc(ctx, filter, opts...)
 }
 
-var _ mongodb.Collection = (*Collection)(nil)
+var _ mongo.Collection = (*Collection)(nil)
 
 // Cursor implements streaming and batch decoding through explicit callbacks.
 // Unset callbacks panic. Like a driver cursor, use it from one goroutine at a time.
@@ -88,4 +88,4 @@ func (c *Cursor) Err() error                             { return c.ErrFunc() }
 func (c *Cursor) All(ctx context.Context, out any) error { return c.AllFunc(ctx, out) }
 func (c *Cursor) Close(ctx context.Context) error        { return c.CloseFunc(ctx) }
 
-var _ mongodb.Cursor = (*Cursor)(nil)
+var _ mongo.Cursor = (*Cursor)(nil)

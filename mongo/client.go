@@ -1,4 +1,4 @@
-package mongodb
+package mongo
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/telemetry"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
@@ -39,8 +39,8 @@ type Config struct {
 type Client struct {
 	instrumenter *telemetry.Instrumenter
 	borrowed     bool
-	client       *mongo.Client
-	database     *mongo.Database
+	client       *mongodriver.Client
+	database     *mongodriver.Database
 }
 
 // New creates a production-ready MongoDB client with OTEL instrumentation
@@ -63,9 +63,9 @@ func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetr
 		clientOpts = opt(clientOpts)
 	}
 
-	// mongo.Connect performs no I/O: it fails only when the URI or the
+	// mongodriver.Connect performs no I/O: it fails only when the URI or the
 	// options are invalid, which retrying cannot fix.
-	mongoClient, err := mongo.Connect(clientOpts)
+	mongoClient, err := mongodriver.Connect(clientOpts)
 	if err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("mongo client options are invalid"),
@@ -92,8 +92,8 @@ func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetr
 	return plain, nil
 }
 
-// Database returns the underlying mongo.Database.
-func (c *Client) Database() *mongo.Database {
+// Database returns the underlying mongodriver.Database.
+func (c *Client) Database() *mongodriver.Database {
 	return c.database
 }
 
@@ -264,7 +264,7 @@ func WithClientOptions(opts *options.ClientOptions) ClientOption {
 
 // NewFromClient wraps an existing driver without dialing or taking ownership.
 // Close on this borrowed wrapper is a no-op; the original owner disconnects it.
-func NewFromClient(client *mongo.Client, database string, instrumenter *telemetry.Instrumenter) (*Client, error) {
+func NewFromClient(client *mongodriver.Client, database string, instrumenter *telemetry.Instrumenter) (*Client, error) {
 	if client == nil || database == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(errorkit.WithReason("client and database are required"))
 	}
@@ -272,4 +272,4 @@ func NewFromClient(client *mongo.Client, database string, instrumenter *telemetr
 }
 
 // Unwrap returns the underlying MongoDB driver client. Ownership is unchanged.
-func (c *Client) Unwrap() *mongo.Client { return c.client }
+func (c *Client) Unwrap() *mongodriver.Client { return c.client }

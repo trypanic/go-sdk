@@ -1,4 +1,4 @@
-package slices
+package batch
 
 // MergeUniqueStrings merges two string slices, preserving order and deduplicating entries.
 // Elements from a appear first, followed by any elements from b not already in a.

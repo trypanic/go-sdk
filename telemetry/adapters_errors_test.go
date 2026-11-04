@@ -9,9 +9,9 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httprequest"
 	"github.com/trypanic/go-sdk/llmclient"
-	mongodb "github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/mongo"
 	"github.com/trypanic/go-sdk/mongo/mongotest"
-	database "github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/postgres"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.opentelemetry.io/otel/codes"
@@ -45,10 +45,10 @@ func failingMongo(err error) *mongotest.Client {
 	return &mongotest.Client{
 		PingFunc:  func(context.Context) error { return err },
 		CloseFunc: func(context.Context) error { return err },
-		CollectionFunc: func(string) mongodb.Collection {
+		CollectionFunc: func(string) mongo.Collection {
 			return &mongotest.Collection{
 				CountDocumentsFunc: func(context.Context, any, ...options.Lister[options.CountOptions]) (int64, error) { return 0, err },
-				FindOneFunc: func(context.Context, any, ...options.Lister[options.FindOneOptions]) mongodb.SingleResult {
+				FindOneFunc: func(context.Context, any, ...options.Lister[options.FindOneOptions]) mongo.SingleResult {
 					return mongotest.SingleResult(func(any) error { return err })
 				},
 			}
@@ -75,32 +75,32 @@ func TestAdaptersRecordFailures(t *testing.T) {
 			return err
 		},
 		"Mongo ping": func(i *telemetry.Instrumenter) error {
-			return mongodb.WrapWithInstrumenter(failingMongo(failure), i).Ping(ctx)
+			return mongo.WrapWithInstrumenter(failingMongo(failure), i).Ping(ctx)
 		},
 		"Mongo close": func(i *telemetry.Instrumenter) error {
-			return mongodb.WrapWithInstrumenter(failingMongo(failure), i).Close(ctx)
+			return mongo.WrapWithInstrumenter(failingMongo(failure), i).Close(ctx)
 		},
 		"Mongo count": func(i *telemetry.Instrumenter) error {
-			_, err := mongodb.WrapWithInstrumenter(failingMongo(failure), i).Collection("items").CountDocuments(ctx, nil)
+			_, err := mongo.WrapWithInstrumenter(failingMongo(failure), i).Collection("items").CountDocuments(ctx, nil)
 			return err
 		},
 		"Mongo findOne decode": func(i *telemetry.Instrumenter) error {
-			return mongodb.WrapWithInstrumenter(failingMongo(failure), i).Collection("items").FindOne(ctx, nil).Decode(nil)
+			return mongo.WrapWithInstrumenter(failingMongo(failure), i).Collection("items").FindOne(ctx, nil).Decode(nil)
 		},
 		"Postgres row": func(i *telemetry.Instrumenter) error {
-			_, err := database.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryRow(ctx, "SELECT * FROM proc()")
+			_, err := postgres.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryRow(ctx, "SELECT * FROM proc()")
 			return err
 		},
 		"Postgres rows": func(i *telemetry.Instrumenter) error {
-			_, err := database.WrapWithInstrumenter[int](failingProcedure{failure}, i).Query(ctx, "SELECT * FROM proc()")
+			_, err := postgres.WrapWithInstrumenter[int](failingProcedure{failure}, i).Query(ctx, "SELECT * FROM proc()")
 			return err
 		},
 		"Postgres JSON row": func(i *telemetry.Instrumenter) error {
-			_, err := database.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryRowJSON(ctx, "SELECT * FROM proc()", nil)
+			_, err := postgres.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryRowJSON(ctx, "SELECT * FROM proc()", nil)
 			return err
 		},
 		"Postgres JSON rows": func(i *telemetry.Instrumenter) error {
-			_, err := database.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryJSON(ctx, "SELECT * FROM proc()", nil)
+			_, err := postgres.WrapWithInstrumenter[int](failingProcedure{failure}, i).QueryJSON(ctx, "SELECT * FROM proc()", nil)
 			return err
 		},
 	}

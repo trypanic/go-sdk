@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import (
 	"strings"
@@ -83,7 +83,7 @@ func TestNormalizePostgresDSN_LeavesOtherFormsUnchanged(t *testing.T) {
 // FuzzNormalizePostgresDSN checks two properties: normalization is
 // idempotent for any input, and a DSN built from raw components inside the
 // documented domain (see README "DSN Normalization") round-trips through
-// pgconn.ParseConfig to the same user, password, host, port and database.
+// pgconn.ParseConfig to the same user, password, host, port and postgres.
 func FuzzNormalizePostgresDSN(f *testing.F) {
 	for _, seed := range [][2]string{
 		{"u", "pass"},

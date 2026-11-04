@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import (
 	"context"
@@ -27,7 +27,7 @@ var reProcName = regexp.MustCompile(`(?i)\b(?:FROM|CALL)\s+([a-z_][a-z0-9_$]*(?:
 // Usage (in bootstrap), on an untraced StoredProcedure value:
 //
 //	jobs.NewRepository(
-//	    database.WrapWithTracing[domain.JobEntity](database.StoredProcedure[domain.JobEntity]{Pool: pool}),
+//	    postgres.WrapWithTracing[domain.JobEntity](postgres.StoredProcedure[domain.JobEntity]{Pool: pool}),
 //	)
 //
 // NewStoredProcedure already applies this wrapper; wrapping its result again

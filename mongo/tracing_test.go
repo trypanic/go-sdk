@@ -1,11 +1,11 @@
-package mongodb
+package mongo
 
 import (
 	"context"
 	"slices"
 	"testing"
 
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/trypanic/go-sdk/telemetry"
@@ -53,7 +53,7 @@ func (stubCollection) Find(context.Context, any, ...options.Lister[options.FindO
 func (stubCollection) FindOne(context.Context, any, ...options.Lister[options.FindOneOptions]) SingleResult {
 	return nil
 }
-func (stubCollection) BulkWrite(context.Context, []mongo.WriteModel, ...options.Lister[options.BulkWriteOptions]) (BulkWriteResult, error) {
+func (stubCollection) BulkWrite(context.Context, []mongodriver.WriteModel, ...options.Lister[options.BulkWriteOptions]) (BulkWriteResult, error) {
 	return nil, nil
 }
 func (stubCollection) ReplaceOne(context.Context, any, any, ...options.Lister[options.ReplaceOptions]) (UpdateResult, error) {
@@ -130,14 +130,14 @@ func TestTracingCursorAllRunsInsideASpan(t *testing.T) {
 		names = append(names, span.Name())
 	}
 	if _, ok := spans["mongo.products.find"]; !ok {
-		t.Fatalf("missing span mongo.products.find; got %v", names)
+		t.Fatalf("missing span mongodriver.products.find; got %v", names)
 	}
 	allSpan, ok := spans["mongo.products.find.all"]
 	if !ok {
-		t.Fatalf("missing span mongo.products.find.all; got %v", names)
+		t.Fatalf("missing span mongodriver.products.find.all; got %v", names)
 	}
 	if cursor.allSpan.SpanID() != allSpan.SpanContext().SpanID() {
-		t.Fatal("Cursor.All did not run inside the mongo.products.find.all span")
+		t.Fatal("Cursor.All did not run inside the mongodriver.products.find.all span")
 	}
 }
 
@@ -158,7 +158,7 @@ func TestTracingClientPortTracesPingAndClose(t *testing.T) {
 		names = append(names, span.Name)
 	}
 	if len(names) != 2 || names[0] != "mongo.client.ping" || names[1] != "mongo.client.close" {
-		t.Fatalf("spans = %v, want [mongo.client.ping mongo.client.close]", names)
+		t.Fatalf("spans = %v, want [mongodriver.client.ping mongodriver.client.close]", names)
 	}
 }
 

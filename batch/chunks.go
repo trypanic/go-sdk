@@ -1,4 +1,4 @@
-package slices
+package batch
 
 // Chunk splits items into consecutive sub-slices of at most size elements;
 // the last chunk may be shorter.

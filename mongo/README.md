@@ -1,6 +1,6 @@
-# `mongodb` — MongoDB Client with Adapter-Based API
+# `mongo` — MongoDB Client with Adapter-Based API
 
-Package `mongodb` exposes a small, framework-agnostic interface (`ClientPort`,
+Package `mongo` exposes a small, framework-agnostic interface (`ClientPort`,
 `Collection`) over the official MongoDB Go driver. Connection setup applies safe
 defaults, performs a fail-fast ping, and normalizes errors to `errorkit`. Tracing
 is **opt-in** via a wrapper that emits one span per collection operation; the
@@ -50,10 +50,10 @@ import (
     "context"
     "log"
 
-    "github.com/trypanic/go-sdk/mongo" // package identifier: mongodb
+    "github.com/trypanic/go-sdk/mongo" // package identifier: mongo
 )
 
-client, err := mongodb.New(context.Background(), mongodb.Config{
+client, err := mongo.New(context.Background(), mongo.Config{
     URI:      "mongodb://root:secret@localhost:27017",
     Database: "my_app",
 })
@@ -136,7 +136,7 @@ The previous `bool` field made `false` ambiguous between "I want it off" and
 
 ```go
 disable := false
-client, err := mongodb.New(ctx, mongodb.Config{
+client, err := mongo.New(ctx, mongo.Config{
     URI:         os.Getenv("MONGO_URI"),
     Database:    "my_app",
     RetryWrites: &disable, // explicitly off
@@ -270,7 +270,7 @@ which is acceptable since the wrapper-level span already covers the SDK API.
 
 ## Error Handling
 
-`mongodb` produces `errorkit.AppError` values for adapter-level failures. The
+`mongo` produces `errorkit.AppError` values for adapter-level failures. The
 driver error stays wrapped, so `errors.Is`/`errors.As` still reach it.
 Invalid URIs or client options are configuration errors; a failed start-up
 ping is `ERR_DB_MONGO_UNAVAILABLE`; per-operation errors (including
@@ -306,10 +306,10 @@ needed.
 
 ```go
 type ProductRepo struct {
-    client mongodb.ClientPort
+    client mongo.ClientPort
 }
 
-func NewProductRepo(c mongodb.ClientPort) *ProductRepo {
+func NewProductRepo(c mongo.ClientPort) *ProductRepo {
     return &ProductRepo{client: c}
 }
 

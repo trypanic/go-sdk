@@ -1,4 +1,4 @@
-package mongodb
+package mongo
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trypanic/go-sdk/telemetry"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -28,7 +28,7 @@ import (
 //
 // Usage (in bootstrap), on a client from NewWithoutTracing:
 //
-//	repo.NewRepository(mongodb.WrapWithTracing(mongoClient))
+//	repo.NewRepository(mongo.WrapWithTracing(mongoClient))
 //
 // New already applies this wrapper; wrapping its result again opens two
 // spans per operation.
@@ -111,7 +111,7 @@ func (c tracingCollection) FindOne(ctx context.Context, filter any, opts ...opti
 	return tracingSingleResult{inner: inner, instrumenter: c.instrumenter, name: "mongo." + c.name + ".findOne.decode", parent: trace.SpanContextFromContext(ctx)}
 }
 
-func (c tracingCollection) BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (result BulkWriteResult, err error) {
+func (c tracingCollection) BulkWrite(ctx context.Context, models []mongodriver.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (result BulkWriteResult, err error) {
 	ctx, span := c.span(ctx, "bulkWrite")
 	defer func() { telemetry.End(span, err) }()
 	return c.inner.BulkWrite(ctx, models, opts...)

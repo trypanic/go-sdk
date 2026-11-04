@@ -1,10 +1,8 @@
-# slices
+# batch
 
-Utility functions for common slice operations not covered by the Go standard library.
-
-> **Name collision.** This package is named `slices`, like the standard library
-> package. A file that needs both must alias one of them, for example
-> `import sdkslices "github.com/trypanic/go-sdk/slices"`.
+Prepare slices for batched processing: split bounded chunks and merge string
+inputs while preserving order and removing duplicates. Formerly `slices`; the
+new import path avoids a collision with the Go standard library.
 
 ## Overview
 
@@ -18,12 +16,12 @@ Utility functions for common slice operations not covered by the Go standard lib
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/slices"
+import "github.com/trypanic/go-sdk/batch"
 
 a := []string{"apple", "banana", "cherry"}
 b := []string{"banana", "date", "apple"}
 
-result := slices.MergeUniqueStrings(a, b)
+result := batch.MergeUniqueStrings(a, b)
 // result == []string{"apple", "banana", "cherry", "date"}
 ```
 
@@ -82,7 +80,7 @@ through a chunk affects `items`. Each chunk's capacity is clipped to its length
 a chunk allocates a new array instead of overwriting the next chunk or `items`.
 
 ```go
-chunks := slices.Chunk([]int{1, 2, 3, 4, 5}, 2)
+chunks := batch.Chunk([]int{1, 2, 3, 4, 5}, 2)
 // [][]int{{1,2}, {3,4}, {5}}
 ```
 

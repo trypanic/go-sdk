@@ -5,18 +5,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	mongodb "github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/mongo"
 	"github.com/trypanic/go-sdk/mongo/mongotest"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func TestRepositoryUsesFake(t *testing.T) {
-	collection := &mongotest.Collection{FindOneFunc: func(_ context.Context, filter any, _ ...options.Lister[options.FindOneOptions]) mongodb.SingleResult {
+	collection := &mongotest.Collection{FindOneFunc: func(_ context.Context, filter any, _ ...options.Lister[options.FindOneOptions]) mongo.SingleResult {
 		require.Equal(t, "id", filter)
 		return mongotest.SingleResult(func(out any) error { *out.(*string) = "Ada"; return nil })
 	}}
-	client := &mongotest.Client{CollectionFunc: func(name string) mongodb.Collection { require.Equal(t, "users", name); return collection }}
-	var port mongodb.ClientPort = client
+	client := &mongotest.Client{CollectionFunc: func(name string) mongo.Collection { require.Equal(t, "users", name); return collection }}
+	var port mongo.ClientPort = client
 	var name string
 	require.NoError(t, port.Collection("users").FindOne(t.Context(), "id").Decode(&name))
 	require.Equal(t, "Ada", name)
@@ -32,7 +32,7 @@ func TestCursorCanDriveStreamingConsumer(t *testing.T) {
 		ErrFunc:    func() error { return nil },
 		CloseFunc:  func(context.Context) error { closed = true; return nil },
 	}
-	var port mongodb.Cursor = cursor
+	var port mongo.Cursor = cursor
 	var rows []string
 	for port.Next(t.Context()) {
 		var row string

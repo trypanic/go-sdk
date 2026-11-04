@@ -11,7 +11,7 @@ import (
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
-	database "github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/postgres"
 )
 
 const internalDetail = `pq: relation "users" does not exist (host=db-primary.internal)`
@@ -34,7 +34,7 @@ func TestToStatus_OverTheWireMessagePerClass(t *testing.T) {
 		{"unexpected hides reason", errorkit.ERR_SYSTEM_UNEXPECTED, codes.Internal, false},
 		{"unknown hides reason", errorkit.ERR_UNKNOWN, codes.Internal, false},
 		{"internal timeout hides reason", errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL, codes.DeadlineExceeded, false},
-		{"unavailable dependency hides reason", database.ERR_DB_POSTGRES_UNAVAILABLE, codes.Unavailable, false},
+		{"unavailable dependency hides reason", postgres.ERR_DB_POSTGRES_UNAVAILABLE, codes.Unavailable, false},
 		{"unregistered code hides reason", errorkit.ErrorCode("ERR_TEST_GRPC_NOT_REGISTERED"), codes.Internal, false},
 	}
 	for _, tc := range cases {

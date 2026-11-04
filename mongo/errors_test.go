@@ -1,4 +1,4 @@
-package mongodb
+package mongo
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func TestParseObjectID_InvalidFormat_ReturnsAppError(t *testing.T) {
@@ -37,7 +37,7 @@ func TestWrapOperationError_Mappings(t *testing.T) {
 		},
 		{
 			name:     "not found",
-			err:      mongo.ErrNoDocuments,
+			err:      mongodriver.ErrNoDocuments,
 			wantCode: ERR_DB_MONGO_NOT_FOUND,
 		},
 	}

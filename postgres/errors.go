@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import "github.com/trypanic/go-sdk/errorkit"
 
