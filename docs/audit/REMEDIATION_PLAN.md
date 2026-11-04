@@ -1496,8 +1496,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-070 | auto | C5 | AMQP connection options | — | DONE | `d6601d6` |
 | R-071 | auto | C5 | Checked `Close` errors in messaging | — | DONE | `f7508c2` |
 | R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | DONE | `f50efe1` |
-| R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | TODO | |
-| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | TODO | |
+| R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | IN_REVIEW | `39f7e07` |
+| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | IN_REVIEW | `4504ec6` |
 | R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | TODO | |
 | R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | TODO | |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | DONE | `ef0d848` |
@@ -1505,10 +1505,10 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | TODO | |
 | R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | TODO | |
 | R-088 | auto | X (post-merge) | Hertz functional options | — | TODO | |
-| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | TODO | |
+| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | IN_REVIEW | `2ecddb7` |
 | R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | TODO | |
 | R-091 | approval | X (post-merge) | Published test doubles | APPROVED | TODO | |
-| R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | TODO | |
+| R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | IN_REVIEW | `0eb616c` |
 | R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
 | R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | TODO | |
 | R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | DONE | `eda540b` |
