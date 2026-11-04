@@ -6,18 +6,32 @@
 package hertz
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/logger"
 )
 
 // hertzContext implements httpserver.HTTPContext over Hertz's RequestContext.
+// ctx is the request context the handler received; it carries the logger
+// and the active span used when an error reply is logged.
 type hertzContext struct {
+	ctx        context.Context
 	requestCtx *app.RequestContext
 	replyOpts  httpserver.ReplyOptions
+}
+
+// context returns the request context, or Background when none was set.
+func (h *hertzContext) context() context.Context {
+	if h.ctx == nil {
+		return context.Background()
+	}
+	return h.ctx
 }
 
 func (h *hertzContext) Param(key string) string {
@@ -64,8 +78,42 @@ func (h *hertzContext) WithMessage(message string) httpserver.OptionReply {
 	return httpserver.WithMessageOpt(message)
 }
 
+// WithError returns the client-safe error option of httpserver.WithErrorOpt
+// and, when the reply is built, logs the full error server-side through
+// logger.CtxOrGlobal(ctx) with trace correlation. When the error carries no
+// TraceID, the reply gets the trace ID of the active span, so clients can
+// quote it.
 func (h *hertzContext) WithError(err error) httpserver.OptionReply {
-	return httpserver.WithErrorOpt(err)
+	public := httpserver.WithErrorOpt(err)
+	return func(r *httpserver.Reply) {
+		public(r)
+		if err == nil {
+			return
+		}
+		ctx := h.context()
+		logReplyError(ctx, err)
+		if r.TraceID == "" {
+			r.TraceID = logger.TraceIDFromCtx(ctx)
+		}
+	}
+}
+
+// logReplyError logs an error that is being turned into an HTTP reply:
+// at warn level for client errors (4xx) and at error level otherwise.
+func logReplyError(ctx context.Context, err error) {
+	l := logger.CtxOrGlobal(ctx)
+	var appErr *errorkit.AppError
+	if !errors.As(err, &appErr) || appErr == nil {
+		logger.WithTrace(ctx, l.Error()).Str("error", err.Error()).Msg("httpserver: error reply")
+		return
+	}
+	event := l.Error()
+	if status := appErr.Metadata.HTTPStatus; status >= 400 && status < 500 {
+		event = l.Warn()
+	}
+	logger.WithErrorKit(logger.WithTrace(ctx, event), appErr).
+		Str("error", err.Error()).
+		Msg("httpserver: error reply")
 }
 
 func (h *hertzContext) WithMetadata(metadata any) httpserver.OptionReply {
@@ -81,13 +129,19 @@ func (h *hertzContext) Reply(status int, options ...httpserver.OptionReply) {
 	h.JSON(status, r)
 }
 
-// PrettyJSON sends nicely formatted JSON. Adapter-specific helper.
+// PrettyJSON sends nicely formatted JSON. Adapter-specific helper. A
+// marshal failure is logged server-side and answered with a generic 500;
+// the marshal error text is not sent to the client.
 func (h *hertzContext) PrettyJSON(statusCode int, data any) {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
+		logReplyError(h.context(), errorkit.NewError(errorkit.ERR_INTERNAL).With(
+			errorkit.WithReason("failed to encode JSON response"),
+			errorkit.WithWrapped(err),
+		))
 		h.JSON(500, map[string]string{
 			"error":   "internal_error",
-			"message": err.Error(),
+			"message": "failed to encode response",
 		})
 		return
 	}

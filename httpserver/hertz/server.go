@@ -132,7 +132,7 @@ func wrapHandlerFunc(o httpserver.ServerOptions) app.HandlerFunc {
 	h := o.NoRouteHandler
 	replyOpts := o.Reply
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: replyOpts}
 		h(ctx, hctx)
 	}
 }
@@ -141,7 +141,7 @@ func wrapMethodHandlerFunc(o httpserver.ServerOptions) app.HandlerFunc {
 	h := o.NoMethodHandler
 	replyOpts := o.Reply
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: replyOpts}
 		h(ctx, hctx)
 	}
 }

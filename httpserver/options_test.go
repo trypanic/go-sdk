@@ -76,7 +76,8 @@ func TestReplyOptionApplicators(t *testing.T) {
 	if r.Message == nil || *r.Message != "hello" {
 		t.Fatalf("Message not applied: %+v", r)
 	}
-	if r.Error == nil || *r.Error != "boom" {
+	// A plain error is applied as the generic public message, never its text.
+	if r.Error == nil || *r.Error != "Internal server error" || r.Code != "ERR_INTERNAL" {
 		t.Fatalf("Error not applied: %+v", r)
 	}
 	if r.Metadata == nil {

@@ -42,7 +42,7 @@ func (s *wrapperHertzServer) DELETE(endpoint string, handler httpserver.HandlerF
 
 func (s *wrapperHertzServer) wrapMiddleware(mw httpserver.MiddlewareFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: s.replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: s.replyOpts}
 		next := func(ctx context.Context, _ httpserver.HTTPContext) { c.Next(ctx) }
 		mw(ctx, hctx, next)
 	}
@@ -50,7 +50,7 @@ func (s *wrapperHertzServer) wrapMiddleware(mw httpserver.MiddlewareFunc) app.Ha
 
 func (s *wrapperHertzServer) wrapHandler(handler httpserver.HandlerFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: s.replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: s.replyOpts}
 		handler(ctx, hctx)
 	}
 }

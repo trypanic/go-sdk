@@ -77,7 +77,9 @@ type HTTPContext interface {
 //	    userID := c.Param("id")
 //	    user, err := userRepo.FindByID(ctx, userID)
 //	    if err != nil {
-//	        c.JSON(500, map[string]string{"error": err.Error()})
+//	        // Never send err.Error(): WithError replies with a client-safe
+//	        // code and message.
+//	        c.Reply(500, c.WithError(err))
 //	        return
 //	    }
 //	    c.JSON(200, user)

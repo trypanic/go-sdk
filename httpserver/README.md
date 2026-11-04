@@ -114,6 +114,7 @@ implements your redaction policy.
 ```go
 type Reply struct {
     Message   *string `json:"message,omitempty"`
+    Code      string  `json:"code,omitempty"`
     Error     *string `json:"error,omitempty"`
     TraceID   string  `json:"trace_id,omitempty"`
     Timestamp string  `json:"timestamp,omitempty"`
@@ -124,12 +125,27 @@ type Reply struct {
 type OptionReply func(*Reply)
 
 func WithMessageOpt(message string) OptionReply
-func WithErrorOpt(err error) OptionReply       // copies errorkit TraceID
+func WithErrorOpt(err error) OptionReply       // client-safe code + message; copies errorkit TraceID
 func WithMetadataOpt(metadata any) OptionReply
 func WithDataOpt(data any) OptionReply
 
 func BuildReply(opts ReplyOptions, options ...OptionReply) *Reply
 ```
+
+**Error replies never carry `err.Error()`.** The text of an error can hold
+SQL, hostnames, file paths or panic values, so `WithErrorOpt` sets:
+
+| Error | `code` | `error` |
+|---|---|---|
+| `*errorkit.AppError` with a 4xx `Metadata.HTTPStatus` | its error code | its `Reason` (falls back to `Metadata.Description`) |
+| any other `*errorkit.AppError` | its error code | its `Metadata.Description` |
+| any other error | `ERR_INTERNAL` | `Internal server error` |
+
+The `*errorkit.AppError` is found anywhere in the chain (`errors.As`). The
+Hertz adapter's `HTTPContext.WithError` also logs the full error
+server-side through `logger.CtxOrGlobal(ctx)` with `trace_id`/`span_id`
+(warn level for 4xx, error level otherwise) and fills `trace_id` in the
+reply from the active span when the error carries none.
 
 `HTTPContext.Reply(status, opts...)` ultimately calls `BuildReply` with
 the server's `ReplyOptions`. The `Timestamp` is stamped from
