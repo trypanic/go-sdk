@@ -3,10 +3,12 @@ package ioutils
 import (
 	"bytes"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/marshal"
 )
 
 func TestWriteJSONEncodesWithoutHTMLEscape(t *testing.T) {
@@ -29,8 +31,8 @@ func TestWriteJSONReturnsErrorOnUnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error encoding chan")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_INTERNAL {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_INTERNAL {
 		t.Fatalf("expected ERR_INTERNAL, got %v", err)
 	}
 }
@@ -40,8 +42,15 @@ func TestSaveJSONWritesFile(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.json")
-	if err := SaveJSON(path, map[string]int{"n": 1}); err != nil {
+	if err := SaveJSON(path, map[string]string{"q": "<a>&"}); err != nil {
 		t.Fatalf("SaveJSON: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "{\"q\":\"<a>&\"}\n"; string(got) != want {
+		t.Fatalf("file content = %q, want %q", got, want)
 	}
 }
 
@@ -52,8 +61,79 @@ func TestSaveJSONReturnsErrorOnInvalidPath(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error on invalid path")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_INTERNAL {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_INTERNAL {
 		t.Fatalf("expected ERR_INTERNAL, got %v", err)
+	}
+}
+
+// SaveJSON used to truncate the target with os.Create before encoding, so a
+// failed encode destroyed the previous dump.
+func TestSaveJSONKeepsExistingFileOnEncodeError(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "out.json")
+	if err := os.WriteFile(path, []byte(`{"keep":"me"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := SaveJSON(path, make(chan int))
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_INTERNAL {
+		t.Fatalf("expected ERR_INTERNAL, got %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != `{"keep":"me"}` {
+		t.Fatalf("existing file content = %q, want it unchanged", got)
+	}
+}
+
+// Dumps may contain request bodies or credentials; new files are created
+// owner-only instead of 0666 &^ umask.
+func TestSaveJSONCreatesOwnerOnlyFile(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "out.json")
+	if err := SaveJSON(path, map[string]int{"n": 1}); err != nil {
+		t.Fatalf("SaveJSON: %v", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("file mode = %v, want 0600", perm)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("disk full") }
+
+func TestWriteJSONReturnsErrorOnWriteFailure(t *testing.T) {
+	t.Parallel()
+
+	err := WriteJSON(failingWriter{}, map[string]int{"n": 1})
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_INTERNAL {
+		t.Fatalf("expected ERR_INTERNAL, got %v", err)
+	}
+}
+
+// WriteJSON and marshal.NoEscapeBytes share one encoding rule.
+func TestWriteJSONMatchesMarshalNoEscapeBytes(t *testing.T) {
+	t.Parallel()
+
+	v := map[string]any{"q": "<a>&", "n": []int{1, 2}}
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, v); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+	want, err := marshal.NoEscapeBytes(v)
+	if err != nil {
+		t.Fatalf("NoEscapeBytes: %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), want) {
+		t.Fatalf("WriteJSON = %q, NoEscapeBytes = %q", buf.Bytes(), want)
 	}
 }

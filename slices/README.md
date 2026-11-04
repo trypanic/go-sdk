@@ -2,6 +2,10 @@
 
 Utility functions for common slice operations not covered by the Go standard library.
 
+> **Name collision.** This package is named `slices`, like the standard library
+> package. A file that needs both must alias one of them, for example
+> `import sdkslices "github.com/trypanic/go-sdk/slices"`.
+
 ## Overview
 
 | Symbol | Kind | Purpose |
@@ -62,11 +66,20 @@ func Chunk[T any](items []T, size int) [][]T
 ```
 
 Splits `items` into consecutive sub-slices of at most `size` elements.
-The final chunk may be shorter than `size`. Returns `nil` when `size <= 0`
-or when `items` is `nil`.
+The final chunk may be shorter than `size`.
+
+> **Size contract: `size` must be greater than zero.** With `size <= 0`
+> `Chunk` returns `nil` and **no error** (the standard library `slices.Chunk`
+> panics instead), so a batch loop with a misconfigured size silently
+> processes nothing. Validate `size` before calling when that matters.
+
+`Chunk` also returns `nil` when `items` is `nil` or empty. The outer slice is
+allocated once with the exact number of chunks.
 
 Sub-slices are views into the original backing array; mutating an element
-through a chunk affects `items`.
+through a chunk affects `items`. Each chunk's capacity is clipped to its length
+(`items[i:end:end]`, as in the standard library `slices.Chunk`), so `append` on
+a chunk allocates a new array instead of overwriting the next chunk or `items`.
 
 ```go
 chunks := slices.Chunk([]int{1, 2, 3, 4, 5}, 2)
@@ -85,7 +98,7 @@ No known callers at the time of writing.
 
 ## Lifecycle / Concurrency Notes
 
-`MergeUniqueStrings` is a pure function with no shared state. It is safe to call concurrently. The returned slice is owned by the caller.
+Both functions are pure and have no shared state; they are safe to call concurrently. The slice returned by `MergeUniqueStrings` is owned by the caller; the chunks returned by `Chunk` share elements with `items`.
 
 ---
 

@@ -9,7 +9,8 @@ URL construction helpers that safely combine a base URL, an optional path, and a
 | `BuildURL` | Function | Combine base, path, and query params into a `*url.URL`, returning a structured error on invalid input |
 | `BuildURLString` | Function | Convenience wrapper around `BuildURL` that returns the URL as a `string` |
 | `MustBuildURL` | Function | Like `BuildURL` but panics instead of returning an error; use only for hard-coded, known-good URLs |
-| `JoinPath` | Function | Append one or more path segments to a base URL, normalizing leading/trailing slashes between them |
+| `JoinPath` | Function | Append one or more path segments to a base URL, normalizing leading/trailing slashes between them; rejects `.`/`..` segments |
+| `JoinHTTPPath` | Function | Like `JoinPath`, but also requires an absolute `http`/`https` base with a host |
 
 ---
 
@@ -36,6 +37,9 @@ base := urlkit.MustBuildURL("https://api.example.com", "/health", nil)
 // Path-join: trims redundant slashes and skips empty segments
 j, _ := urlkit.JoinPath("https://api.example.com/", "/v1/", "/users/")
 // j == "https://api.example.com/v1/users"
+
+// Same, but the base must be an absolute http(s) URL with a host
+h, err := urlkit.JoinHTTPPath(cfg.APIBase, "v1", userID)
 ```
 
 ---
@@ -56,15 +60,30 @@ func BuildURL(base, path string, params map[string]string) (*url.URL, error)
 
 Constructs a `*url.URL` by:
 1. Validating that `base` is non-empty.
-2. Parsing `base` with `url.Parse` to verify it is a well-formed URL.
-3. If `path` is non-empty, concatenating `base + path` and parsing the result.
-4. Encoding each entry from `params` into the query string using `url.Values.Set`.
+2. Parsing `base` once with `url.Parse` to verify it is a well-formed URL.
+3. If `path` is non-empty, appending it to the path of `base` as a **path**
+   (never as URL syntax).
+4. Merging each entry from `params` into the query string of `base` using `url.Values.Set`.
+
+**Path rules:**
+- `path` can never change the scheme, host, query or fragment of `base`.
+  `BuildURL("https://api.good.com", "@evil.com/x", nil)` yields
+  `https://api.good.com/@evil.com/x`.
+- A missing leading slash is added: `"users"` is treated as `"/users"`.
+- `path` is appended to the path of `base`; a trailing slash on `base` is not
+  doubled (`"https://api.com/v1/"` + `"/users"` → `"https://api.com/v1/users"`).
+  A trailing slash on `path` is kept.
+- `path` may contain percent-escapes (`"/files/a%2Fb"` is kept as is).
+- `path` is rejected with `ERR_VALIDATION_INVALID_FORMAT` when it contains
+  `?` or `#`, a `.` or `..` segment (also percent-encoded, e.g. `%2e%2e`), or
+  an invalid escape sequence. Pass query values through `params` instead.
 
 **Edge cases:**
 - `path` may be an empty string; the base URL is returned unchanged.
 - `params` may be `nil` or empty; no query string is appended.
+- A query string on `base` (API keys, signed URLs) is kept; `params` are
+  merged into it and win on equal keys.
 - Query parameters are URL-encoded by `url.Values.Encode`, which sorts keys lexicographically.
-- The function does not join paths with a separator; if `base` has no trailing slash and `path` has no leading slash, the strings are concatenated directly (e.g., `"https://api.com"` + `"/v1"` → `"https://api.com/v1"`).
 
 **Error conditions:**
 
@@ -72,7 +91,9 @@ Constructs a `*url.URL` by:
 |---|---|
 | `base` is an empty string | `ERR_VALIDATION_MISSING_FIELD` — reason: `"Base URL is required"` |
 | `base` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid base URL format"`, payload: `{"base_url": base}` |
-| `base + path` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid URL format after combining base and path"`, payload: `{"base_url": base, "path": path}` |
+| `path` contains `?` or `#` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path must not contain a query or fragment"`, payload: `{"base_url": base, "path": path}` |
+| `path` contains an invalid escape sequence | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path contains an invalid escape sequence"`, payload as above |
+| `path` contains a `.` or `..` segment | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path must not contain dot segments"`, payload as above |
 
 ---
 
@@ -93,6 +114,50 @@ func MustBuildURL(base, path string, params map[string]string) *url.URL
 ```
 
 Calls `BuildURL` and panics with the returned error if construction fails. Intended for package-level `var` blocks or `init()` functions where the URL is a hard-coded constant and a failure represents a programming error, not a runtime condition.
+
+---
+
+### `JoinPath`
+
+```go
+func JoinPath(base string, segments ...string) (string, error)
+```
+
+Appends `segments` to the path of `base`:
+- Leading and trailing slashes of each segment and the trailing slash of the
+  base path are trimmed, then the parts are joined with a single `/`. The
+  result has no trailing slash.
+- Empty segments (after trimming) are skipped.
+- Segments are raw path text: `?` and `#` inside a segment are
+  percent-encoded, so a segment cannot add a query or fragment.
+- The query string of `base` is preserved.
+- A segment that contains a `.` or `..` element (`".."`, `"a/../b"`,
+  `"./x"`) is rejected, so a segment cannot escape the base path. Dots inside
+  an element (`"v1.2"`, `"..hidden"`) are allowed.
+- Any base accepted by `url.Parse` is accepted, including relative and
+  non-HTTP URLs. Use `JoinHTTPPath` when the result must be an HTTP URL.
+
+**Error conditions:**
+
+| Condition | errorkit code |
+|---|---|
+| `base` is an empty string | `ERR_VALIDATION_MISSING_FIELD` — reason: `"Base URL is required"` |
+| `base` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid base URL format"`, payload: `{"base_url": base}` |
+| a segment contains a `.` or `..` element | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path segment must not contain dot segments"`, payload: `{"base_url": base, "segment": segment}` |
+
+---
+
+### `JoinHTTPPath`
+
+```go
+func JoinHTTPPath(base string, segments ...string) (string, error)
+```
+
+Same as `JoinPath`, plus: `base` must use the `http` or `https` scheme and
+have a non-empty host. `"foo"`, `"/relative"`, `"javascript:alert(1)"`,
+`"ftp://host"` and `"https:///path"` are rejected with
+`ERR_VALIDATION_INVALID_FORMAT` (reason:
+`"Base URL must be an absolute http or https URL with a host"`).
 
 ---
 
@@ -146,7 +211,7 @@ return authURL.String(), nil
 
 ## Lifecycle / Concurrency Notes
 
-All three functions are pure and stateless. They are safe for concurrent use without additional synchronisation.
+All functions are pure and stateless. They are safe for concurrent use without additional synchronisation.
 
 ---
 
