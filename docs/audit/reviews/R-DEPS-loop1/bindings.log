@@ -32,7 +32,7 @@ $ sh /tmp/DEPS-review1/bindings.sh
     --- PASS: TestPostgresIntegration/missing_row_and_unique_violation_preserve_causes (0.00s)
     --- PASS: TestPostgresIntegration/cancellation_and_server_timeout (0.05s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/postgres	1.958s
+ok      github.com/trypanic/go-sdk/v2/postgres  1.958s
 === RUN   TestMongoIntegration
 2026/11/04 00:52:52 github.com/testcontainers/testcontainers-go - Connected to docker:
   Server Version: 29.9.2
@@ -70,7 +70,7 @@ ok  	github.com/trypanic/go-sdk/v2/postgres	1.958s
     --- PASS: TestMongoIntegration/classified_errors_and_cursor_decode (0.01s)
     --- PASS: TestMongoIntegration/borrowed_adapter_preserves_owner_connection (0.00s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/mongo	1.132s
+ok      github.com/trypanic/go-sdk/v2/mongo     1.132s
 === RUN   TestRabbitMQIntegration
 2026/11/04 00:52:52 github.com/testcontainers/testcontainers-go - Connected to docker:
   Server Version: 29.9.2
@@ -104,4 +104,4 @@ ok  	github.com/trypanic/go-sdk/v2/mongo	1.132s
     --- PASS: TestRabbitMQIntegration/mandatory_returns_are_failures (0.00s)
     --- PASS: TestRabbitMQIntegration/close_stops_an_active_subscription_and_is_terminal (0.00s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/messaging	2.737s
+ok      github.com/trypanic/go-sdk/v2/messaging 2.737s

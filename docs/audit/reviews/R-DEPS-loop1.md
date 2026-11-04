@@ -235,7 +235,7 @@ deployment configuration. This verdict does not authorize merge or P5.
 The orchestrator stores extracted examples as `.go.txt` so documentation does
 not create an unintended Go package. Exact patch bytes are base64 encoded in
 `.patch.b64`; `reproduce.sh` decodes them before applying them. Other text logs
-are normalized for repository whitespace/newline hooks. The original captured
+have tabs expanded and are normalized for repository whitespace/newline hooks. The original captured
 files remain under `/tmp/DEPS-review1/R-DEPS-loop1`; the source manifest is
 preserved inside `manifest.json` alongside checksums of repository artifacts.
 This packaging change does not alter any reviewed SDK implementation.

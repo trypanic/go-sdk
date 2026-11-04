@@ -1,5 +1,5 @@
 {
-  "normalization": "Go examples are text; exact patches base64; other logs whitespace/newline normalized.",
+  "normalization": "Go examples are text; exact patches base64; other logs tabs expanded and trailing whitespace/newlines normalized.",
   "original_capture_manifest": [
     {
       "file": "AGENTS-example.go",
@@ -365,13 +365,13 @@
     },
     {
       "file": "README-example.go.txt",
-      "bytes": 696,
-      "sha256": "8ef437007bc057e36c0d6476687232f2d3af28e8820329112a2f47fd2d7ab657"
+      "bytes": 871,
+      "sha256": "e4046969261e79a57ff0d858beed373691ad4af41c1b180058988b155b07102b"
     },
     {
       "file": "bindings.log",
-      "bytes": 7260,
-      "sha256": "251666a06f95bc85812d856405c89e476c01e18581aa1497bfb211406bb44f09"
+      "bytes": 7274,
+      "sha256": "2e9ce61bee28de0223cc5712338a06c3ee9419bee85af9aac89fa96391549428"
     },
     {
       "file": "build.log",
@@ -385,8 +385,8 @@
     },
     {
       "file": "chunked.log",
-      "bytes": 270,
-      "sha256": "4e484f3a494e1ef189d43215dbb39838f970c254e63035ce10760a9d80d66e3a"
+      "bytes": 279,
+      "sha256": "2d36142dd7c7740e8e89aa9613a1d130fa9549c8b87bd86cb1764766a792f15c"
     },
     {
       "file": "chunked.patch.b64",
@@ -430,8 +430,8 @@
     },
     {
       "file": "coverage.log",
-      "bytes": 2656,
-      "sha256": "74399de008d01d32293a40f26fb16f72455405decb2183207ca4a3fb8758a136"
+      "bytes": 2897,
+      "sha256": "90556937e475b7ffcb39e85500007c36ee27ef38b8246af218a97fc38b3989f9"
     },
     {
       "file": "dependency-delta.json",
@@ -445,13 +445,13 @@
     },
     {
       "file": "floor-short.log",
-      "bytes": 1775,
-      "sha256": "f5e1f29a87feb345d5b600891fcefe527bc3c76d1cec2d13baa3f4b525c9f72c"
+      "bytes": 1966,
+      "sha256": "eb25a526f77f6541822326e8b11d5b0edead30cf9ceeadc56bc4b33f48d68c4f"
     },
     {
       "file": "floor-tagged-short.log",
-      "bytes": 1793,
-      "sha256": "e141e89e3a9c13507e0829774a0c982d58a1f2e2ef99a17febac6e68622d037b"
+      "bytes": 1984,
+      "sha256": "32238d1a59748469ebd8e1d30fe207ad553520acd70365bd48ac66112f260d1c"
     },
     {
       "file": "formatting.log",
@@ -460,13 +460,13 @@
     },
     {
       "file": "gates-authorized.log",
-      "bytes": 4567,
-      "sha256": "8ffa80603a4bc39cdc312a8ce38799224d40cbe763d7796c1859fc7f4b37c557"
+      "bytes": 4758,
+      "sha256": "8fadc4a16993a544fa40b6e37515f0ed4cf5d4bb0495b6ad97e361a77b03627d"
     },
     {
       "file": "gates.log",
-      "bytes": 89586,
-      "sha256": "2a0565392f608d2196f2893c4031ad2b6721d94986e1e0ce681968fb474bc5f7"
+      "bytes": 91106,
+      "sha256": "665765ab45f3c7e63e6de900181f0f735bc59b88cbd77fb75424a23dffbce8e6"
     },
     {
       "file": "graph.txt",
@@ -475,8 +475,8 @@
     },
     {
       "file": "guard-no-docker.log",
-      "bytes": 751,
-      "sha256": "2354971bebded22940ad6cf2b2e029852fe9b2e9a57a6f17c2fcb676e99ab533"
+      "bytes": 765,
+      "sha256": "08188ae3a914750e3a0ec3504610dcfea9d5a32bac1b92d2be4079a75b2a38cf"
     },
     {
       "file": "hooks-isolated.log",
@@ -490,8 +490,8 @@
     },
     {
       "file": "integration-authorized.log",
-      "bytes": 11152,
-      "sha256": "45a906f1fdf49a8b6d96554b73fce50b5f31f2302b6dedff58496c1fd59a3023"
+      "bytes": 11166,
+      "sha256": "6975b0f53d8d9fe0a72898f3d872dc35d4ba2a994e10ef9666939d3e802098a7"
     },
     {
       "file": "integration-test-deps.txt",
@@ -500,8 +500,8 @@
     },
     {
       "file": "integration.log",
-      "bytes": 3985,
-      "sha256": "ee12e2bfb62d0567d4ceff724422482001f260127f56048454a5f36a2712100c"
+      "bytes": 4485,
+      "sha256": "6eb61c4cdf50e20313cad773ef73963fb9c237de72cde9b76bf71f4c74a1a742"
     },
     {
       "file": "inventory-authorized.log",
@@ -520,13 +520,13 @@
     },
     {
       "file": "loopback-assertion-runtime.log",
-      "bytes": 2420,
-      "sha256": "bb5d162843c9b95776c6b9bfd3c8e5933d342da0ca05bc5eba9d4e0da6519feb"
+      "bytes": 2495,
+      "sha256": "3296cc168a50b8a88ec1abc8bd9446ba701f21339dac497a9ee66f533eb23a74"
     },
     {
       "file": "loopback-assertion.log",
-      "bytes": 317,
-      "sha256": "afb562e4838fc0eb60638e9338b6b9391dc7f6a079987ae6cebedb8175661a53"
+      "bytes": 320,
+      "sha256": "a262b659468200a66bb0b2db5b82fe19f54af39dba4cc5068d34dd659404162e"
     },
     {
       "file": "loopback-assertion.patch.b64",
@@ -535,8 +535,8 @@
     },
     {
       "file": "mandatory-disabled.log",
-      "bytes": 2419,
-      "sha256": "2d7fe1d915d805c08354b7e70908096cfb57809d082ea85278f68621a813a26b"
+      "bytes": 2462,
+      "sha256": "90813036f2642a2a29e023f4f12c179b612c437ecc00b2d1a2d12efb7caae169"
     },
     {
       "file": "mandatory-disabled.patch.b64",
@@ -625,13 +625,13 @@
     },
     {
       "file": "ryuk-test.log",
-      "bytes": 2105,
-      "sha256": "921c28febef01c39a56803aa33de8ff9476201a9b1280cdc86881746433195e6"
+      "bytes": 2108,
+      "sha256": "5b6ba624756c9555a2e3095eefebed068e0922cf2e5f6344c833a3b14eb11701"
     },
     {
       "file": "setup-lifetime.log",
-      "bytes": 331,
-      "sha256": "bdaf04d4722973a54a97f838e17bc3dd949f0cd11c7d9a24221e0a8daa02106d"
+      "bytes": 334,
+      "sha256": "5f80c68af856263faa5c100585702d08ba3d6b2d3eb72829e2afc2c911c26b2d"
     },
     {
       "file": "setup-lifetime.patch.b64",
@@ -650,8 +650,8 @@
     },
     {
       "file": "sources/archive.mod",
-      "bytes": 610,
-      "sha256": "5e848da6d91fd4d66420a8695dde1ea8e3747103742bba45e4d1151fc7225f7e"
+      "bytes": 708,
+      "sha256": "4981eb15d4be326ae232c65f7a5f9839a699bec0d2764a468f27d3de7ad829a6"
     },
     {
       "file": "sources/crypto-advisory.json",
@@ -670,8 +670,8 @@
     },
     {
       "file": "sources/testcontainers.mod",
-      "bytes": 2501,
-      "sha256": "d6ee7109c50c5a3557f86dd5e2d4eb88dd3e00d5d3b44e0a395447a0213c6dd0"
+      "bytes": 2858,
+      "sha256": "8a23ed050795a898331ae7601c2ee2e0982a9c2e8f318a6ee9716a8e34bb8089"
     },
     {
       "file": "sources/urls.json",
@@ -705,13 +705,13 @@
     },
     {
       "file": "unit-task.log",
-      "bytes": 2863,
-      "sha256": "40ac365dddb71c5fca29d245b9e080d0a4690b6c75394fd0370c5643111f5d2d"
+      "bytes": 3054,
+      "sha256": "999cc91b721d010654373435178e3d6b4375c249f2e61e455a616df8ce1be328"
     },
     {
       "file": "xp-head.log",
-      "bytes": 241,
-      "sha256": "ec0f961e46b13b6b1cf8211a0108d1d4210b2421ff265602f286602a1477927a"
+      "bytes": 253,
+      "sha256": "ebbd299215a7d277a8c384ccf6330fdf84e0d7e164728df77a19cbc9d61a41b5"
     }
   ]
 }

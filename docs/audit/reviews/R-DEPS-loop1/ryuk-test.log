@@ -30,4 +30,4 @@
 --- PASS: TestRabbitMQIntegration (2.70s)
     --- PASS: TestRabbitMQIntegration/mandatory_returns_are_failures (0.00s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/messaging	2.729s
+ok      github.com/trypanic/go-sdk/v2/messaging 2.729s

@@ -50,7 +50,7 @@ $ go test -v -race -tags integration -run Integration -count=2 -shuffle=on -time
     --- PASS: TestPostgresIntegration/missing_row_and_unique_violation_preserve_causes (0.00s)
     --- PASS: TestPostgresIntegration/cancellation_and_server_timeout (0.05s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/postgres	4.696s
+ok      github.com/trypanic/go-sdk/v2/postgres  4.696s
 -test.shuffle 1793771440970647835
 === RUN   TestMongoIntegration
 2026/11/04 00:50:40 github.com/testcontainers/testcontainers-go - Connected to docker:
@@ -106,7 +106,7 @@ ok  	github.com/trypanic/go-sdk/v2/postgres	4.696s
     --- PASS: TestMongoIntegration/classified_errors_and_cursor_decode (0.01s)
     --- PASS: TestMongoIntegration/borrowed_adapter_preserves_owner_connection (0.00s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/mongo	3.050s
+ok      github.com/trypanic/go-sdk/v2/mongo     3.050s
 -test.shuffle 1793771440961143869
 === RUN   TestRabbitMQIntegration
 2026/11/04 00:50:40 github.com/testcontainers/testcontainers-go - Connected to docker:
@@ -158,4 +158,4 @@ ok  	github.com/trypanic/go-sdk/v2/mongo	3.050s
     --- PASS: TestRabbitMQIntegration/mandatory_returns_are_failures (0.04s)
     --- PASS: TestRabbitMQIntegration/close_stops_an_active_subscription_and_is_terminal (0.01s)
 PASS
-ok  	github.com/trypanic/go-sdk/v2/messaging	7.117s
+ok      github.com/trypanic/go-sdk/v2/messaging 7.117s

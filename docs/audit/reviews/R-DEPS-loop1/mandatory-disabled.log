@@ -25,10 +25,10 @@ $ sh /tmp/DEPS-review1/mandatory.sh
 2026/11/04 00:52:12 🔔 Container is ready: d9c9b445f4db
 === RUN   TestRabbitMQIntegration/mandatory_returns_are_failures
     messaging_integration_test.go:92:
-        	Error Trace:	/tmp/DEPS-review1/mutations/messaging/messaging_integration_test.go:92
-        	Error:      	Should be true
-        	Test:       	TestRabbitMQIntegration/mandatory_returns_are_failures
-        	Messages:   	<nil>
+                Error Trace:    /tmp/DEPS-review1/mutations/messaging/messaging_integration_test.go:92
+                Error:          Should be true
+                Test:           TestRabbitMQIntegration/mandatory_returns_are_failures
+                Messages:       <nil>
 2026/11/04 00:52:12 🐳 Stopping container: d9c9b445f4db
 2026/11/04 00:52:12 ✅ Container stopped: d9c9b445f4db
 2026/11/04 00:52:12 🐳 Terminating container: d9c9b445f4db
@@ -36,5 +36,5 @@ $ sh /tmp/DEPS-review1/mandatory.sh
 --- FAIL: TestRabbitMQIntegration (2.71s)
     --- FAIL: TestRabbitMQIntegration/mandatory_returns_are_failures (0.01s)
 FAIL
-FAIL	github.com/trypanic/go-sdk/v2/messaging	2.757s
+FAIL    github.com/trypanic/go-sdk/v2/messaging 2.757s
 FAIL
