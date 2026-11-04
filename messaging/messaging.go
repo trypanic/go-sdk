@@ -144,12 +144,12 @@ func WithDeclareTopology() PubSubOption {
 //
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
-func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
+func NewPubSub(amqpURL string, opts ...PubSubOption) (*PubSub, error) {
 	return NewPubSubContext(context.Background(), amqpURL, opts...)
 }
 
 // NewPubSubContext uses ctx for setup only. Close owns the returned PubSub lifetime.
-func NewPubSubContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (Messager, error) {
+func NewPubSubContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (*PubSub, error) {
 	ps, err := newPubSubContext(ctx, amqpURL, nil, opts...)
 	if err != nil {
 		return nil, err
@@ -162,12 +162,12 @@ func NewPubSubContext(ctx context.Context, amqpURL string, opts ...PubSubOption)
 // explicit WithTopology or WithTopologyFile still takes precedence. It fails
 // with ERR_SYSTEM_CONFIG_INVALID, before dialing, when no topology source is
 // available.
-func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
+func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (*PubSub, error) {
 	return NewPubSubFromEnvContext(context.Background(), amqpURL, opts...)
 }
 
 // NewPubSubFromEnvContext reads the topology from the environment and uses ctx during setup.
-func NewPubSubFromEnvContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (Messager, error) {
+func NewPubSubFromEnvContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (*PubSub, error) {
 	fromEnv := func(b *pubSubBuild) { b.topologyFromEnv = true }
 	ps, err := newPubSubContext(ctx, amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
 	if err != nil {

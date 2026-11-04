@@ -108,6 +108,7 @@ func auditBody(buf *bytes.Buffer, read int64) []byte {
 
 // HTTPRequest implements the HTTPRequester interface.
 type HTTPRequest struct {
+	instrumenter  *telemetry.Instrumenter
 	client        *http.Client
 	retryConfig   RetryConfig
 	auditLog      bool
@@ -191,33 +192,36 @@ func newPlain(client *http.Client) *HTTPRequest {
 
 // New creates a new instance of HTTPRequest with default retry settings.
 // Bodies are redacted by default and the audit log is disabled.
-func New(client *http.Client) HTTPRequester {
-	return WrapWithTracing(newPlain(client))
+func New(client *http.Client) *HTTPRequest {
+	return NewWithInstrumenter(client, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
 // NewHTTPRequestWithRetry creates a new instance with custom retry configuration.
-func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) HTTPRequester {
+func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) *HTTPRequest {
 	h := newPlain(client)
 	h.retryConfig = normalizeRetryConfig(retryConfig)
-	return WrapWithTracing(h)
+	h.instrumenter = telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})
+	return h
 }
 
 // NewWithoutTracing creates an HTTPRequester with no automatic tracing wrapper.
 // SDK consumers that want explicit tracing should call WrapWithInstrumenter.
-func NewWithoutTracing(client *http.Client) HTTPRequester {
+func NewWithoutTracing(client *http.Client) *HTTPRequest {
 	return newPlain(client)
 }
 
 // NewWithInstrumenter creates an HTTPRequester wrapped with the supplied instrumenter.
 // Passing nil disables tracing.
-func NewWithInstrumenter(client *http.Client, instrumenter *telemetry.Instrumenter) HTTPRequester {
-	return WrapWithInstrumenter(NewWithoutTracing(client), instrumenter)
+func NewWithInstrumenter(client *http.Client, instrumenter *telemetry.Instrumenter) *HTTPRequest {
+	h := newPlain(client)
+	h.instrumenter = instrumenter
+	return h
 }
 
 // NewWithOptions builds an HTTPRequester from explicit options. Tracing is
 // disabled by default; pass WrapWithInstrumenter outside this constructor if
 // tracing is needed.
-func NewWithOptions(client *http.Client, opts ...Option) HTTPRequester {
+func NewWithOptions(client *http.Client, opts ...Option) *HTTPRequest {
 	h := newPlain(client)
 	for _, opt := range opts {
 		opt(h)
@@ -231,6 +235,12 @@ func NewWithOptions(client *http.Client, opts ...Option) HTTPRequester {
 // Do execute the request with retry logic and processes the response into 'out'.
 // Do is safe for concurrent use after construction: it never mutates h.
 func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) error {
+	if h.instrumenter != nil {
+		var span telemetry.Span
+		ctx, span = h.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL))
+		defer span.End()
+	}
+
 	var lastErr error
 	span := trace.SpanFromContext(ctx)
 	rc := h.retryConfig // local copy keeps Do concurrent-safe.

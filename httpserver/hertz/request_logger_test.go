@@ -19,7 +19,7 @@ var generatedID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 // requestLoggerServer installs the middleware through the SDK interface
 // (useSDK) or directly on the engine, plus a handler that logs one line.
-func requestLoggerServer(t *testing.T, useSDK bool) *wrapperHertzServer {
+func requestLoggerServer(t *testing.T, useSDK bool) *Server {
 	t.Helper()
 	o := testOptions()
 	o.EnableAudit = false

@@ -8,7 +8,7 @@ import (
 
 // Compile-time assertion: Hertz adapter satisfies the SDK HTTPServer
 // interface, including the new Shutdown method.
-var _ httpserver.HTTPServer = (*wrapperHertzServer)(nil)
+var _ httpserver.HTTPServer = (*Server)(nil)
 
 func TestNewWithOptionsBackfillsZeroFields(t *testing.T) {
 	t.Parallel()
@@ -18,9 +18,9 @@ func TestNewWithOptionsBackfillsZeroFields(t *testing.T) {
 			EnableHealth: true,
 		},
 	)
-	w, ok := srv.(*wrapperHertzServer)
+	w, ok := any(srv).(*Server)
 	if !ok {
-		t.Fatalf("NewWithOptions returned %T, want *wrapperHertzServer", srv)
+		t.Fatalf("NewWithOptions returned %T, want *Server", srv)
 	}
 	if w.replyOpts.Layout == "" || w.replyOpts.Clock == nil {
 		t.Fatalf("Reply layout/clock must be backfilled, got %+v", w.replyOpts)

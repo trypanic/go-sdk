@@ -29,7 +29,7 @@ func TestNewWithoutTracingReturnsPlainClient(t *testing.T) {
 	t.Parallel()
 
 	provider := NewWithoutTracing(nil, Config{})
-	if _, ok := provider.(*tracingLLMProvider); ok {
+	if provider.instrumenter != nil {
 		t.Fatalf("NewWithoutTracing must not wrap with tracing")
 	}
 }

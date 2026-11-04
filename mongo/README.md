@@ -351,3 +351,19 @@ needed because the interface is not bound to `*mongo.Database`.
 | `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for collection operations |
 
 The package has **no `otelmongo` import**. Tracing is wrapper-level and opt-in.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+`New`, `NewWithoutTracing` and `NewWithInstrumenter` return `*Client`, preserving
+`Database()` and `Unwrap()` (the driver client) with tracing enabled. Optional
+`WithClientOptions(*options.ClientOptions)` overrides Config/URI driver settings.
+Configure these options before construction. `NewFromClient(driver, database, instr)`
+performs no I/O and borrows the driver: its `Close` is a no-op; the original owner
+must call `Disconnect`. Clients opened by the SDK own and disconnect their driver.

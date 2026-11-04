@@ -103,3 +103,6 @@ func lastTwoPathSegments(p string) string {
 		return parts[len(parts)-2] + "." + parts[len(parts)-1]
 	}
 }
+
+// Unwrap returns the request implementation enclosed by this decorator.
+func (t *tracingHTTPRequester) Unwrap() HTTPRequester { return t.inner }

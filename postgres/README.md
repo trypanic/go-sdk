@@ -371,3 +371,15 @@ the default setup timeout is five seconds. Positive `Config.ConnectTimeout`
 caps setup even with a later caller deadline; negative values are rejected.
 The caller owns `pool.Close()`. Canceling the construction context after success
 does not close the pool or control later queries.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+`NewStoredProcedure` returns `*TracedProcedure[T]`; its `Unwrap()` returns the
+underlying `StoredProcedurer[T]`. It does not own or close the supplied pool.

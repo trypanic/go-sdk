@@ -39,42 +39,43 @@ func WrapWithInstrumenter[T any](inner StoredProcedurer[T], instrumenter *teleme
 	if instrumenter == nil {
 		return inner
 	}
-	return &tracingStoredProcedurer[T]{
+	return &TracedProcedure[T]{
 		inner:        inner,
 		instrumenter: instrumenter,
 	}
 }
 
-type tracingStoredProcedurer[T any] struct {
+// TracedProcedure adds telemetry to a stored procedure implementation.
+type TracedProcedure[T any] struct {
 	inner        StoredProcedurer[T]
 	instrumenter *telemetry.Instrumenter
 }
 
-func (t *tracingStoredProcedurer[T]) QueryRow(ctx context.Context, query string, args ...any) (T, error) {
+func (t *TracedProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (T, error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer span.End()
 	return t.inner.QueryRow(ctx, query, args...)
 }
 
-func (t *tracingStoredProcedurer[T]) Query(ctx context.Context, query string, args ...any) ([]T, error) {
+func (t *TracedProcedure[T]) Query(ctx context.Context, query string, args ...any) ([]T, error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer span.End()
 	return t.inner.Query(ctx, query, args...)
 }
 
-func (t *tracingStoredProcedurer[T]) QueryRowJSON(ctx context.Context, query string, jsonArg any, args ...any) (T, error) {
+func (t *TracedProcedure[T]) QueryRowJSON(ctx context.Context, query string, jsonArg any, args ...any) (T, error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer span.End()
 	return t.inner.QueryRowJSON(ctx, query, jsonArg, args...)
 }
 
-func (t *tracingStoredProcedurer[T]) QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) ([]T, error) {
+func (t *TracedProcedure[T]) QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) ([]T, error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer span.End()
 	return t.inner.QueryJSON(ctx, query, jsonArg, args...)
 }
 
-func (t *tracingStoredProcedurer[T]) pgSpan(ctx context.Context, sql string) (context.Context, telemetry.Span) {
+func (t *TracedProcedure[T]) pgSpan(ctx context.Context, sql string) (context.Context, telemetry.Span) {
 	return t.instrumenter.Start(ctx, procSpanName(sql))
 }
 
@@ -84,3 +85,6 @@ func procSpanName(sql string) string {
 	}
 	return "postgres.query"
 }
+
+// Unwrap returns the stored procedure implementation enclosed by this decorator.
+func (t *TracedProcedure[T]) Unwrap() StoredProcedurer[T] { return t.inner }

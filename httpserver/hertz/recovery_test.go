@@ -15,7 +15,7 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-func panickingServer(t *testing.T, enableRecovery bool) *wrapperHertzServer {
+func panickingServer(t *testing.T, enableRecovery bool) *Server {
 	t.Helper()
 	opts := testOptions()
 	opts.EnableAudit = false

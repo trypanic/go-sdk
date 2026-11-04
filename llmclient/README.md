@@ -93,3 +93,12 @@ call may be billed twice.
 `llm.execute` if the model is empty). The span is the parent of the
 `httprequest` span produced by the underlying HTTP call, so end-to-end LLM
 latency is visible in the trace tree without instrumenting call sites.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.

@@ -29,7 +29,7 @@ func TestExtendedRoutingMethods(t *testing.T) {
 				srv.Handle(method, "/resource", handler)
 				group.Handle(method, "/resource", handler)
 			}
-			engine := srv.(*wrapperHertzServer).engine
+			engine := any(srv).(*Server).engine
 			for _, path := range []string{"/resource", "/v1/resource"} {
 				response := ut.PerformRequest(engine.Engine, method, path, nil).Result()
 				require.Equal(t, 204, response.StatusCode())

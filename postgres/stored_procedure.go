@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/telemetry"
 )
 
 // StoredProcedurer runs a stored-procedure call and scans the result into T.
@@ -30,8 +31,8 @@ type StoredProcedure[T any] struct {
 // WrapWithTracing, so every call opens a span with the global tracer. Do not
 // wrap the result again; use WrapWithInstrumenter on a StoredProcedure value
 // to choose the tracer or disable tracing.
-func NewStoredProcedure[T any](pool Querier) StoredProcedurer[T] {
-	return WrapWithTracing(StoredProcedure[T]{Pool: pool})
+func NewStoredProcedure[T any](pool Querier) *TracedProcedure[T] {
+	return &TracedProcedure[T]{inner: StoredProcedure[T]{Pool: pool}, instrumenter: telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})}
 }
 
 // QueryRow runs query and scans the single row it returns. No row is

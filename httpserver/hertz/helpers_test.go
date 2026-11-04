@@ -23,9 +23,9 @@ func testOptions() httpserver.ServerOptions {
 	return o
 }
 
-func newTestServer(t *testing.T, opts httpserver.ServerOptions) *wrapperHertzServer {
+func newTestServer(t *testing.T, opts httpserver.ServerOptions) *Server {
 	t.Helper()
-	srv, ok := NewWithOptions(httpserver.ServerConfig{Host: "127.0.0.1", Port: 0}, opts).(*wrapperHertzServer)
+	srv, ok := any(NewWithOptions(httpserver.ServerConfig{Host: "127.0.0.1", Port: 0}, opts)).(*Server)
 	require.True(t, ok)
 	return srv
 }
@@ -62,7 +62,7 @@ type header struct{ key, value string }
 
 // perform runs one in-memory request through the engine with the supplied
 // context (ut.PerformRequest always uses context.Background).
-func perform(ctx context.Context, s *wrapperHertzServer, method, uri string, body []byte, headers ...header) *protocol.Response {
+func perform(ctx context.Context, s *Server, method, uri string, body []byte, headers ...header) *protocol.Response {
 	c := s.engine.NewContext()
 	req := protocol.NewRequest(method, uri, nil)
 	req.CopyTo(&c.Request)

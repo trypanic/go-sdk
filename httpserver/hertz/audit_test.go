@@ -29,7 +29,7 @@ func auditLines(t *testing.T, logs string) []map[string]any {
 	return out
 }
 
-func echoServer(t *testing.T, opts httpserver.ServerOptions) *wrapperHertzServer {
+func echoServer(t *testing.T, opts httpserver.ServerOptions) *Server {
 	t.Helper()
 	s := newTestServer(t, opts)
 	s.POST("/echo", func(ctx context.Context, c httpserver.HTTPContext) {

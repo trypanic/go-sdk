@@ -156,3 +156,6 @@ func (c tracingCursor) Err() error                    { return c.inner.Err() }
 func (c tracingCursor) Close(ctx context.Context) error {
 	return c.inner.Close(ctx)
 }
+
+// Unwrap returns the client enclosed by this decorator.
+func (t *tracingClientPort) Unwrap() ClientPort { return t.inner }

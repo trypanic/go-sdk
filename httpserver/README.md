@@ -287,3 +287,16 @@ surfaced verbatim.
 and `Handle(method, path, handler)` alongside GET/POST/PUT/DELETE. Custom
 implementations must implement these methods in v2. Group prefixes and
 middleware apply equally to every method.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+Hertz constructors return `*hertz.Server`; `NewEngine(cfg)` also exposes this
+concrete adapter. `Engine()` gives access to the underlying Hertz engine for
+framework features. Configure routes and middleware before starting the server.

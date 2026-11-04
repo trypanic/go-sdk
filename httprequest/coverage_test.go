@@ -109,12 +109,18 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 		"NewHTTPRequestWithRetry": NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2}),
 		"WrapWithTracing":         WrapWithTracing(NewWithoutTracing(srv.Client())),
 	} {
-		_, ok := r.(*tracingHTTPRequester)
-		require.True(t, ok, "%s must wrap with tracing, got %T", name, r)
+		switch client := r.(type) {
+		case *HTTPRequest:
+			require.NotNil(t, client.instrumenter, name)
+		case *tracingHTTPRequester:
+			require.NotNil(t, client.instrumenter, name)
+		default:
+			t.Fatalf("%s: unexpected implementation %T", name, r)
+		}
 		require.NoError(t, r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil), name)
 	}
 
-	inner := NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2}).(*tracingHTTPRequester).inner.(*HTTPRequest)
+	inner := NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2})
 	require.Equal(t, 2, inner.retryConfig.MaxRetries)
 	require.Equal(t, DefaultInitialDelay, inner.retryConfig.InitialDelay)
 	require.Equal(t, DefaultMaxDelay, inner.retryConfig.MaxDelay)
@@ -125,8 +131,8 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 	require.Len(t, spans, 1)
 	require.Equal(t, "http.0.POST.chat.completions", spans[0].Name(), "loopback host keyword is the second-to-last label of 127.0.0.1")
 
-	plain, ok := NewWithInstrumenter(srv.Client(), nil).(*HTTPRequest)
-	require.True(t, ok, "a nil instrumenter disables tracing")
+	plain := NewWithInstrumenter(srv.Client(), nil)
+	require.Nil(t, plain.instrumenter, "a nil instrumenter disables tracing")
 	require.Equal(t, normalizeRetryConfig(RetryConfig{}), plain.retryConfig)
 	require.Equal(t, DefaultMaxResponseBytes, plain.maxResponseBytes)
 }

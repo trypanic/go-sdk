@@ -13,8 +13,8 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-// wrapperHertzServer is the Hertz-backed httpserver.HTTPServer.
-type wrapperHertzServer struct {
+// Server is the Hertz-backed httpserver.HTTPServer.
+type Server struct {
 	engine    *server.Hertz
 	config    httpserver.ServerConfig
 	replyOpts httpserver.ReplyOptions
@@ -31,37 +31,37 @@ const shutdownWaitCeiling = 24 * time.Hour
 const drainPollInterval = 10 * time.Millisecond
 
 // trackInFlight is the first middleware of every engine.
-func (s *wrapperHertzServer) trackInFlight(ctx context.Context, c *app.RequestContext) {
+func (s *Server) trackInFlight(ctx context.Context, c *app.RequestContext) {
 	s.inFlight.Add(1)
 	defer s.inFlight.Add(-1)
 	c.Next(ctx)
 }
 
-func (s *wrapperHertzServer) Group(prefix string) httpserver.RouterGroup {
+func (s *Server) Group(prefix string) httpserver.RouterGroup {
 	g := s.engine.Group(prefix)
 	return &hertzRouterGroup{group: g, server: s}
 }
 
-func (s *wrapperHertzServer) Use(middleware ...httpserver.MiddlewareFunc) {
+func (s *Server) Use(middleware ...httpserver.MiddlewareFunc) {
 	for _, mw := range middleware {
 		s.engine.Use(s.wrapMiddleware(mw))
 	}
 }
 
-func (s *wrapperHertzServer) GET(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) GET(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.GET(endpoint, s.wrapHandler(handler))
 }
-func (s *wrapperHertzServer) POST(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) POST(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.POST(endpoint, s.wrapHandler(handler))
 }
-func (s *wrapperHertzServer) PUT(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) PUT(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.PUT(endpoint, s.wrapHandler(handler))
 }
-func (s *wrapperHertzServer) DELETE(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) DELETE(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.DELETE(endpoint, s.wrapHandler(handler))
 }
 
-func (s *wrapperHertzServer) wrapMiddleware(mw httpserver.MiddlewareFunc) app.HandlerFunc {
+func (s *Server) wrapMiddleware(mw httpserver.MiddlewareFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: s.replyOpts}
 		next := func(ctx context.Context, _ httpserver.HTTPContext) { c.Next(ctx) }
@@ -69,7 +69,7 @@ func (s *wrapperHertzServer) wrapMiddleware(mw httpserver.MiddlewareFunc) app.Ha
 	}
 }
 
-func (s *wrapperHertzServer) wrapHandler(handler httpserver.HandlerFunc) app.HandlerFunc {
+func (s *Server) wrapHandler(handler httpserver.HandlerFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: s.replyOpts}
 		handler(ctx, hctx)
@@ -81,7 +81,7 @@ func (s *wrapperHertzServer) wrapHandler(handler httpserver.HandlerFunc) app.Han
 // denied) is returned as an *errorkit.AppError instead of crashing the
 // process. Run installs no signal handlers: the caller owns the process
 // lifecycle (for example with signal.NotifyContext) and calls Shutdown.
-func (s *wrapperHertzServer) Run() (err error) {
+func (s *Server) Run() (err error) {
 	addr := s.config.Address()
 	// Hertz's netpoll transport panics when it cannot bind. Run calls the
 	// engine on this goroutine, so the panic can be turned into an error.
@@ -109,7 +109,7 @@ func listenError(addr string, cause error) error {
 // connections do not delay it. When ctx ends while requests are still in
 // flight it returns ERR_SYSTEM_TIMEOUT_INTERNAL. Calling it before Run
 // returns Hertz's "engine is not running" error unchanged.
-func (s *wrapperHertzServer) Shutdown(ctx context.Context) error {
+func (s *Server) Shutdown(ctx context.Context) error {
 	// Hertz waits for every open connection, idle keep-alive ones
 	// included; end its wait as soon as no request is in flight.
 	drainCtx, cancel := context.WithCancel(ctx)
@@ -143,21 +143,24 @@ func (s *wrapperHertzServer) Shutdown(ctx context.Context) error {
 }
 
 // PATCH registers an HTTP PATCH route.
-func (s *wrapperHertzServer) PATCH(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) PATCH(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.PATCH(endpoint, s.wrapHandler(handler))
 }
 
 // HEAD registers an HTTP HEAD route.
-func (s *wrapperHertzServer) HEAD(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) HEAD(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.HEAD(endpoint, s.wrapHandler(handler))
 }
 
 // OPTIONS registers an HTTP OPTIONS route.
-func (s *wrapperHertzServer) OPTIONS(endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) OPTIONS(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.OPTIONS(endpoint, s.wrapHandler(handler))
 }
 
 // Handle registers a route for an explicit HTTP method.
-func (s *wrapperHertzServer) Handle(method, endpoint string, handler httpserver.HandlerFunc) {
+func (s *Server) Handle(method, endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.Handle(method, endpoint, s.wrapHandler(handler))
 }
+
+// Engine returns the underlying Hertz engine. Configure it before serving.
+func (s *Server) Engine() *server.Hertz { return s.engine }

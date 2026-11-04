@@ -103,10 +103,10 @@ func TestJSONSuccessBodyLimitIncludesTrailingData(t *testing.T) {
 func TestDefaultMaxResponseBytes(t *testing.T) {
 	t.Parallel()
 
-	r := NewWithoutTracing(http.DefaultClient).(*HTTPRequest)
+	r := NewWithoutTracing(http.DefaultClient)
 	require.Equal(t, DefaultMaxResponseBytes, r.maxResponseBytes)
 
-	r = NewWithOptions(http.DefaultClient, WithMaxResponseBytes(0)).(*HTTPRequest)
+	r = NewWithOptions(http.DefaultClient, WithMaxResponseBytes(0))
 	require.Equal(t, DefaultMaxResponseBytes, r.maxResponseBytes, "non-positive limit restores the default")
 }
 

@@ -83,8 +83,9 @@ const DefaultTimeout = 5 * time.Minute
 // Client provides LLM interaction capabilities. After construction it is safe
 // for concurrent use; its fields are not mutated by Execute.
 type Client struct {
-	httpRequest httprequest.HTTPRequester
-	cfg         Config
+	instrumenter *telemetry.Instrumenter
+	httpRequest  httprequest.HTTPRequester
+	cfg          Config
 }
 
 // NewClient builds a concrete *Client with explicit Config. No tracing wrapper.
@@ -93,19 +94,21 @@ func NewClient(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
 }
 
 // New builds an LLMProvider wrapped with the global tracer.
-func New(httpRequest httprequest.HTTPRequester, cfg Config) LLMProvider {
-	return WrapWithTracing(NewClient(httpRequest, cfg))
+func New(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
+	return NewWithInstrumenter(httpRequest, cfg, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
 // NewWithoutTracing builds an LLMProvider with no tracing wrapper.
-func NewWithoutTracing(httpRequest httprequest.HTTPRequester, cfg Config) LLMProvider {
+func NewWithoutTracing(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
 	return NewClient(httpRequest, cfg)
 }
 
 // NewWithInstrumenter builds an LLMProvider wrapped with the supplied
 // instrumenter; pass nil to disable tracing.
-func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, instrumenter *telemetry.Instrumenter) LLMProvider {
-	return WrapWithInstrumenter(NewClient(httpRequest, cfg), instrumenter)
+func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, instrumenter *telemetry.Instrumenter) *Client {
+	client := NewClient(httpRequest, cfg)
+	client.instrumenter = instrumenter
+	return client
 }
 
 // validate checks the settings Execute needs before the API key is sent:
@@ -146,6 +149,12 @@ func (c *Client) timeout() time.Duration {
 
 // Execute performs a non-streaming LLM request.
 func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error) {
+	if c.instrumenter != nil {
+		var span telemetry.Span
+		ctx, span = c.instrumenter.Start(ctx, llmSpanName(reqConfig.Model))
+		defer span.End()
+	}
+
 	if reqConfig.Model == "" {
 		return "", errorkit.
 			NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).

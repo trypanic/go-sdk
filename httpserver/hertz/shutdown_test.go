@@ -62,7 +62,7 @@ func TestShutdownIsNotCappedByHertzExitWaitTime(t *testing.T) {
 	t.Parallel()
 
 	srv := NewWithOptions(loopbackConfig(t, 0), httpserver.ServerOptions{})
-	w := srv.(*wrapperHertzServer)
+	w := any(srv).(*Server)
 	require.GreaterOrEqual(t, w.engine.GetOptions().ExitWaitTimeout, time.Hour,
 		"the caller's context, not Hertz's 5 s default, must bound Shutdown")
 }

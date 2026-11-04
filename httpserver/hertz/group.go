@@ -8,7 +8,7 @@ import (
 
 type hertzRouterGroup struct {
 	group  *route.RouterGroup
-	server *wrapperHertzServer
+	server *Server
 }
 
 func (g *hertzRouterGroup) GET(endpoint string, handler httpserver.HandlerFunc) {

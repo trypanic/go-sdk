@@ -132,7 +132,7 @@ func TestRedirectAndHeaders(t *testing.T) {
 func TestNewUsesDefaultOptions(t *testing.T) {
 	t.Parallel()
 
-	srv, ok := New(httpserver.ServerConfig{Host: "127.0.0.1", Port: 0}).(*wrapperHertzServer)
+	srv, ok := any(New(httpserver.ServerConfig{Host: "127.0.0.1", Port: 0})).(*Server)
 	require.True(t, ok)
 	require.Equal(t, httpserver.DateTimeLayout, srv.replyOpts.Layout)
 	res := perform(t.Context(), srv, http.MethodGet, "/health", nil)

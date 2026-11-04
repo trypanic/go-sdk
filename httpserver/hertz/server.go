@@ -22,14 +22,14 @@ import (
 // New builds a Hertz-backed httpserver.HTTPServer using the compatibility
 // profile (every built-in middleware on, audit redacted by default,
 // 404/405 for unknown routes/methods, wall-clock Reply timestamp).
-func New(cfg httpserver.ServerConfig) httpserver.HTTPServer {
+func New(cfg httpserver.ServerConfig) *Server {
 	return NewWithOptions(cfg, httpserver.DefaultServerOptions())
 }
 
 // NewWithOptions builds a Hertz-backed httpserver.HTTPServer with explicit
 // middleware switches. Pass DefaultServerOptions() and override fields for
 // fine-grained control.
-func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) httpserver.HTTPServer {
+func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) *Server {
 	srvOpts = applyOptionDefaults(srvOpts)
 
 	opts := []config.Option{
@@ -68,7 +68,7 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		engine.Use(hertztracing.ServerMiddleware(tracerCfg))
 	}
 
-	w := &wrapperHertzServer{
+	w := &Server{
 		engine:    engine,
 		config:    cfg,
 		replyOpts: srvOpts.Reply,
@@ -260,3 +260,6 @@ func health(check func(context.Context) error) app.HandlerFunc {
 		c.JSON(consts.StatusOK, map[string]any{"status": "healthy"})
 	}
 }
+
+// NewEngine creates a concrete server with direct access to its Hertz engine.
+func NewEngine(cfg httpserver.ServerConfig) *Server { return New(cfg) }

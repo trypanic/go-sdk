@@ -34,7 +34,7 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 
 	stub := &spanCapturingRequester{}
 	provider := NewWithInstrumenter(stub, validCfg, instr)
-	if _, ok := provider.(*tracingLLMProvider); !ok {
+	if provider.instrumenter == nil {
 		t.Fatalf("NewWithInstrumenter must wrap with tracing, got %T", provider)
 	}
 	if _, err := provider.Execute(t.Context(), LLMRequestConfig{Model: "gpt-x"}); err != nil {
@@ -49,15 +49,24 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 		t.Fatal("the HTTP call must run inside the llm span")
 	}
 
-	if _, ok := NewWithInstrumenter(stub, validCfg, nil).(*Client); !ok {
+	if NewWithInstrumenter(stub, validCfg, nil).instrumenter != nil {
 		t.Fatal("a nil instrumenter must return the plain client")
 	}
 	for name, p := range map[string]LLMProvider{
 		"New":             New(stub, validCfg),
 		"WrapWithTracing": WrapWithTracing(NewClient(stub, validCfg)),
 	} {
-		if _, ok := p.(*tracingLLMProvider); !ok {
-			t.Fatalf("%s must wrap with tracing, got %T", name, p)
+		switch client := p.(type) {
+		case *Client:
+			if client.instrumenter == nil {
+				t.Fatal("constructor must enable tracing")
+			}
+		case *tracingLLMProvider:
+			if client.instrumenter == nil {
+				t.Fatal("wrapper must enable tracing")
+			}
+		default:
+			t.Fatalf("%s: unexpected provider %T", name, p)
 		}
 		if _, err := p.Execute(t.Context(), LLMRequestConfig{Model: "m"}); err != nil {
 			t.Fatalf("%s: unexpected error: %v", name, err)

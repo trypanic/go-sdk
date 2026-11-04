@@ -17,7 +17,7 @@ func TestNewWithoutTracingSkipsSpanWrapper(t *testing.T) {
 	defer srv.Close()
 
 	r := NewWithoutTracing(srv.Client())
-	if _, ok := r.(*tracingHTTPRequester); ok {
+	if r.instrumenter != nil {
 		t.Fatalf("NewWithoutTracing should return unwrapped HTTPRequest, got tracingHTTPRequester")
 	}
 

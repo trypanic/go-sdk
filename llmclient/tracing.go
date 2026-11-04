@@ -47,3 +47,6 @@ func llmSpanName(model string) string {
 	}
 	return "llm.execute"
 }
+
+// Unwrap returns the provider enclosed by this decorator.
+func (t *tracingLLMProvider) Unwrap() LLMProvider { return t.inner }
