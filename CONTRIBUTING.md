@@ -1,0 +1,62 @@
+# Contributing to go-sdk
+
+Thanks for helping. This file covers the workflow; the
+[README](./README.md) covers setup details and
+[AGENTS.md §8](./AGENTS.md#8-working-inside-this-repo-for-sdk-contributors--agents-extending-the-sdk)
+the conventions for adding or changing a package.
+
+**Security problems are not reported here.** Use GitHub private
+vulnerability reporting as described in [`SECURITY.md`](./SECURITY.md).
+
+## Set up
+
+Tool versions are pinned in [`.prototools`](./.prototools) and
+[`Taskfile.yml`](./Taskfile.yml). Follow
+[README "Developer setup"](./README.md#developer-setup), then:
+
+```bash
+task tools:check          # active Go is the pinned, supported toolchain
+task precommit:install    # pre-commit and commit-msg hooks
+```
+
+## Before you open a pull request
+
+```bash
+task test -- <pkg>        # unit tests of the package you changed (go test -short)
+task check                # the same commands as CI: unit + race tests, vet,
+                          # staticcheck + semgrep, govulncheck, tidy, hooks
+task release:check        # if you touched an exported API (gorelease)
+```
+
+- Unit tests live next to the code (`foo.go` ↔ `foo_test.go`) and must pass
+  with `-short` and no external services. Tests that need Postgres, MongoDB
+  or RabbitMQ are skipped under `-short` or use the `integration` build tag.
+- A bug fix comes with a regression test that fails without the fix.
+- Do not weaken or delete a test to make a change pass.
+- `go.mod`/`go.sum` change only through `task deps:update` (all packages
+  share one module; never run several `go get` in parallel).
+- Static-analysis findings, rule severities and the runner's knobs are
+  documented in
+  [`SECURITY.md`](./SECURITY.md#static-analysis-contributors). Never commit
+  with `--no-verify`; fix the rule in `.semgrep.yml` instead if it is wrong.
+
+## Commit messages
+
+[Conventional Commits](https://www.conventionalcommits.org), enforced by the
+`commit-msg` hook: `feat:`, `fix:`, `fix(deps):`, `perf:`, `refactor:`,
+`docs:`, `test:`, `build:`, `ci:`, `chore:`, optionally scoped by package
+(`fix(httprequest): …`). Mark a breaking change with `!` and a
+`BREAKING CHANGE:` footer.
+
+release-please derives the next version and the release notes in
+`CHANGELOG.md` from these messages (README "Releases"). Never edit
+`CHANGELOG.md` or `.release-please-manifest.json` by hand.
+
+## Pull requests
+
+- One logical change per pull request, with its tests and documentation (the
+  package `README.md` is the contract users read).
+- The [`ci`](./.github/workflows/ci.yml) workflow must be green: build, vet,
+  race tests on Go 1.26.x and 1.27.x, static analysis, govulncheck, and
+  `go mod tidy -diff` / `go mod verify`. The `gorelease` job reports API
+  changes and does not block.

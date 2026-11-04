@@ -145,6 +145,12 @@ rules:
     message: "*sql.Rows must be closed. Add `defer rows.Close()` after the err check."
     languages: [go]
     severity: WARNING
+    # Syntactic match: in tests it fires on fakes and on helpers that return
+    # decoded slices (postgres/stored_procedure_test.go `sut.Query`), not on
+    # *sql.Rows. Library code stays in scope.
+    paths:
+      exclude:
+        - "*_test.go"
 
 # nil-context detection moved to staticcheck SA1012 (type-aware).
 # Semgrep's syntactic matcher fires on `(*T)(nil)` type conversions and

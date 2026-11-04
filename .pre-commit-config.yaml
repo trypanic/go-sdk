@@ -1,4 +1,6 @@
 default_install_hook_types: [pre-commit, commit-msg]
+# Hooks without `stages` run on commit only (not again in commit-msg).
+default_stages: [pre-commit]
 fail_fast: false
 
 repos:
@@ -27,9 +29,10 @@ repos:
         language: system
         types: [go]
 
+      # Pinned like Taskfile.yml GOIMPORTS_VERSION (go run caches the build).
       - id: goimports
         name: goimports
-        entry: goimports -w
+        entry: go run golang.org/x/tools/cmd/goimports@v0.52.0 -w
         language: system
         types: [go]
         require_serial: true
@@ -41,10 +44,25 @@ repos:
         pass_filenames: false
         types: [go]
 
+      # Staged mode: only the staged .go files (and their packages).
       - id: staticanalysis
-        name: staticanalysis (vet + staticcheck + semgrep)
-        entry: bash .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+        name: staticanalysis (vet + staticcheck + semgrep, staged files)
+        entry: bash scripts/staticanalysis.sh
         language: system
         pass_filenames: false
         types: [go]
+        verbose: true
+
+      # Full mode for `--all-files` runs. pre-commit does not tell a hook
+      # whether it runs with --all-files, and with nothing staged the staged
+      # hook above skips, so the full scan is a separate manual-stage hook:
+      #   pre-commit run --all-files --hook-stage manual staticanalysis-full
+      # (`task precommit:run` runs it).
+      - id: staticanalysis-full
+        name: staticanalysis (vet + staticcheck + semgrep, whole repo)
+        entry: env QG_FULL=1 bash scripts/staticanalysis.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [manual]
         verbose: true

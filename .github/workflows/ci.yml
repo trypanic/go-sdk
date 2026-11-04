@@ -1,0 +1,181 @@
+# Continuous integration: the gates every change must pass before it is
+# merged, including the release PR (see release.yml).
+#
+# The commands match the local tasks (task test:race, staticanalysis, vuln,
+# tidy:check, release:check). Tool versions are pinned here and in
+# Taskfile.yml; keep them in sync.
+#
+# The release PR: release-please (release.yml) runs with GITHUB_TOKEN, and
+# events created with GITHUB_TOKEN (its pushes to `release-please--**` and its
+# pull request) trigger no workflow. Before merging the release PR the
+# maintainer starts this workflow on the release branch with
+# `gh workflow run ci.yml --ref <release-please branch>` (or "Run workflow" in
+# the Actions UI); the results attach to the branch head commit, and the PR is
+# merged only when they are green.
+#
+# Recommended (owner action; repository settings are not changed here):
+# protect `main` with these jobs as required status checks — the two
+# "build, vet, test (race) / go …" and the two "govulncheck / go …" matrix
+# entries, "staticanalysis (vet + staticcheck + semgrep)" and
+# "go mod tidy / verify" (not gorelease, which is informational). Required
+# checks match by check name on the PR head commit, whatever event started
+# the run, so the manual dispatch above satisfies them on the release PR; if
+# nobody runs it, the release PR stays blocked instead of merging without CI.
+# Confirm this with a test PR before enabling the protection. Convenience
+# only: a GitHub App or fine-grained PAT token for release-please (contents +
+# pull-requests write on this repository) would make CI start on the release
+# PR by itself.
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  # Manual run on any branch, notably the release-please branch (see above).
+  workflow_dispatch:
+  schedule:
+    # Weekly vulnerability scan: new advisories appear without code changes.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Supported toolchains (README "Compatibility"): the latest patch of Go 1.26
+# (>= 1.26.10) and of Go 1.27. The `go` directive in go.mod (1.26.1) is a
+# language floor only; it is not tested because 1.26.1-1.26.9 carry
+# reachable standard-library vulnerabilities (X3-001).
+env:
+  GO_VERSION: "1.27.x" # single-toolchain jobs
+  GOVULNCHECK_VERSION: v1.9.0
+  STATICCHECK_VERSION: v0.8.2 # staticcheck 2026.2.2, as pinned in .prototools
+  GORELEASE_VERSION: v0.0.0-20261014143641-f0251eb4aa3e
+
+jobs:
+  test:
+    name: build, vet, test (race) / go ${{ matrix.go }}
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26.x", "1.27.x"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (race, shuffled)
+        run: go test -race -shuffle=on -short ./...
+
+  staticanalysis:
+    name: staticanalysis (vet + staticcheck + semgrep)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Install staticcheck
+        run: go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+
+      # Semgrep runs from the digest-pinned Docker image named in the script.
+      - name: Run scripts/staticanalysis.sh
+        env:
+          QG_FULL: "1"
+        run: bash scripts/staticanalysis.sh
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staticanalysis-reports
+          path: .staticanalysis/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  vuln:
+    name: govulncheck / go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26.x", "1.27.x"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Latest patch of each supported line: govulncheck reports
+      # standard-library vulnerabilities of the toolchain it runs with.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+
+      - name: govulncheck
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
+  tidy:
+    name: go mod tidy / verify
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: go mod tidy -diff
+        run: go mod tidy -diff
+
+      - name: go mod verify
+        run: go mod verify
+
+  gorelease:
+    name: gorelease (informational)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # Reports API changes against the last tag; breaking changes are allowed
+    # when approved, so this job never blocks.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: gorelease
+        run: |
+          base=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          go run "golang.org/x/exp/cmd/gorelease@${GORELEASE_VERSION}" -base="${base}"
