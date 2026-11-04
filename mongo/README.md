@@ -225,6 +225,13 @@ go through `WrapOperationError` which classifies common driver errors:
 | `mongo.ErrNoDocuments` | `ERR_DB_MONGO_NOT_FOUND` |
 | Decode failure (cursor/SingleResult) | `ERR_DB_MONGO_DECODE_FAILED` |
 
+`SingleResult.Decode` reports the error of the `FindOne` operation itself
+(including `mongo.ErrNoDocuments`) through `WrapOperationError`, and only a
+failure to decode the returned document as `ERR_DB_MONGO_DECODE_FAILED`.
+`Cursor.All` does the same: an error while fetching a batch (for example a
+failed `getMore`) goes through `WrapOperationError`; a document that does not
+decode into the target type is `ERR_DB_MONGO_DECODE_FAILED`.
+
 Repositories should log/return the wrapped error directly — re-wrapping is not
 needed.
 
