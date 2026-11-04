@@ -12,6 +12,8 @@
 #   QG_SKIP_VET=1      — skip go vet
 #   QG_SKIP_SC=1       — skip staticcheck
 #   QG_SKIP_SEMGREP=1  — skip semgrep
+#   QG_SEMGREP_PACKS=0 — semgrep with .semgrep.yml only (no registry packs)
+#   QG_SEMGREP_IMAGE=… — override the pinned semgrep Docker image
 #   QG_VERBOSE=1       — also print tool stderr to the terminal (it is always
 #                        logged to .staticanalysis/<tool>.stderr.log)
 #
@@ -67,6 +69,11 @@ trap cleanup_scratch EXIT
 VET_ERRORS=0; VET_TOTAL=0
 SC_ERRORS=0; SC_TOTAL=0
 SG_ERRORS=0; SG_TOTAL=0
+
+# Pinned semgrep: the Docker image by digest, and the version that
+# `task tools:install` installs for the CLI fallback (keep both in sync).
+SEMGREP_VERSION="1.95.0"
+SEMGREP_IMAGE="${QG_SEMGREP_IMAGE:-semgrep/semgrep:${SEMGREP_VERSION}@sha256:30e6afa99ebd8e7b4115d4904898108eb4bf77025819e9263f09cf14e6f6e549}"
 
 # Tool failures (crash, unexpected exit code, missing tool). Any -> exit 2.
 TOOL_FAILURES=()
@@ -392,25 +399,33 @@ run_semgrep() {
   : >"${SG_ERR_LOG}"
   rm -f "${SG_REPORT}" "${SG_RAW}"
 
+  # Same rules on both paths so the result does not depend on which one ran.
+  # The community packs come from the Semgrep registry at run time and cannot
+  # be pinned; QG_SEMGREP_PACKS=0 restricts the scan to .semgrep.yml (offline,
+  # fully reproducible).
+  local configs=(--config=.semgrep.yml) config_desc=".semgrep.yml"
+  if [[ "${QG_SEMGREP_PACKS:-1}" != "0" ]]; then
+    configs+=(--config=p/golang --config=p/gosec --config=p/secrets)
+    config_desc+=" p/golang p/gosec p/secrets"
+  fi
+
   # semgrep (without --error) exits 0 whether or not it finds something;
   # any other exit code, or no JSON report, is a failed run.
   local rc=0 attempts=""
   set +e
   if [[ "${have_docker}" == "1" ]]; then
-    echo "--- semgrep via docker (semgrep/semgrep; .semgrep.yml p/golang p/gosec p/secrets)" >>"${SG_ERR_LOG}"
-    docker run --rm -v "${PWD}:/src" -w /src semgrep/semgrep semgrep scan \
-      --config=.semgrep.yml \
-      --config=p/golang \
-      --config=p/gosec \
-      --config=p/secrets \
+    echo "--- semgrep via docker (${SEMGREP_IMAGE}; ${config_desc})" >>"${SG_ERR_LOG}"
+    # The report goes to stdout so QG_OUT_DIR may live outside the mount.
+    docker run --rm -v "${PWD}:/src" -w /src "${SEMGREP_IMAGE}" semgrep scan \
+      "${configs[@]}" \
       --json \
       --quiet \
       --metrics=off \
-      --output "${SG_RAW}" \
-      "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${SG_ERR_LOG}"
+      --disable-version-check \
+      "${SEMGREP_TARGETS[@]}" >"${SG_RAW}" 2>>"${SG_ERR_LOG}"
     rc=$?
     if [[ "${rc}" -eq 0 && -s "${SG_RAW}" ]] && jq -e '.results' "${SG_RAW}" >/dev/null 2>&1; then
-      SG_RUNNER="docker semgrep/semgrep (.semgrep.yml p/golang p/gosec p/secrets)"
+      SG_RUNNER="docker ${SEMGREP_IMAGE} (${config_desc})"
     else
       attempts="docker rc=${rc}"
       rm -f "${SG_RAW}"
@@ -418,9 +433,11 @@ run_semgrep() {
   fi
 
   if [[ "${SG_RUNNER}" == "none" && "${have_cli}" == "1" ]]; then
-    echo "--- semgrep via local CLI ($(command -v semgrep); .semgrep.yml)" >>"${SG_ERR_LOG}"
+    local cli_version
+    cli_version="$(semgrep --version --disable-version-check 2>/dev/null | tail -n 1)"
+    echo "--- semgrep via local CLI ($(command -v semgrep) ${cli_version:-unknown version}; ${config_desc})" >>"${SG_ERR_LOG}"
     HOME="${QG_SEMGREP_HOME:-/tmp/staticanalysis-semgrep-home}" semgrep scan \
-      --config=.semgrep.yml \
+      "${configs[@]}" \
       --json \
       --quiet \
       --metrics=off \
@@ -429,7 +446,10 @@ run_semgrep() {
       "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${SG_ERR_LOG}"
     rc=$?
     if [[ "${rc}" -eq 0 && -s "${SG_RAW}" ]] && jq -e '.results' "${SG_RAW}" >/dev/null 2>&1; then
-      SG_RUNNER="local semgrep CLI (.semgrep.yml)"
+      SG_RUNNER="local semgrep CLI ${cli_version:-unknown version} (${config_desc})"
+      if [[ -n "${cli_version}" && "${cli_version}" != "${SEMGREP_VERSION}" ]]; then
+        echo "  warning: semgrep CLI ${cli_version} differs from the pinned ${SEMGREP_VERSION} (task tools:install)" >&2
+      fi
     else
       attempts="${attempts:+${attempts}, }cli rc=${rc}"
       rm -f "${SG_RAW}"

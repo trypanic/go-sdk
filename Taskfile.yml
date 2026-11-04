@@ -13,6 +13,14 @@ version: "3"
 
 vars:
   STATICANALYSIS_SCRIPT: scripts/staticanalysis.sh
+  # Pinned gate tools (reproducible results; bump deliberately). Go tools run
+  # with `go run …@version`, never as `tool` directives, so consumers' go.mod
+  # stays clean. Proto-managed tools are pinned in .prototools.
+  GOIMPORTS_VERSION: v0.52.0
+  GORELEASE_VERSION: v0.0.0-20261014143641-f0251eb4aa3e
+  PRECOMMIT_VERSION: 4.7.0
+  SEMGREP_VERSION: 1.95.0
+  GITCLIFF_VERSION: 2.14.2
   # Top-level SDK packages (first path segment of every package in the module).
   ALL_PACKAGES:
     sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
@@ -30,16 +38,17 @@ tasks:
   # ---------------------------------------------------------------- tooling
 
   tools:install:
-    desc: Install the toolchain pinned in .prototools, plus goimports, pre-commit and semgrep
+    desc: Install the toolchain pinned in .prototools, plus pinned goimports, pre-commit, semgrep and git-cliff
     preconditions:
       - sh: command -v proto
         msg: "proto is not installed: https://moonrepo.dev/docs/proto/install"
     cmds:
       - proto install
-      - go install golang.org/x/tools/cmd/goimports@latest
+      - go install golang.org/x/tools/cmd/goimports@{{.GOIMPORTS_VERSION}}
       # Python CLIs go into the proto-managed Python pinned in .prototools;
       # its bin/ directory must be on PATH (see README "Common issues").
-      - python -m pip install --upgrade pre-commit semgrep==1.95.0 git-cliff==2.14.2
+      # Keep SEMGREP_VERSION in sync with scripts/staticanalysis.sh.
+      - python -m pip install pre-commit=={{.PRECOMMIT_VERSION}} semgrep=={{.SEMGREP_VERSION}} git-cliff=={{.GITCLIFF_VERSION}}
 
   skills:install:
     desc: Install agent skills and sync them across agents (was moon install-skills)
@@ -123,7 +132,7 @@ tasks:
           printf '%s\n' "$dirty" >&2
           exit 1
         fi
-      - go run golang.org/x/exp/cmd/gorelease@latest -base={{.BASE}}
+      - go run golang.org/x/exp/cmd/gorelease@{{.GORELEASE_VERSION}} -base={{.BASE}}
 
   # ------------------------------------------------------------ dependencies
 

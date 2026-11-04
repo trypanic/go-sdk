@@ -29,9 +29,10 @@ repos:
         language: system
         types: [go]
 
+      # Pinned like Taskfile.yml GOIMPORTS_VERSION (go run caches the build).
       - id: goimports
         name: goimports
-        entry: goimports -w
+        entry: go run golang.org/x/tools/cmd/goimports@v0.52.0 -w
         language: system
         types: [go]
         require_serial: true

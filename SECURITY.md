@@ -53,13 +53,17 @@ fakes syntactically).
 | 2    | `staticcheck` | Type-aware Go bugs (`SA*`), style (`ST*`), dead code (`U1000`). |
 | 3    | `semgrep`     | Org-policy + community Go/security/secrets rules.               |
 
-Semgrep is invoked via the `semgrep/semgrep` Docker image when Docker is
-available; otherwise it falls back to a local `semgrep` CLI binary. **No
-authentication is used** — `SEMGREP_APP_TOKEN` is not set, no Semgrep Platform
-features are required, and **there is no Semgrep MCP server configured**. The
-Docker variant uses the configured rule packs (`.semgrep.yml`, `p/golang`,
-`p/gosec`, `p/secrets`); the local CLI fallback uses `.semgrep.yml` only.
-The fallback runs when Docker is unavailable or its run fails. The path that
+Semgrep is invoked via the `semgrep/semgrep:1.95.0` Docker image, pinned by
+digest in the script, when Docker is available; otherwise it falls back to a
+local `semgrep` CLI (`task tools:install` installs the same 1.95.0; the
+runner warns when the CLI version differs). **No authentication is used** —
+`SEMGREP_APP_TOKEN` is not set, no Semgrep Platform features are required,
+and **there is no Semgrep MCP server configured**. Both paths use the same
+rules: `.semgrep.yml` plus the community packs `p/golang`, `p/gosec` and
+`p/secrets`. The packs are downloaded from the Semgrep registry on every run
+and cannot be pinned, so they are the one input that can change without a
+commit here; `QG_SEMGREP_PACKS=0` scans with `.semgrep.yml` only (offline,
+reproducible). The fallback runs when Docker is unavailable or its run fails. The path that
 produced the result is printed on the semgrep line and recorded as `runner`
 in `report.semgrep.json` and in `plan.semgrep.md`.
 
@@ -79,6 +83,8 @@ in `report.semgrep.json` and in `plan.semgrep.md`.
 | `QG_SKIP_VET=1`      | Skip `go vet`.                                          |
 | `QG_SKIP_SC=1`       | Skip `staticcheck`.                                     |
 | `QG_SKIP_SEMGREP=1`  | Skip `semgrep`.                                         |
+| `QG_SEMGREP_PACKS=0` | Semgrep with `.semgrep.yml` only (no registry packs).   |
+| `QG_SEMGREP_IMAGE=…` | Override the pinned semgrep Docker image.               |
 | `QG_VERBOSE=1`       | Also print tool stderr to the terminal after each tool. |
 | `QG_OUT_DIR=path`    | Override output directory (default `.staticanalysis`).  |
 
@@ -112,7 +118,7 @@ Use **semgrep** for org policy. Use **staticcheck** for type-correct Go bugs.
 # 1. Install tools (versions pinned in .prototools)
 proto trust .prototools
 proto install                    # go, python, task, staticcheck, skillshare, sentrux
-task tools:install               # goimports, pre-commit, semgrep
+task tools:install               # pinned goimports, pre-commit, semgrep, git-cliff
 
 # 2. Install git hooks
 task precommit:install
