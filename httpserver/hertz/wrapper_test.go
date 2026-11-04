@@ -1,7 +1,6 @@
 package hertz
 
 import (
-	"context"
 	"testing"
 
 	"github.com/trypanic/go-sdk/httpserver"
@@ -38,5 +37,5 @@ func TestShutdownIsExposedOnHTTPServer(t *testing.T) {
 	// Shutdown on an un-started engine returns "engine is not running"; the
 	// guarantee tested here is that Shutdown is reachable through the SDK
 	// interface and does not panic.
-	_ = srv.Shutdown(context.Background())
+	_ = srv.Shutdown(t.Context())
 }

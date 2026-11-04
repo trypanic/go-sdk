@@ -1,6 +1,9 @@
 package httpserver
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // BodyRedactor turns a raw HTTP body into a representation safe for logs.
 // The default redactor replaces any non-empty body with `[REDACTED]`.
@@ -18,12 +21,16 @@ func DefaultBodyRedactor(b []byte) []byte {
 // known not to contain secrets or PII.
 func RawBodyRedactor(b []byte) []byte { return b }
 
-// AuditOptions configures the inbound audit middleware.
+// AuditOptions configures the inbound audit middleware, which logs one
+// structured line per request (event "http.audit.inbound") through
+// logger.CtxOrGlobal(ctx) with trace correlation. Header values that may
+// carry credentials are always masked and the query string is never logged.
 //
-// CaptureBodies: false (default) means request/response bodies are passed
-// through BodyRedactor before being logged. Set to true with a custom
-// BodyRedactor to capture bodies under an explicit policy. Setting
-// CaptureBodies=true with the default redactor still logs `[REDACTED]`.
+// CaptureBodies: false (default) logs every non-empty body as `[REDACTED]`,
+// whatever BodyRedactor is set. true passes the request and response bodies
+// through BodyRedactor; set BodyRedactor to the policy you want
+// (DefaultBodyRedactor still logs `[REDACTED]`, RawBodyRedactor logs the raw
+// bytes and is for development only).
 type AuditOptions struct {
 	CaptureBodies bool
 	BodyRedactor  BodyRedactor
@@ -42,7 +49,10 @@ type ReplyOptions struct {
 // how built-in defaults behave. The zero value is not meaningful; callers
 // should start from DefaultServerOptions and override fields.
 type ServerOptions struct {
-	EnableTracing  bool
+	EnableTracing bool
+	// EnableRecovery installs the adapter's panic recovery as the outermost
+	// middleware. When false, no recovery layer runs and a handler panic
+	// propagates.
 	EnableRecovery bool
 	EnableAudit    bool
 	EnableHealth   bool
@@ -55,6 +65,16 @@ type ServerOptions struct {
 	// NoMethodStatus is the HTTP status returned by the default NoMethod
 	// handler. Defaults to 405. Ignored when NoMethodHandler is non-nil.
 	NoMethodStatus int
+	// HealthPath is the route of the built-in health endpoint installed by
+	// EnableHealth. Defaults to DefaultHealthPath ("/health"). The path is
+	// reserved: registering the same GET route again panics in the
+	// framework, so pick another path or disable EnableHealth.
+	HealthPath string
+	// HealthCheck, when non-nil, turns the health endpoint into a
+	// readiness probe: a non-nil error answers 503 {"status":"unhealthy"}
+	// (the error text is logged, never sent). Nil keeps a liveness probe
+	// that always answers 200 {"status":"healthy"}.
+	HealthCheck func(ctx context.Context) error
 	// NoRouteHandler overrides the built-in NoRoute response.
 	NoRouteHandler HandlerFunc
 	// NoMethodHandler overrides the built-in NoMethod response.
@@ -63,6 +83,9 @@ type ServerOptions struct {
 	Audit AuditOptions
 	Reply ReplyOptions
 }
+
+// DefaultHealthPath is the default route of the built-in health endpoint.
+const DefaultHealthPath = "/health"
 
 // DefaultServerOptions returns the compatibility profile: every built-in
 // middleware enabled, audit body capture OFF (redaction by default),
@@ -77,6 +100,7 @@ func DefaultServerOptions() ServerOptions {
 		EnableNoMethod: true,
 		NoRouteStatus:  404,
 		NoMethodStatus: 405,
+		HealthPath:     DefaultHealthPath,
 		Audit: AuditOptions{
 			CaptureBodies: false,
 			BodyRedactor:  DefaultBodyRedactor,

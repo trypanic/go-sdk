@@ -4,32 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/logger"
 )
 
-// sensitiveHTTPHeaderKeys is the set of header names (lowercase) that must never be logged.
-var sensitiveHTTPHeaderKeys = map[string]struct{}{
-	"authorization":  {},
-	"x-api-key":      {},
-	"api-key":        {},
-	"cookie":         {},
-	"set-cookie":     {},
-	"x-auth-token":   {},
-	"x-access-token": {},
-}
-
-// sanitizeHTTPHeaders returns a copy of h with security-sensitive keys removed.
+// sanitizeHTTPHeaders returns a log-safe copy of h: values of credential
+// headers are masked by the shared redact rules, keys are kept.
 func sanitizeHTTPHeaders(h http.Header) map[string]string {
-	out := make(map[string]string, len(h))
-	for k, v := range h {
-		if _, skip := sensitiveHTTPHeaderKeys[strings.ToLower(k)]; !skip {
-			out[k] = strings.Join(v, ", ")
-		}
-	}
-	return out
+	return redact.Headers(h)
 }
 
 // logHTTPAudit emits one structured audit log entry per outbound HTTP call.
@@ -51,7 +35,7 @@ func (h *HTTPRequest) logHTTPAudit(
 		WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
 		Str("event", "http.audit.outbound").
 		Str("method", config.Method).
-		Str("url", config.URL).
+		Str("url", redact.URL(config.URL)).
 		Int("status_code", statusCode).
 		RawJSON("request.headers", reqHeadersJSON).
 		Str("request.body", h.redactBody(config.Body)).

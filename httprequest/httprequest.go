@@ -6,9 +6,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -32,15 +34,30 @@ type RequestConfig struct {
 	Headers     map[string]string
 }
 
+// HTTPRequester sends one logical request (with retries) and decodes the
+// response into out. Accept it in constructors so tests can pass a fake.
 type HTTPRequester interface {
 	Do(ctx context.Context, config RequestConfig, out any) error
 }
 
 // RetryConfig holds retry behavior configuration.
+//
+// A retriable error is retried only when sending the request again is
+// safe: the method is idempotent (GET, HEAD, OPTIONS, TRACE, PUT, DELETE),
+// the request carries a non-empty Idempotency-Key or X-Idempotency-Key
+// header, or the connection was never made (a dial error). Set
+// RetryNonIdempotent to retry every retriable error regardless.
 type RetryConfig struct {
 	MaxRetries   int
 	InitialDelay time.Duration
 	MaxDelay     time.Duration
+	// MaxElapsed bounds the whole Do call, every attempt and wait
+	// included. Zero means no bound beyond the context's own deadline.
+	MaxElapsed time.Duration
+	// RetryNonIdempotent also retries non-idempotent requests (POST, PATCH,
+	// ...) that may already have reached the server. Enable it only when
+	// the upstream deduplicates or a duplicate is harmless.
+	RetryNonIdempotent bool
 }
 
 // BodyRedactor turns a raw HTTP body into a representation safe for logs and
@@ -62,6 +79,33 @@ func DefaultBodyRedactor(b []byte) []byte {
 // rawBodyRedactor is the identity redactor used when WithRawBodies is set.
 func rawBodyRedactor(b []byte) []byte { return b }
 
+// redactorNeedsContent reports whether the configured redactor looks at the
+// body bytes. DefaultBodyRedactor only needs to know whether the body is
+// empty, so the response body is not copied for it.
+func (h *HTTPRequest) redactorNeedsContent() bool {
+	if h.redactor == nil {
+		return false
+	}
+	return reflect.ValueOf(h.redactor).Pointer() != reflect.ValueOf(DefaultBodyRedactor).Pointer()
+}
+
+// nonEmptyBody stands in for a body that was read but not kept; any
+// redactor that does not need content treats it as "non-empty".
+var nonEmptyBody = []byte{0}
+
+// auditBody returns the bytes to hand to the redactor for the audit line:
+// the copied body when one was kept, otherwise a non-empty placeholder when
+// the body had content.
+func auditBody(buf *bytes.Buffer, read int64) []byte {
+	if buf != nil {
+		return buf.Bytes()
+	}
+	if read > 0 {
+		return nonEmptyBody
+	}
+	return nil
+}
+
 // HTTPRequest implements the HTTPRequester interface.
 type HTTPRequest struct {
 	client        *http.Client
@@ -69,6 +113,9 @@ type HTTPRequest struct {
 	auditLog      bool
 	captureBodies bool
 	redactor      BodyRedactor
+	// maxResponseBytes caps a successful response body; see
+	// WithMaxResponseBytes.
+	maxResponseBytes int64
 }
 
 // Option configures an HTTPRequest at construction time.
@@ -112,11 +159,15 @@ func WithRawBodies() Option {
 // Ensure HTTPRequest satisfies HTTPRequester
 var _ HTTPRequester = (*HTTPRequest)(nil)
 
-// normalizeRetryConfig fills zero values with defaults. Called once in
-// constructors so Do() does not mutate receiver state per-call.
+// normalizeRetryConfig fills zero values with defaults and clamps a
+// negative MaxRetries to a single attempt. Called once in constructors so
+// Do() does not mutate receiver state per-call.
 func normalizeRetryConfig(rc RetryConfig) RetryConfig {
-	if rc.MaxRetries == 0 {
+	switch {
+	case rc.MaxRetries == 0:
 		rc.MaxRetries = DefaultMaxRetries
+	case rc.MaxRetries < 0:
+		rc.MaxRetries = 1
 	}
 	if rc.InitialDelay == 0 {
 		rc.InitialDelay = DefaultInitialDelay
@@ -131,9 +182,10 @@ func normalizeRetryConfig(rc RetryConfig) RetryConfig {
 // default body redactor. Constructors compose this with options and tracing.
 func newPlain(client *http.Client) *HTTPRequest {
 	return &HTTPRequest{
-		client:      client,
-		retryConfig: normalizeRetryConfig(RetryConfig{}),
-		redactor:    DefaultBodyRedactor,
+		client:           client,
+		retryConfig:      normalizeRetryConfig(RetryConfig{}),
+		redactor:         DefaultBodyRedactor,
+		maxResponseBytes: DefaultMaxResponseBytes,
 	}
 }
 
@@ -182,7 +234,20 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 	var lastErr error
 	span := trace.SpanFromContext(ctx)
 	rc := h.retryConfig // local copy keeps Do concurrent-safe.
+	// Every Do sends at least one request, even when the retry configuration
+	// bypassed normalizeRetryConfig.
+	rc.MaxRetries = max(rc.MaxRetries, 1)
 	currentDelay := rc.InitialDelay
+
+	if err := validateURL(config.URL); err != nil {
+		return err
+	}
+
+	if rc.MaxElapsed > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, rc.MaxElapsed)
+		defer cancel()
+	}
 
 	for attempt := 0; attempt < rc.MaxRetries; attempt++ {
 
@@ -195,82 +260,104 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 			span.AddEvent("http.attempt", trace.WithAttributes(
 				attribute.Int("retry.attempt", attempt+1),
 				attribute.Int("retry.max", rc.MaxRetries),
-				attribute.String("http.url", config.URL),
+				attribute.String("http.url", redact.URL(config.URL)),
 			))
 		}
 
 		// Execute request
-		err := h.executeRequest(ctx, config, out)
+		retryAfter, sent, err := h.executeRequest(ctx, config, out)
 		if err == nil {
 			return nil // Success
 		}
 
 		lastErr = err
 
-		// Check if error is retryable
-		if !h.isRetryable(err) || attempt >= rc.MaxRetries-1 {
+		// Check if error is retryable and resending is safe
+		if !h.isRetryable(err) || !safeToResend(config, err, sent, rc) || attempt >= rc.MaxRetries-1 {
 			return err
 		}
 
-		// Wait before retry with exponential backoff
-		if !h.waitForRetry(ctx, currentDelay) {
+		// Wait before retry: Retry-After when the server sent one, else
+		// exponential backoff with full jitter.
+		delay, ok := retryDelay(ctx, currentDelay, retryAfter, rc.MaxDelay)
+		if !ok {
+			return err
+		}
+		if !h.waitForRetry(ctx, delay) {
 			return h.buildNetworkError(ctx.Err(), config.URL, config.Body)
 		}
 
 		currentDelay = nextDelay(currentDelay, rc.MaxDelay)
 	}
+	// Unreachable: the last attempt always returns above. The guard keeps Do
+	// from ever reporting success for a request that was not sent.
+	if lastErr == nil {
+		lastErr = errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+			With(errorkit.WithReason("request was not attempted"))
+	}
 	return lastErr
 }
 
-// nextDelay doubles delay capped at max.
-func nextDelay(currentDelay, max time.Duration) time.Duration {
-	d := currentDelay * 2
-	if d > max {
-		return max
-	}
-	return d
+// nextDelay doubles the backoff cap, bounded by maxDelay. The actual wait
+// is a random fraction of it (see retryDelay).
+func nextDelay(currentDelay, maxDelay time.Duration) time.Duration {
+	return min(currentDelay*2, maxDelay)
 }
 
-// executeRequest performs a single HTTP request attempt.
-func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) error {
+// executeRequest performs a single HTTP request attempt. For a non-2xx
+// response it also returns the wait requested by its Retry-After header.
+// The bool reports evidence that any request in the attempt was sent.
+func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, bool, error) {
 	start := time.Now()
 
 	// Build request
 	req, err := h.buildRequest(ctx, config)
 	if err != nil {
-		return err
+		return 0, false, err
 	}
 
 	// Execute request
-	res, err := h.client.Do(req)
+	res, sent, err := doTracked(h.client, req)
 	if err != nil {
-		return h.buildNetworkError(err, config.URL, config.Body)
+		return 0, sent, h.buildNetworkError(err, config.URL, config.Body)
 	}
-	defer res.Body.Close()
+	defer drainAndClose(res.Body)
 
 	// Check status code
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(res.Body)
+		// Only the provider's error code and message are needed here.
+		bodyBytes, _ := io.ReadAll(io.LimitReader(res.Body, maxErrorBodyBytes))
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, bodyBytes)
 		}
-		return h.buildHTTPError(res, bodyBytes, config.Body)
+		return parseRetryAfter(res.Header.Get("Retry-After"), time.Now()), true,
+			h.buildHTTPError(res, bodyBytes, config.Body)
 	}
 
 	// Process successful response
 	if out != nil {
-		var respBuf bytes.Buffer
-		err := h.processResponse(io.TeeReader(res.Body, &respBuf), out)
-		if h.auditLog {
-			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, respBuf.Bytes())
+		body := newLimitedBody(res.Body, h.maxResponseBytes)
+		var reader io.Reader = body
+		// Keep a copy of the body only when the audit line needs its content.
+		var respBuf *bytes.Buffer
+		if h.auditLog && h.redactorNeedsContent() {
+			respBuf = new(bytes.Buffer)
+			reader = io.TeeReader(body, respBuf)
 		}
-		return err
+		err := h.processResponse(reader, out)
+		if body.overLimit() {
+			err = buildBodyTooLargeError(redact.URL(config.URL), h.maxResponseBytes)
+		}
+		if h.auditLog {
+			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, auditBody(respBuf, body.read))
+		}
+		return 0, true, err
 	}
 
 	if h.auditLog {
 		h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, nil)
 	}
-	return nil
+	return 0, true, nil
 }
 
 // buildRequest creates an http.Request from RequestConfig.
@@ -285,7 +372,7 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 			With(
 				errorkit.WithReason("Failed to create HTTP request"),
-				errorkit.WithWrapped(err),
+				errorkit.WithWrapped(redact.URLError(err)),
 			)
 	}
 
@@ -298,8 +385,9 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 	}
 
 	// Inject W3C trace context so downstream services can link incoming spans
-	// to the caller's trace. Requires a global propagator to be configured
-	// (installed by telemetry.InitProvider).
+	// to the caller's trace. The SDK installs no propagator: the service must
+	// call otel.SetTextMapPropagator (e.g. propagation.TraceContext{}) at
+	// startup, otherwise nothing is injected.
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	return req, nil
@@ -307,13 +395,9 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 
 // isRetryable determines if an error should be retried using errorkit metadata.
 func (h *HTTPRequest) isRetryable(err error) bool {
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
-		return false
-	}
-
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
 	// Use the Retriable field from errorkit metadata
-	return appErr.Metadata.Retriable
+	return ok && appErr.Metadata.Retriable
 }
 
 // waitForRetry waits for the specified delay with context cancellation support.

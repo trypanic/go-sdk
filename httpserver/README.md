@@ -22,9 +22,14 @@ go-sdk/httpserver/hertz/   ← Hertz adapter (transitively pulls hertz deps)
 import (
     "context"
     "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
     "github.com/trypanic/go-sdk/httpserver"
     hertzadapter "github.com/trypanic/go-sdk/httpserver/hertz"
+    "github.com/trypanic/go-sdk/logger"
 )
 
 func main() {
@@ -37,7 +42,18 @@ func main() {
         c.JSON(http.StatusOK, map[string]string{"message": "hello"})
     })
 
-    go func() { _ = srv.Run() }()
+    // Run installs no signal handlers: the caller owns the lifecycle.
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    runErr := make(chan error, 1)
+    go func() { runErr <- srv.Run() }()
+
+    select {
+    case err := <-runErr: // e.g. address already in use (*errorkit.AppError)
+        logger.Panic(err, "http server failed to start")
+    case <-ctx.Done():
+    }
 
     // Graceful shutdown.
     shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -65,7 +81,11 @@ type HTTPServer interface {
 }
 ```
 
-`Run()` blocks until the server terminates. `Shutdown(ctx)` triggers a
+`Run()` blocks until the server terminates. It returns `nil` after a
+graceful `Shutdown`, and an error when the server cannot start (the Hertz
+adapter returns `ERR_SYSTEM_CONFIG_INVALID` for a listen failure such as
+"address already in use"). Adapters install no signal handlers: stop the
+server by calling `Shutdown`, for example on `signal.NotifyContext`. `Shutdown(ctx)` triggers a
 graceful drain bounded by the supplied context. Adapters MAY return a
 backend-specific error from `Shutdown` (e.g. when called before `Run`).
 
@@ -82,6 +102,8 @@ type ServerOptions struct {
 
     NoRouteStatus   int
     NoMethodStatus  int
+    HealthPath      string                          // default "/health"
+    HealthCheck     func(ctx context.Context) error // optional readiness hook
     NoRouteHandler  HandlerFunc
     NoMethodHandler HandlerFunc
 
@@ -97,11 +119,28 @@ type ServerOptions struct {
 | `EnableTracing` / `EnableRecovery` / `EnableAudit` / `EnableHealth` / `EnableNoRoute` / `EnableNoMethod` | `true` |
 | `NoRouteStatus` | `404` |
 | `NoMethodStatus` | `405` |
+| `HealthPath` | `"/health"` (`DefaultHealthPath`) |
+| `HealthCheck` | `nil` (liveness: always 200) |
 | `NoRouteHandler` / `NoMethodHandler` | `nil` (use status defaults) |
 | `Audit.CaptureBodies` | `false` |
 | `Audit.BodyRedactor` | `DefaultBodyRedactor` (replaces non-empty body with `[REDACTED]`) |
 | `Reply.Layout` | `"2006-01-02 15:04:05"` |
 | `Reply.Clock` | `time.Now` |
+
+**Health endpoint.** With `EnableHealth`, `GET <HealthPath>` answers
+`200 {"status":"healthy"}`. The path is reserved: registering your own
+`GET /health` on a default server panics in the framework, so set
+`HealthPath` (e.g. `"/livez"`) or `EnableHealth = false`. Set
+`HealthCheck` to make it a readiness probe: a non-nil error answers
+`503 {"status":"unhealthy"}` and is logged at warn level, never sent.
+
+`EnableRecovery` is the only recovery layer. When `true`, the adapter's
+`RecoveryHandler` is the outermost middleware (it also covers the built-in
+tracing and audit middlewares) and logs one structured error line with the
+panic stack (`panic_stack`) through `logger.CtxOrGlobal(ctx)`. When
+`false`, no recovery is installed and a handler panic propagates (with
+Hertz it crashes the process); install your own recovery middleware if you
+need one.
 
 To opt out of a middleware, set its `Enable*` flag to `false`. To install
 your own NoRoute/NoMethod response, set `NoRouteHandler` /
@@ -114,6 +153,7 @@ implements your redaction policy.
 ```go
 type Reply struct {
     Message   *string `json:"message,omitempty"`
+    Code      string  `json:"code,omitempty"`
     Error     *string `json:"error,omitempty"`
     TraceID   string  `json:"trace_id,omitempty"`
     Timestamp string  `json:"timestamp,omitempty"`
@@ -124,12 +164,31 @@ type Reply struct {
 type OptionReply func(*Reply)
 
 func WithMessageOpt(message string) OptionReply
-func WithErrorOpt(err error) OptionReply       // copies errorkit TraceID
+func WithErrorOpt(err error) OptionReply       // client-safe code + message; copies errorkit TraceID
 func WithMetadataOpt(metadata any) OptionReply
 func WithDataOpt(data any) OptionReply
 
 func BuildReply(opts ReplyOptions, options ...OptionReply) *Reply
 ```
+
+`WithDataOpt` and `WithMetadataOpt` store the value as given, so
+`Reply.Data` holds the caller's type and a `nil` value is omitted from the
+JSON (`omitempty`) instead of being sent as `null`.
+
+**Error replies never carry `err.Error()`.** The text of an error can hold
+SQL, hostnames, file paths or panic values, so `WithErrorOpt` sets:
+
+| Error | `code` | `error` |
+|---|---|---|
+| `*errorkit.AppError` with a 4xx `Metadata.HTTPStatus` | its error code | its `Reason` (falls back to `Metadata.Description`) |
+| any other `*errorkit.AppError` | its error code | its `Metadata.Description` |
+| any other error | `ERR_INTERNAL` | `Internal server error` |
+
+The `*errorkit.AppError` is found anywhere in the chain (`errors.As`). The
+Hertz adapter's `HTTPContext.WithError` also logs the full error
+server-side through `logger.CtxOrGlobal(ctx)` with `trace_id`/`span_id`
+(warn level for 4xx, error level otherwise) and fills `trace_id` in the
+reply from the active span when the error carries none.
 
 `HTTPContext.Reply(status, opts...)` ultimately calls `BuildReply` with
 the server's `ReplyOptions`. The `Timestamp` is stamped from
@@ -145,9 +204,36 @@ func DefaultBodyRedactor(b []byte) []byte // → []byte("[REDACTED]") if non-emp
 func RawBodyRedactor(b []byte) []byte     // identity, opt-in only
 ```
 
-The inbound audit middleware passes every captured request/response body
-through `Audit.BodyRedactor` before logging. Setting `BodyRedactor` to
-`RawBodyRedactor` is the explicit opt-in for raw capture.
+The inbound audit middleware (`EnableAudit`, on by default) logs one
+structured line per request through `logger.CtxOrGlobal(ctx)`, with
+`trace_id`/`span_id` from the active span:
+
+```json
+{"level":"info","event":"http.audit.inbound","method":"POST","path":"/orders",
+ "status_code":201,"request.headers":{"Authorization":"[REDACTED]","Content-Type":"application/json"},
+ "request.body":"[REDACTED]","response.headers":{...},"response.body":"[REDACTED]",
+ "duration_ms":12,"message":"http: inbound audit"}
+```
+
+- The query string is never logged (`path` only).
+- Header values that may carry credentials (`Authorization`,
+  `Proxy-Authorization`, `Cookie`, `Set-Cookie`, API-key headers and any
+  name containing `token`, `secret`, `key`, `auth`, `password`, `session`,
+  `signature` or `credential`) are logged as `[REDACTED]`; the keys stay.
+- `Referer`, `Location` and `Content-Location` values omit userinfo and
+  fragments and replace query values with `REDACTED`. Malformed URLs
+  become `[invalid URL]`; opaque URLs are masked in full. `Link` and
+  `Refresh` are masked in full because they contain compound URL syntax.
+  Other diagnostic headers are preserved.
+- With `Audit.CaptureBodies = false` (default) every non-empty body is
+  logged as `[REDACTED]`, whatever `BodyRedactor` is set.
+- With `Audit.CaptureBodies = true` bodies pass through
+  `Audit.BodyRedactor`. Setting it to `RawBodyRedactor` is the explicit
+  opt-in for raw capture (development only).
+- Streamed bodies are never read; they are logged as `[STREAM]`.
+
+The line costs one log write per request; set `EnableAudit = false` to
+turn it off.
 
 ---
 
@@ -158,20 +244,28 @@ through `Audit.BodyRedactor` before logging. Setting `BodyRedactor` to
 | `New(cfg)` | Hertz `HTTPServer` with `DefaultServerOptions()` |
 | `NewWithOptions(cfg, opts)` | Hertz `HTTPServer` with explicit options; zero fields backfilled from defaults |
 | `RecoveryHandler` | Panic-recovery handler installed by `EnableRecovery` |
-| `RequestLoggerMiddleware(base *logger.Logger)` | Per-request logger middleware |
+| `RequestLogger(base *logger.Logger)` | Per-request logger as an `httpserver.MiddlewareFunc` (install with `srv.Use`); reuses and echoes `X-Request-ID` |
+| `RequestLoggerMiddleware(base *logger.Logger)` | Same middleware as a Hertz `app.HandlerFunc` |
 
-`Shutdown(ctx)` delegates to `*server.Hertz.Shutdown(ctx)`. Calling it
-before `Run()` returns Hertz's `engine is not running` error; this is
-intentional and surfaced verbatim.
+`Shutdown(ctx)` waits until no request is in flight or `ctx` is done;
+only `ctx` bounds it (Hertz's 5 s cap is lifted) and idle keep-alive
+connections do not delay it. It returns `ERR_SYSTEM_TIMEOUT_INTERNAL`
+when `ctx` ends with requests still in flight. Calling it before `Run()`
+returns Hertz's `engine is not running` error; this is intentional and
+surfaced verbatim.
 
 ---
 
 ## Lifecycle
 
 - All route registration must happen before `Run()`.
-- `Run()` blocks. Run it from the main goroutine or a dedicated one.
+- `Run()` blocks. Run it from the main goroutine or a dedicated one, and
+  handle its error: a listen failure is returned, never a panic.
+- No adapter handles SIGINT/SIGTERM; the caller decides when to call
+  `Shutdown`.
 - `Shutdown(ctx)` triggers graceful drain; the supplied context bounds
-  how long to wait before forcing termination.
+  how long to wait, and a drain cut short by it is reported as
+  `ERR_SYSTEM_TIMEOUT_INTERNAL`.
 - `HTTPContext` is single-goroutine. Do not stash it past the handler.
 
 ---

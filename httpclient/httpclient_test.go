@@ -126,6 +126,9 @@ func TestRedirectPolicyMaxRedirectsPositive(t *testing.T) {
 	if appErr.Code() != ERR_EXTERNAL_SERVICE_ERROR {
 		t.Fatalf("unexpected error code: %s", appErr.Code())
 	}
+	if appErr.Metadata.Retriable {
+		t.Fatal("a redirect-limit error must not be retriable: the same chain is followed again")
+	}
 }
 
 func TestRedirectPolicyMaxRedirectsZeroReturnsRedirectResponse(t *testing.T) {

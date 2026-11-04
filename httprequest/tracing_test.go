@@ -1,7 +1,6 @@
 package httprequest
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,7 +22,7 @@ func TestNewWithoutTracingSkipsSpanWrapper(t *testing.T) {
 	}
 
 	var out string
-	if err := r.Do(context.Background(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, &out); err != nil {
+	if err := r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, &out); err != nil {
 		t.Fatalf("plain Do failed: %v", err)
 	}
 }

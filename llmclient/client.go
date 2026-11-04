@@ -1,9 +1,8 @@
-// llmclient/client.go
-
 package llmclient
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -13,18 +12,21 @@ import (
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
+// Message is one chat message (role "system", "user" or "assistant").
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
+// LLMRequest is the chat-completions request body.
 type LLMRequest struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
-	Temperature float64   `json:"temperature,omitempty"`
+	MaxTokens   int       `json:"max_tokens,omitzero"`
+	Temperature float64   `json:"temperature,omitzero"`
 }
 
+// LLMResponse is the chat-completions response body.
 type LLMResponse struct {
 	ID      string   `json:"id"`
 	Model   string   `json:"model"`
@@ -32,17 +34,21 @@ type LLMResponse struct {
 	Usage   Usage    `json:"usage"`
 }
 
+// Choice is one completion in an LLMResponse.
 type Choice struct {
 	Index   int     `json:"index"`
 	Message Message `json:"message"`
 }
 
+// Usage reports the token counts of a completion.
 type Usage struct {
 	CompletionTokens int `json:"completion_tokens"`
 	PromptTokens     int `json:"prompt_tokens"`
 	TotalTokens      int `json:"total_tokens"`
 }
 
+// LLMProvider runs one chat completion and returns the first choice's
+// content. *Client and the tracing wrapper implement it.
 type LLMProvider interface {
 	Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error)
 }
@@ -61,8 +67,19 @@ type LLMRequestConfig struct {
 type Config struct {
 	APIKey   string
 	Endpoint string
-	Timeout  time.Duration
+	// Timeout bounds each Execute call end to end, every retry included.
+	// Zero applies DefaultTimeout; a negative value disables the
+	// client-side deadline (the caller's context must then bound it).
+	Timeout time.Duration
+	// AllowInsecureEndpoint permits a plain http:// Endpoint, which sends
+	// the API key in cleartext. Use it only for local model servers.
+	AllowInsecureEndpoint bool
 }
+
+// DefaultTimeout bounds an Execute call when Config.Timeout is zero. It is
+// long enough for slow generations and stops a stalled upstream from
+// holding the goroutine and connection forever.
+const DefaultTimeout = 5 * time.Minute
 
 // Client provides LLM interaction capabilities. After construction it is safe
 // for concurrent use; its fields are not mutated by Execute.
@@ -92,6 +109,42 @@ func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, inst
 	return WrapWithInstrumenter(NewClient(httpRequest, cfg), instrumenter)
 }
 
+// validate checks the settings Execute needs before the API key is sent:
+// a key, and an absolute https endpoint (http only with
+// AllowInsecureEndpoint). The endpoint is never echoed, as it may embed
+// credentials.
+func (c Config) validate() error {
+	reason := ""
+	u, err := url.Parse(c.Endpoint)
+	switch {
+	case c.APIKey == "":
+		reason = "llm api key is empty"
+	case err != nil || u.Host == "":
+		reason = "llm endpoint must be an absolute URL"
+	case u.Scheme == "https":
+		return nil
+	case u.Scheme == "http" && c.AllowInsecureEndpoint:
+		return nil
+	case u.Scheme == "http":
+		reason = "llm endpoint must use https (set AllowInsecureEndpoint for a local http server)"
+	default:
+		reason = "llm endpoint must use https"
+	}
+	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(errorkit.WithReason("%s", reason))
+}
+
+// timeout returns the per-call deadline: Config.Timeout, DefaultTimeout
+// when it is zero, or 0 (none) when it is negative.
+func (c *Client) timeout() time.Duration {
+	switch {
+	case c.cfg.Timeout == 0:
+		return DefaultTimeout
+	case c.cfg.Timeout < 0:
+		return 0
+	}
+	return c.cfg.Timeout
+}
+
 // Execute performs a non-streaming LLM request.
 func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error) {
 	if reqConfig.Model == "" {
@@ -100,9 +153,13 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 			With(errorkit.WithReason("model is required"))
 	}
 
-	if c.cfg.Timeout > 0 {
+	if err := c.cfg.validate(); err != nil {
+		return "", err
+	}
+
+	if timeout := c.timeout(); timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.cfg.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 
@@ -135,8 +192,8 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 	}
 
 	if len(response.Choices) == 0 {
-		return "", errorkit.NewError(httpclient.ERR_EXTERNAL_SERVICE_ERROR).With(
-			errorkit.WithReason("no response from LLM"),
+		return "", errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).With(
+			errorkit.WithReason("LLM response has no choices"),
 		)
 	}
 
