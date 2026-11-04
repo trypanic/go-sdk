@@ -38,13 +38,16 @@ func Error(appErr error, msg ...string) error {
 	return appErr
 }
 
+// LogAndReturn logs appErr like Error and returns it unchanged.
 func LogAndReturn(appErr error, msg ...string) error {
-	Error(appErr, msg...)
-	return appErr
+	return Error(appErr, msg...)
 }
 
+// Panic logs appErr like Error and exits the process with status 1. Deferred
+// functions do not run and buffered OTLP records are not flushed: close the
+// LogProviderHandle first if they matter.
 func Panic(appErr error, msg ...string) {
-	Error(appErr, msg...)
+	_ = Error(appErr, msg...)
 	os.Exit(1) // nosemgrep: no-os-exit-in-library -- named fatal helper; caller opts in by name
 }
 
@@ -86,6 +89,7 @@ func WarnCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
 	WithErrorKit(event, appErr).Msg(msg)
 }
 
+// Info logs a printf-style Info message using the global logger.
 func Info(msg string, args ...any) {
 	globalLogger().Info().Msgf(msg, args...)
 }

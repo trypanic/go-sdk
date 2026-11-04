@@ -59,7 +59,7 @@ func New(cfg Config) *Logger {
 		base = newWriter(env, cfg.AppName, cfg.Version)
 	}
 
-	var w io.Writer = base
+	w := base
 	if cfg.OTLPWriter != nil {
 		w = zerolog.MultiLevelWriter(base, cfg.OTLPWriter)
 	}
