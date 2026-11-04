@@ -98,6 +98,10 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 		if b.propagator != nil {
 			hopts = append(hopts, otelgrpc.WithPropagators(b.propagator))
 		}
+		if b.publicEndpoint {
+			hopts = append(hopts, otelgrpc.WithPublicEndpoint())
+		}
+		hopts = append(hopts, b.otelOptions...)
 		so = append(so, grpc.StatsHandler(otelgrpc.NewServerHandler(hopts...)))
 	}
 

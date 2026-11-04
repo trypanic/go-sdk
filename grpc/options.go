@@ -3,6 +3,7 @@ package grpc
 import (
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -19,8 +20,10 @@ type serverBuild struct {
 	tracing        bool
 	recovery       bool
 	insecure       bool
+	publicEndpoint bool
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
+	otelOptions    []otelgrpc.Option
 	log            *logger.Logger
 	unary          []grpc.UnaryServerInterceptor
 	stream         []grpc.StreamServerInterceptor
@@ -63,6 +66,26 @@ func WithServerTracerProvider(tp trace.TracerProvider) ServerOption {
 // Defaults to the global OpenTelemetry propagator.
 func WithServerPropagator(p propagation.TextMapPropagator) ServerOption {
 	return func(b *serverBuild) { b.propagator = p }
+}
+
+// WithServerPublicEndpoint treats the trace context of incoming calls as
+// untrusted: each server span starts a new trace and carries a link to the
+// caller's span instead of becoming its child. Use it on servers reachable by
+// external (internet) clients, so callers cannot choose your trace IDs or,
+// with a ParentBased sampler, force sampling of every call. Leave it off for
+// internal service-to-service traffic, where joining the caller's trace is
+// what you want. It has no effect when tracing is disabled.
+func WithServerPublicEndpoint() ServerOption {
+	return func(b *serverBuild) { b.publicEndpoint = true }
+}
+
+// WithServerOTelOptions passes extra otelgrpc options (for example
+// otelgrpc.WithPublicEndpointFn or otelgrpc.WithFilter) to the server stats
+// handler. They are applied after the options this package derives from
+// WithServerTracerProvider, WithServerPropagator and WithServerPublicEndpoint,
+// so they take precedence. It has no effect when tracing is disabled.
+func WithServerOTelOptions(o ...otelgrpc.Option) ServerOption {
+	return func(b *serverBuild) { b.otelOptions = append(b.otelOptions, o...) }
 }
 
 // WithServerLogger injects the logger used by panic recovery. Defaults to the

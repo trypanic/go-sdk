@@ -56,7 +56,8 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 | `ToStatusWithPolicy(err error, p StatusPolicy) error`                    | `ToStatus` with an explicit message policy.                                  |
 
 **Server options:** `WithServerTracing(bool)`, `WithServerRecovery(bool)`,
-`WithServerInsecure`, `WithServerTracerProvider`, `WithServerPropagator`, `WithServerLogger`,
+`WithServerInsecure`, `WithServerTracerProvider`, `WithServerPropagator`,
+`WithServerPublicEndpoint`, `WithServerOTelOptions`, `WithServerLogger`,
 `WithUnaryInterceptors`, `WithStreamInterceptors`, `WithRawServerOptions`.
 
 **Client options:** `WithClientTracing(bool)`, `WithClientInsecure`,
@@ -147,6 +148,23 @@ status passes through; a plain error becomes `codes.Unknown`).
 > (or global) tracer provider + propagator, and RPC metrics to the global
 > OpenTelemetry `MeterProvider` (a no-op unless your app installed one). The SDK
 > `telemetry` package covers tracing only.
+
+## Tracing on public endpoints
+
+By default the server span becomes a child of the caller's `traceparent`,
+which is what you want between your own services. On a server reachable by
+external clients, pass `WithServerPublicEndpoint()`: each server span then
+starts a new trace and only **links** to the caller's span, so callers cannot
+choose your trace IDs or, with the usual `ParentBased` sampler, force every
+call to be sampled.
+
+```go
+srv, err := sdkgrpc.New(cfg, sdkgrpc.WithServerPublicEndpoint())
+```
+
+`WithServerOTelOptions(...otelgrpc.Option)` forwards any other `otelgrpc`
+server option (e.g. `otelgrpc.WithPublicEndpointFn` to decide per call, or
+`otelgrpc.WithFilter`); those options are applied last and take precedence.
 
 ## Interceptors and recovery
 
