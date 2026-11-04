@@ -10,10 +10,10 @@ type QueueTopology struct {
 	Name       string         `json:"name"`
 	Durable    bool           `json:"durable"`
 	AutoDelete bool           `json:"autoDelete"`
-	TTL        int64          `json:"ttl,omitempty"`
-	MaxLength  int            `json:"maxLength,omitempty"`
+	TTL        int64          `json:"ttl,omitzero"`
+	MaxLength  int            `json:"maxLength,omitzero"`
 	Overflow   string         `json:"overflow,omitempty"`
-	Prefetch   int            `json:"prefetch,omitempty"`
+	Prefetch   int            `json:"prefetch,omitzero"`
 	QueueMode  string         `json:"queueMode,omitempty"`
 	Arguments  map[string]any `json:"arguments,omitempty"`
 	DLX        *DLXConfig     `json:"dlx,omitempty"`
