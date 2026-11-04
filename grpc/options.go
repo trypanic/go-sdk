@@ -1,6 +1,9 @@
 package grpc
 
 import (
+	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -16,9 +19,13 @@ type ServerOption func(*serverBuild)
 type serverBuild struct {
 	tracing        bool
 	recovery       bool
+	insecure       bool
+	publicEndpoint bool
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
+	otelOptions    []otelgrpc.Option
 	log            *logger.Logger
+	errorDomain    string
 	unary          []grpc.UnaryServerInterceptor
 	stream         []grpc.StreamServerInterceptor
 	raw            []grpc.ServerOption
@@ -42,6 +49,14 @@ func WithServerRecovery(on bool) ServerOption {
 	return func(b *serverBuild) { b.recovery = on }
 }
 
+// WithServerInsecure states that the server accepts plaintext (unencrypted,
+// unauthenticated) connections, i.e. that ServerConfig.Creds is nil on
+// purpose; without it a nil Creds is a configuration error. Use it only behind a service mesh or sidecar that terminates mTLS,
+// or in tests. Combining it with ServerConfig.Creds is a configuration error.
+func WithServerInsecure() ServerOption {
+	return func(b *serverBuild) { b.insecure = true }
+}
+
 // WithServerTracerProvider injects the tracer provider used for spans.
 // Defaults to the global OpenTelemetry provider.
 func WithServerTracerProvider(tp trace.TracerProvider) ServerOption {
@@ -54,26 +69,63 @@ func WithServerPropagator(p propagation.TextMapPropagator) ServerOption {
 	return func(b *serverBuild) { b.propagator = p }
 }
 
+// WithServerPublicEndpoint treats the trace context of incoming calls as
+// untrusted: each server span starts a new trace and carries a link to the
+// caller's span instead of becoming its child. Use it on servers reachable by
+// external (internet) clients, so callers cannot choose your trace IDs or,
+// with a ParentBased sampler, force sampling of every call. Leave it off for
+// internal service-to-service traffic, where joining the caller's trace is
+// what you want. It has no effect when tracing is disabled.
+func WithServerPublicEndpoint() ServerOption {
+	return func(b *serverBuild) { b.publicEndpoint = true }
+}
+
+// WithServerOTelOptions passes extra otelgrpc options (for example
+// otelgrpc.WithPublicEndpointFn or otelgrpc.WithFilter) to the server stats
+// handler. They are applied after the options this package derives from
+// WithServerTracerProvider, WithServerPropagator and WithServerPublicEndpoint,
+// so they take precedence. It has no effect when tracing is disabled.
+func WithServerOTelOptions(o ...otelgrpc.Option) ServerOption {
+	return func(b *serverBuild) { b.otelOptions = append(b.otelOptions, o...) }
+}
+
 // WithServerLogger injects the logger used by panic recovery. Defaults to the
 // SDK global logger.
 func WithServerLogger(l *logger.Logger) ServerOption {
 	return func(b *serverBuild) { b.log = l }
 }
 
-// WithUnaryInterceptors appends extra unary interceptors. They run after the
-// recovery interceptor, in the order given.
+// WithServerErrorDomain sets the errdetails.ErrorInfo.Domain of the status
+// returned for a recovered panic: the service that produced the error,
+// usually its DNS name (e.g. "payments.example.com"). Defaults to "go-sdk".
+// Pass the same value as StatusPolicy.Domain to ToStatusWithPolicy in your
+// handlers so every error from the service carries one domain.
+func WithServerErrorDomain(domain string) ServerOption {
+	return func(b *serverBuild) { b.errorDomain = domain }
+}
+
+// WithUnaryInterceptors appends extra unary interceptors. They run after (inside)
+// the recovery interceptor, in the order given, so recovery also catches
+// their panics.
 func WithUnaryInterceptors(in ...grpc.UnaryServerInterceptor) ServerOption {
 	return func(b *serverBuild) { b.unary = append(b.unary, in...) }
 }
 
-// WithStreamInterceptors appends extra stream interceptors. They run after the
-// recovery interceptor, in the order given.
+// WithStreamInterceptors appends extra stream interceptors. They run after
+// (inside) the recovery interceptor, in the order given, so recovery also
+// catches their panics.
 func WithStreamInterceptors(in ...grpc.StreamServerInterceptor) ServerOption {
 	return func(b *serverBuild) { b.stream = append(b.stream, in...) }
 }
 
 // WithRawServerOptions passes raw grpc.ServerOption values straight through to
 // grpc.NewServer, for anything this package does not expose directly.
+//
+// Do not add interceptors here: grpc.UnaryInterceptor and
+// grpc.StreamInterceptor passed this way run outside (before) the recovery
+// interceptor, so a panic in them is not recovered and crashes the process.
+// Use WithUnaryInterceptors / WithStreamInterceptors, which run inside
+// recovery.
 func WithRawServerOptions(o ...grpc.ServerOption) ServerOption {
 	return func(b *serverBuild) { b.raw = append(b.raw, o...) }
 }
@@ -85,6 +137,8 @@ type ClientOption func(*clientBuild)
 // grpc.DialOption values.
 type clientBuild struct {
 	tracing        bool
+	insecure       bool
+	defaultTimeout time.Duration
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
 	unary          []grpc.UnaryClientInterceptor
@@ -100,6 +154,27 @@ func defaultClientBuild() *clientBuild {
 // WithClientTracing toggles the otelgrpc client stats handler. Enabled by default.
 func WithClientTracing(on bool) ClientOption {
 	return func(b *clientBuild) { b.tracing = on }
+}
+
+// WithClientInsecure states that the connection is plaintext (unencrypted,
+// unauthenticated), i.e. that ClientConfig.Creds is nil on purpose; without
+// it a nil Creds is a configuration error. Use it
+// only behind a service mesh or sidecar that terminates mTLS, or in tests.
+// Combining it with ClientConfig.Creds is a configuration error.
+func WithClientInsecure() ClientOption {
+	return func(b *clientBuild) { b.insecure = true }
+}
+
+// WithClientDefaultTimeout applies timeout d to every call (unary and all
+// streaming modes) whose context has no deadline. A deadline already set on
+// the context is never overridden, so long-lived streams opt out by setting
+// their own (longer) deadline. d <= 0 disables it (the default: calls without
+// a deadline wait until the server answers or the connection breaks).
+//
+// It runs before the WithClientUnaryInterceptors / WithClientStreamInterceptors
+// interceptors, so they see the deadline.
+func WithClientDefaultTimeout(d time.Duration) ClientOption {
+	return func(b *clientBuild) { b.defaultTimeout = d }
 }
 
 // WithClientTracerProvider injects the tracer provider used for client spans.
