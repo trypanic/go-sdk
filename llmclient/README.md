@@ -22,6 +22,10 @@ cfg := llmclient.Config{
 | `NewWithInstrumenter(httpRequest, cfg, instr)` | `LLMProvider` | Explicit instrumenter (`nil` skips tracing) |
 | `WrapWithInstrumenter(provider, instr)` | `LLMProvider` | Wraps an existing provider |
 
+`Config` and `Client` never print the API key: `String`, `GoString`
+(`%v`, `%+v`, `%#v`), `MarshalJSON` and `LogValue` (slog) show
+`[REDACTED]` for a set key and an empty value for an unset one.
+
 `Config` is consumed at construction time. `Client` never mutates it, so the
 returned value is safe for concurrent `Execute` calls.
 
