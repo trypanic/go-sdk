@@ -102,8 +102,8 @@ func (h *hertzContext) WithError(err error) httpserver.OptionReply {
 // at warn level for client errors (4xx) and at error level otherwise.
 func logReplyError(ctx context.Context, err error) {
 	l := logger.CtxOrGlobal(ctx)
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr == nil {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr == nil {
 		logger.WithTrace(ctx, l.Error()).Str("error", err.Error()).Msg("httpserver: error reply")
 		return
 	}

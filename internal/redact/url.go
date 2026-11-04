@@ -48,8 +48,8 @@ func URL(raw string) string {
 // still see the cause (for example context.DeadlineExceeded or a
 // *net.OpError). Any other error is returned unchanged.
 func URLError(err error) error {
-	var urlErr *url.Error
-	if !errors.As(err, &urlErr) || urlErr != err {
+	urlErr, ok := errors.AsType[*url.Error](err)
+	if !ok || urlErr != err {
 		return err
 	}
 	sanitized := *urlErr

@@ -34,8 +34,7 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
 	// An *errorkit.AppError raised inside the client (for example by a
 	// CheckRedirect policy) already carries the right classification.
-	var inner *errorkit.AppError
-	if errors.As(err, &inner) {
+	if inner, ok := errors.AsType[*errorkit.AppError](err); ok {
 		return inner
 	}
 
@@ -77,8 +76,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	// Check for net.Error timeout
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
+	if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 		return errorkit.NewError(ERR_NETWORK_TIMEOUT).
 			With(
 				errorkit.WithReason("Network operation timed out"),
@@ -99,17 +97,18 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 // isTLSVerificationError reports whether err is a certificate verification
 // failure, which a retry cannot fix.
 func isTLSVerificationError(err error) bool {
-	var (
-		verifyErr    *tls.CertificateVerificationError
-		unknownCA    x509.UnknownAuthorityError
-		hostnameErr  x509.HostnameError
-		invalidErr   x509.CertificateInvalidError
-		constraint   x509.ConstraintViolationError
-		insecureAlgo x509.InsecureAlgorithmError
-	)
-	return errors.As(err, &verifyErr) || errors.As(err, &unknownCA) ||
-		errors.As(err, &hostnameErr) || errors.As(err, &invalidErr) ||
-		errors.As(err, &constraint) || errors.As(err, &insecureAlgo)
+	return isA[*tls.CertificateVerificationError](err) ||
+		isA[x509.UnknownAuthorityError](err) ||
+		isA[x509.HostnameError](err) ||
+		isA[x509.CertificateInvalidError](err) ||
+		isA[x509.ConstraintViolationError](err) ||
+		isA[x509.InsecureAlgorithmError](err)
+}
+
+// isA reports whether err's chain holds an error of type E.
+func isA[E error](err error) bool {
+	_, ok := errors.AsType[E](err)
+	return ok
 }
 
 // validateURL checks a request URL once, before any attempt: it must parse

@@ -33,6 +33,6 @@ func isIdempotent(config RequestConfig) bool {
 // neverSent reports whether err proves the request never left the process:
 // the connection to the server could not be established.
 func neverSent(err error) bool {
-	var opErr *net.OpError
-	return errors.As(err, &opErr) && opErr.Op == "dial"
+	opErr, ok := errors.AsType[*net.OpError](err)
+	return ok && opErr.Op == "dial"
 }

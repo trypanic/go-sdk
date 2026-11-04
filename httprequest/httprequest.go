@@ -395,13 +395,9 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 
 // isRetryable determines if an error should be retried using errorkit metadata.
 func (h *HTTPRequest) isRetryable(err error) bool {
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
-		return false
-	}
-
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
 	// Use the Retriable field from errorkit metadata
-	return appErr.Metadata.Retriable
+	return ok && appErr.Metadata.Retriable
 }
 
 // waitForRetry waits for the specified delay with context cancellation support.

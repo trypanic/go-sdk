@@ -51,8 +51,7 @@ func WithErrorOpt(err error) OptionReply {
 		code, message := publicError(err)
 		r.Code = code
 		r.Error = &message
-		var appErr *errorkit.AppError
-		if errors.As(err, &appErr) && appErr.TraceID != "" {
+		if appErr, ok := errors.AsType[*errorkit.AppError](err); ok && appErr.TraceID != "" {
 			r.TraceID = appErr.TraceID
 		}
 	}
@@ -60,8 +59,8 @@ func WithErrorOpt(err error) OptionReply {
 
 // publicError returns the client-safe code and message for err.
 func publicError(err error) (code, message string) {
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr == nil {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr == nil {
 		return string(errorkit.ERR_INTERNAL), genericErrorMessage
 	}
 	status := appErr.Metadata.HTTPStatus
