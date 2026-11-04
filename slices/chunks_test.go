@@ -2,6 +2,7 @@ package slices
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -86,5 +87,40 @@ func TestChunkAppendDoesNotOverwriteNextChunk(t *testing.T) {
 	}
 	if want := []int{3, 4}; !reflect.DeepEqual(c[1], want) {
 		t.Fatalf("c[1] after append = %v, want %v", c[1], want)
+	}
+}
+
+// The outer slice size is known up front, so Chunk allocates it once.
+func TestChunkAllocatesOuterSliceOnce(t *testing.T) {
+	items := make([]int, 100)
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = Chunk(items, 7)
+	})
+	if allocs != 1 {
+		t.Fatalf("Chunk allocs/op = %v, want 1", allocs)
+	}
+	if got := len(Chunk(items, 7)); got != 15 {
+		t.Fatalf("len(Chunk(100 items, 7)) = %d, want 15", got)
+	}
+}
+
+func BenchmarkChunk(b *testing.B) {
+	items := make([]int, 1000)
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = Chunk(items, 7)
+	}
+}
+
+func BenchmarkMergeUniqueStrings(b *testing.B) {
+	a := make([]string, 500)
+	c := make([]string, 500)
+	for i := range a {
+		a[i] = "a" + strconv.Itoa(i)
+		c[i] = "c" + strconv.Itoa(i)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = MergeUniqueStrings(a, c)
 	}
 }
