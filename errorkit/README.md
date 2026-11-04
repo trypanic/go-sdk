@@ -646,3 +646,12 @@ The package ships with a small core registry. Domain-specific codes (auth, datab
 | `ERR_SYSTEM_CONFIG_INVALID`     | system  | 500 | ✗         | Invalid system configuration           |
 | `ERR_SYSTEM_TIMEOUT_INTERNAL`   | system  | 500 | ✓         | Internal operation timeout             |
 | `ERR_SYSTEM_CONCURRENCY`        | system  | 409 | ✓         | Concurrency conflict detected          |
+
+### Expected failures without stack capture
+
+`NewWithoutStack(code)` preserves the normal metadata, ID, timestamp and error
+chain while leaving `Trace` empty. Use it for frequent expected validation
+failures. `NewError`, registry and factory constructors retain their existing
+stack behavior; global stack-depth configuration does not affect this explicit
+constructor. The `validators` package uses it for invalid user input, while
+configuration errors (such as reversed numeric bounds) retain a stack.

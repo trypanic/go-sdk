@@ -208,3 +208,8 @@ All functions are pure and stateless. The returned closure from `IsWithinRange` 
 | `strings` | Whitespace trimming in `IsAlphanumericWithSpaces` |
 | `time` | Date parsing in `IsValidDatePointer` and `ValidateDateRange` |
 | `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
+
+Validation rejections use `errorkit.NewWithoutStack`: metadata, reasons, causes
+and error IDs remain available, but `Trace` is empty. Invalid validator
+configuration retains a stack. This avoids stack-walking overhead on routine
+input rejection; log correlation still uses the error ID and explicit context.
