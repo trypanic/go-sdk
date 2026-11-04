@@ -220,3 +220,4 @@ recovered panics), `1179adf` (example errcheck).
   worktrees remain, plus the pre-existing clean detached C2 loop-2 review
   worktree at `48c1971`; current reviewer temporary worktrees were removed.
   `/tmp/audit-merge-checks.py` is prepared for sequential V1–V5 logging.
+  Stop-point ledger commit: `5f0e1cf` (`chore(audit): P4.C2 BLOCKED`).
