@@ -101,3 +101,5 @@ func (h *Provider) Shutdown(ctx context.Context)
 `Close` flushes buffered log records, closes the gRPC exporter and returns the error (an `*errorkit.AppError` with code `ERR_INTERNAL` wrapping the cause, so `errors.Is(err, context.DeadlineExceeded)` works). Give `ctx` its own timeout. `Shutdown` does the same and prints the error to stderr instead of returning it. Defer one of them immediately after the provider is created. Both are no-ops on a nil handle.
 
 ---
+
+A typed nil `*Writer` safely discards output. It remains valid as an optional `io.Writer` passed to `logger.Init` or `logger.Config.OTLPWriter`; local logging continues.

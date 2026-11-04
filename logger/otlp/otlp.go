@@ -45,7 +45,11 @@ func NewWriter(serviceName string) *Writer {
 
 // Write implements io.Writer. Each call receives exactly one complete JSON
 // log line from zerolog (zerolog guarantees one Write per event).
+// A nil Writer discards the line, preserving optional-exporter compatibility.
 func (w *Writer) Write(p []byte) (int, error) {
+	if w == nil {
+		return len(p), nil
+	}
 	// Parse the zerolog JSON so we can extract fields into the OTEL record.
 	// UseNumber keeps integers above 2^53 exact (see anyToLogValue).
 	var fields map[string]any
