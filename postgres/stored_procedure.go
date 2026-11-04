@@ -32,19 +32,13 @@ func (s StoredProcedure[T]) QueryRow(ctx context.Context, query string, args ...
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
 		var e T
-		return e, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to execute query row"),
-			errorkit.WithWrapped(err),
-		)
+		return e, classifyPgError(err, "failed to execute query row")
 	}
 
 	result, err := pgx.CollectOneRow(rows, pgRowMapper[T]())
 	if err != nil {
 		var e T
-		return e, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to scan query row"),
-			errorkit.WithWrapped(err),
-		)
+		return e, classifyPgError(err, "failed to scan query row")
 	}
 	return result, nil
 }
@@ -56,17 +50,11 @@ func (s StoredProcedure[T]) Query(ctx context.Context, query string, args ...any
 	// nosemgrep: defer-rows-close -- pgx.CollectRows closes rows automatically.
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to execute query"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, classifyPgError(err, "failed to execute query")
 	}
 	results, err := pgx.CollectRows(rows, pgRowMapper[T]())
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to collect query rows"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, classifyPgError(err, "failed to collect query rows")
 	}
 	return results, nil
 }

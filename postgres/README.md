@@ -23,6 +23,7 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
   - [Interface](#interface)
   - [Constructors](#stored-procedure-constructors)
   - [Method Reference](#method-reference)
+- [Error Handling](#error-handling)
 - [Tracing](#tracing)
   - [Stored-procedure span wrapper](#stored-procedure-span-wrapper)
   - [Adding pgx tracing](#adding-pgx-tracing)
@@ -135,7 +136,9 @@ Behavior:
    5-second timeout context.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
 
-All errors are wrapped with `errorkit.ERR_DB_POSTGRES_ERROR`. The driver error is attached as
+Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
+parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
+rejected password is `ERR_DB_POSTGRES_AUTH_FAILED`, …). The driver error is attached as
 the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
 `*pgconn.ConnectError`, `context.DeadlineExceeded`, …) and the payload carries only the
 driver's `Error()` text, in which pgx masks the password. The driver error value itself is
@@ -191,7 +194,8 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 ### Method Reference
 
 - **`QueryRow`** — runs `query` with the given positional `args`, returns the single row scanned
-  into `T`. Pgx-level errors are wrapped with `ERR_DB_POSTGRES_ERROR`.
+  into `T`. No matching row is `ERR_DB_POSTGRES_NOT_FOUND` (404, not retriable); other failures
+  are classified as described in [Error Handling](#error-handling).
 
 - **`Query`** — runs `query` with the given positional `args`, returns all rows scanned into
   `[]T`.
@@ -203,6 +207,32 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 
 There is no special handling of `[]string` etc. — pass values pgx already understands and they
 are forwarded as-is.
+
+---
+
+## Error Handling
+
+Every error is an `*errorkit.AppError` that wraps the driver error, so `errors.Is(err,
+pgx.ErrNoRows)`, `errors.As(err, &pgErr)` (`*pgconn.PgError`) and `errors.Is(err,
+context.Canceled)` keep working. The code follows the cause:
+
+| Cause | Code | Retriable | HTTP |
+|---|---|---|---|
+| `pgx.ErrNoRows` (`QueryRow` matched nothing) | `ERR_DB_POSTGRES_NOT_FOUND` | no | 404 |
+| `context.Canceled` | `ERR_DB_POSTGRES_CANCELED` | no | 499 |
+| `*pgconn.ParseConfigError` (bad DSN) | `errorkit.ERR_SYSTEM_CONFIG_INVALID` | no | 500 |
+| `context.DeadlineExceeded`, `pgconn.Timeout`, network timeout | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
+| SQLSTATE `23505` (unique violation) | `errorkit.ERR_VALIDATION_DUPLICATE` | no | 409 |
+| Other SQLSTATE class `23` (not null, foreign key, check, exclusion) | `errorkit.ERR_VALIDATION_INCONSISTENT` | no | 400 |
+| SQLSTATE `40001` (serialization failure), `40P01` (deadlock) | `ERR_DB_POSTGRES_DEADLOCK` | yes | 409 |
+| SQLSTATE class `28` (authorization) | `ERR_DB_POSTGRES_AUTH_FAILED` | no | 502 |
+| SQLSTATE class `08`, `53300`, `57P01`–`57P05` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| `*pgconn.ConnectError` (dial or handshake failed) | `ERR_DB_POSTGRES_CONNECTION_FAILED` | yes | 503 |
+| `pgconn.ErrConnClosed`, other `net.Error` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| Anything else | `ERR_DB_POSTGRES_ERROR` | yes | 503 |
+
+A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
+`ERR_DB_POSTGRES_ERROR` before any query is sent.
 
 ---
 

@@ -87,16 +87,13 @@ func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error) {
 }
 
 // poolError builds the error returned by the pool constructors. The driver
-// error is attached with WithWrapped so errors.Is/errors.As keep working, and
-// the payload carries only its Error() text, which pgx redacts. The error
-// value itself is never used as payload: *pgconn.ParseConfigError exports the
-// unredacted connection string and *pgconn.ConnectError cannot be marshaled.
+// error is classified and attached with WithWrapped so errors.Is/errors.As
+// keep working, and the payload carries only its Error() text, which pgx
+// redacts. The error value itself is never used as payload:
+// *pgconn.ParseConfigError exports the unredacted connection string and
+// *pgconn.ConnectError cannot be marshaled.
 func poolError(reason string, err error) *errorkit.AppError {
-	return errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-		errorkit.WithReason("%s", reason),
-		errorkit.WithWrapped(err),
-		errorkit.WithPayload(err.Error()),
-	)
+	return classifyPgError(err, reason).With(errorkit.WithPayload(err.Error()))
 }
 
 func normalizePostgresDSN(dsn string) string {
