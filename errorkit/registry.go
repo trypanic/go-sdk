@@ -1,6 +1,7 @@
 package errorkit
 
 import (
+	"maps"
 	"slices"
 	"sync"
 )
@@ -190,13 +191,7 @@ func NewDefaultRegistry() *Registry {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	registry := &Registry{
-		metadata: make(map[ErrorCode]Metadata, len(errorRegistry)),
-	}
-	for code, meta := range errorRegistry {
-		registry.metadata[code] = meta
-	}
-	return registry
+	return &Registry{metadata: maps.Clone(errorRegistry)}
 }
 
 // GetMetadata retrieves metadata for a given error code
