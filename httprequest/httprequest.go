@@ -39,10 +39,20 @@ type HTTPRequester interface {
 }
 
 // RetryConfig holds retry behavior configuration.
+//
+// A retriable error is retried only when sending the request again is
+// safe: the method is idempotent (GET, HEAD, OPTIONS, TRACE, PUT, DELETE),
+// the request carries a non-empty Idempotency-Key or X-Idempotency-Key
+// header, or the connection was never made (a dial error). Set
+// RetryNonIdempotent to retry every retriable error regardless.
 type RetryConfig struct {
 	MaxRetries   int
 	InitialDelay time.Duration
 	MaxDelay     time.Duration
+	// RetryNonIdempotent also retries non-idempotent requests (POST, PATCH,
+	// ...) that may already have reached the server. Enable it only when
+	// the upstream deduplicates or a duplicate is harmless.
+	RetryNonIdempotent bool
 }
 
 // BodyRedactor turns a raw HTTP body into a representation safe for logs and
@@ -247,8 +257,8 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 
 		lastErr = err
 
-		// Check if error is retryable
-		if !h.isRetryable(err) || attempt >= rc.MaxRetries-1 {
+		// Check if error is retryable and resending is safe
+		if !h.isRetryable(err) || !safeToResend(config, err, rc) || attempt >= rc.MaxRetries-1 {
 			return err
 		}
 

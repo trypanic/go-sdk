@@ -89,6 +89,8 @@ type RetryConfig struct {
     MaxRetries   int           // Total number of attempts (not retries after first)
     InitialDelay time.Duration // Delay before the second attempt
     MaxDelay     time.Duration // Ceiling for exponential backoff
+    // Also retry non-idempotent requests that may have reached the server.
+    RetryNonIdempotent bool
 }
 ```
 
@@ -150,7 +152,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 2. Records an `http.attempt` OpenTelemetry span event (attributes: `retry.attempt`, `retry.max`, `http.url`) when a valid span exists in `ctx`.
 3. Calls `executeRequest`, which builds the `http.Request`, sends it, checks the status, and decodes the body.
 4. On success (2xx), returns `nil`.
-5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable`. Non-retryable errors are returned immediately.
+5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable` and whether resending is safe (see **Retryability** below). Errors that are not retriable, or not safe to resend, are returned immediately.
 6. Waits for the current delay using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
 7. Doubles the delay for the next attempt, capped at `MaxDelay`.
 
@@ -199,7 +201,15 @@ Network error payloads always include `url` and `original_error`. HTTP error pay
 
 **URL sanitization.** Every URL placed in an error payload, a wrapped `*url.Error`, the audit log or a span event is sanitized first: userinfo (`user:pass@`) and the fragment are dropped, and each query value is replaced by `REDACTED` while the keys are kept (`?key=SECRET` → `?key=REDACTED`).
 
-**Retryability** is determined entirely by `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.
+**Retryability** starts from `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.
+
+A retriable error is retried only when sending the request again cannot duplicate a side effect:
+
+- the method is idempotent: `GET` (or empty), `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`; or
+- the request carries a non-empty `Idempotency-Key` or `X-Idempotency-Key` header; or
+- the connection was never made (a dial error such as "connection refused"), so nothing was sent.
+
+A `POST` or `PATCH` that gets a 5xx, a 429 or a timeout is therefore sent once and its error returned. Set `RetryConfig.RetryNonIdempotent` to retry every retriable error regardless, only when the upstream deduplicates requests or a duplicate is harmless.
 
 ---
 

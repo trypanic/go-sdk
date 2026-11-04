@@ -44,6 +44,16 @@ content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
   Callers that need to parse JSON wrapped in code fences must do so
   themselves.
 
+## Retries
+
+Every `Execute` is a `POST`, which `httprequest` does not resend after it may
+have reached the provider: a 5xx, a 429 or a timeout returns the error after
+one attempt, so one `Execute` never bills more than one completion. Only a
+refused connection (nothing was sent) is retried. To retry rate limits and
+provider errors anyway, build the requester with
+`httprequest.RetryConfig{RetryNonIdempotent: true}`, accepting that a retried
+call may be billed twice.
+
 ## Tracing
 
 `New` and `NewWithInstrumenter` open a span named `llm.<model>` (or
