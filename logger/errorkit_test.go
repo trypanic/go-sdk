@@ -46,6 +46,39 @@ func TestErrorKeepsCodeOfWrappedAppError(t *testing.T) {
 	})
 }
 
+func TestErrorSkipsTypedNilAppError(t *testing.T) {
+	var nilAppErr *errorkit.AppError
+	appErr := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
+	joined := errors.Join(nilAppErr, appErr)
+
+	t.Run("instance", func(t *testing.T) {
+		var buf bytes.Buffer
+		l := New(Config{Env: Prod, Writer: &buf})
+		if got := l.Error(joined, "lookup failed"); got != joined {
+			t.Fatalf("Logger.Error must return the original error")
+		}
+		assertJoinedAppErrorLogged(t, buf.String())
+	})
+
+	t.Run("global", func(t *testing.T) {
+		buf := useGlobalBuffer(t)
+		if got := Error(joined, "lookup failed"); got != joined {
+			t.Fatalf("Error must return the original error")
+		}
+		assertJoinedAppErrorLogged(t, buf.String())
+	})
+}
+
+func assertJoinedAppErrorLogged(t *testing.T, out string) {
+	t.Helper()
+	if !strings.Contains(out, `"error_code":"ERR_CLIENT_NOT_FOUND"`) {
+		t.Fatalf("expected the joined AppError code, got %q", out)
+	}
+	if strings.Contains(out, "ERR_UNKNOWN") || strings.Contains(out, "ERR_INTERNAL") {
+		t.Fatalf("a joined AppError after a typed nil must not be replaced, got %q", out)
+	}
+}
+
 func assertWrappedAppErrorLogged(t *testing.T, out string) {
 	t.Helper()
 	if !strings.Contains(out, `"error_code":"ERR_CLIENT_NOT_FOUND"`) {

@@ -1,8 +1,6 @@
 package logger
 
 import (
-	"errors"
-
 	"github.com/rs/zerolog"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -85,7 +83,10 @@ func withError(event *zerolog.Event, err error) *zerolog.Event {
 	if err == nil {
 		return WithErrorKit(event, nil)
 	}
-	if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
+	if appErr, ok := err.(*errorkit.AppError); ok && appErr == nil {
+		return WithErrorKit(event, nil)
+	}
+	if appErr, ok := errorkit.As(err); ok {
 		if error(appErr) != err {
 			event = event.Err(err)
 		}

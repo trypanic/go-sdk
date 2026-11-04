@@ -24,6 +24,9 @@ func TestAsFindsAppErrorInWrappedChain(t *testing.T) {
 		{name: "wrapped once", err: fmt.Errorf("ctx: %w", appErr), want: appErr, wantOK: true},
 		{name: "wrapped twice", err: fmt.Errorf("outer: %w", fmt.Errorf("inner: %w", appErr)), want: appErr, wantOK: true},
 		{name: "joined", err: errors.Join(errors.New("other"), appErr), want: appErr, wantOK: true},
+		{name: "joined typed nil before AppError", err: errors.Join(nilAppErr, appErr), want: appErr, wantOK: true},
+		{name: "nested joined typed nil before AppError", err: fmt.Errorf("outer: %w", errors.Join(errors.Join(nilAppErr, errors.New("other")), fmt.Errorf("inner: %w", appErr))), want: appErr, wantOK: true},
+		{name: "joined typed nil without AppError", err: errors.Join(nilAppErr, errors.New("other"))},
 		{name: "typed nil", err: nilAppErr},
 	}
 	for _, tc := range cases {

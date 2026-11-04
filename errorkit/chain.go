@@ -1,21 +1,43 @@
 package errorkit
 
-import "errors"
-
 // As reports whether err's chain contains a non-nil *AppError and returns
 // the first one. It follows fmt.Errorf("%w") wrappers, errors.Join and any
 // Unwrap method, unlike a direct type assertion (err.(*AppError)), which
-// fails as soon as a layer adds context:
+// fails as soon as a layer adds context. Custom As methods are consulted,
+// but a typed-nil match does not stop traversal:
 //
 //	if appErr, ok := errorkit.As(err); ok {
 //		logger.ErrorCtx(ctx, appErr, "svc.Do failed")
 //	}
 func As(err error) (*AppError, bool) {
-	appErr, ok := errors.AsType[*AppError](err)
-	if !ok || appErr == nil {
-		return nil, false
+	for err != nil {
+		if appErr, ok := err.(*AppError); ok {
+			if appErr != nil {
+				return appErr, true
+			}
+			return nil, false
+		}
+		if x, ok := err.(interface{ As(any) bool }); ok {
+			var appErr *AppError
+			if x.As(&appErr) && appErr != nil {
+				return appErr, true
+			}
+		}
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+		case interface{ Unwrap() []error }:
+			for _, branch := range x.Unwrap() {
+				if appErr, ok := As(branch); ok {
+					return appErr, true
+				}
+			}
+			return nil, false
+		default:
+			return nil, false
+		}
 	}
-	return appErr, true
+	return nil, false
 }
 
 // HasCode reports whether err's tree contains an *AppError with the given
