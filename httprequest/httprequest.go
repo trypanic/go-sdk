@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
 	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
@@ -311,7 +312,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 // nextDelay doubles the backoff cap, bounded by maxDelay. The actual wait
 // is a random fraction of it (see retryDelay).
 func nextDelay(currentDelay, maxDelay time.Duration) time.Duration {
-	return min(currentDelay*2, maxDelay)
+	return sharedbackoff.Grow(currentDelay, maxDelay, 2)
 }
 
 // executeRequest performs a single HTTP request attempt. For a non-2xx

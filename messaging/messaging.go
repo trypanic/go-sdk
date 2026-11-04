@@ -13,8 +13,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/trypanic/go-sdk/algorithms"
 	"github.com/trypanic/go-sdk/errorkit"
+	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
 	"github.com/trypanic/go-sdk/logger"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
@@ -610,18 +610,19 @@ func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) 
 	// Topology.Validate rejects MaxAttempts < 1; clamp anyway so a value that
 	// bypassed validation cannot wrap to an unbounded uint64.
 	attempts := max(retry.MaxAttempts, 1)
-	bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
-		InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,
-		MaxInterval:     time.Duration(retry.MaxDelay) * time.Millisecond,
-		Multiplier:      retry.BackoffMult,
-		MaxRetries:      uint64(attempts),
+	bo := sharedbackoff.New(sharedbackoff.Config{
+		Initial:        time.Duration(retry.InitialDelay) * time.Millisecond,
+		Max:            time.Duration(retry.MaxDelay) * time.Millisecond,
+		Multiplier:     retry.BackoffMult,
+		Attempts:       attempts,
+		MaxElapsedTime: 15 * time.Minute,
 	})
 	return backoff.Retry(fn, backoff.WithContext(bo, ctx))
 }
 
 // reconnectWithBackoff retries sub.Reconnect with exponential delay until
-// success, a non-retriable error (returned as is) or ctx cancellation.  Delay starts at DefaultReconnectDelay and
-// doubles up to MaxReconnectDelay. The log argument may be nil — in that
+// success, a non-retriable error or cancellation. The full-jitter cap starts
+// at DefaultReconnectDelay and doubles up to MaxReconnectDelay. In that
 // case the package-level global logger is used.
 func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logger) error {
 	delay := DefaultReconnectDelay
@@ -632,14 +633,17 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 				errorkit.WithReason("subscriber reconnect canceled"),
 				errorkit.WithWrapped(ctx.Err()),
 			)
-		case <-time.After(delay):
+		case <-time.After(sharedbackoff.Jitter(delay)):
+			if ctx.Err() != nil {
+				continue
+			}
 			if err := sub.Reconnect(); err != nil {
 				if !isRetriable(err) {
 					// e.g. ERR_MQ_AUTH_FAILED: retrying cannot succeed.
 					return err
 				}
 				warnReconnect(ctx, log, sub.queue.Name, err, delay)
-				delay = min(delay*2, MaxReconnectDelay)
+				delay = sharedbackoff.Grow(delay, MaxReconnectDelay, 2)
 				continue
 			}
 			return nil

@@ -187,8 +187,7 @@ func failDials(b *fakeBroker, n int, start time.Time, times *[]time.Duration) {
 	}
 }
 
-// reconnectWithBackoff waits DefaultReconnectDelay, then doubles the delay
-// after every failed attempt.
+// Reconnect delays sample below an exponentially growing cap.
 func TestReconnectWithBackoffSchedule(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		b := newFakeBroker()
@@ -198,7 +197,13 @@ func TestReconnectWithBackoffSchedule(t *testing.T) {
 		err := reconnectWithBackoff(t.Context(), newFakeSubscriber(b), newTestLogger(io.Discard))
 
 		require.NoError(t, err)
-		assert.Equal(t, []time.Duration{5 * time.Second, 15 * time.Second, 35 * time.Second, 75 * time.Second}, times)
+		require.Len(t, times, 4)
+		previous := time.Duration(0)
+		for i, cap := range []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second} {
+			require.GreaterOrEqual(t, times[i]-previous, time.Duration(0))
+			require.Less(t, times[i]-previous, cap)
+			previous = times[i]
+		}
 	})
 }
 
@@ -219,8 +224,10 @@ func TestReconnectWithBackoffCapsDelay(t *testing.T) {
 			gaps = append(gaps, at-prev)
 			prev = at
 		}
-		assert.Equal(t, []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second,
-			MaxReconnectDelay, MaxReconnectDelay, MaxReconnectDelay}, gaps)
+		for i, cap := range []time.Duration{5 * time.Second, 10 * time.Second, 20 * time.Second, 40 * time.Second, MaxReconnectDelay, MaxReconnectDelay, MaxReconnectDelay} {
+			require.GreaterOrEqual(t, gaps[i], time.Duration(0))
+			require.Less(t, gaps[i], cap)
+		}
 	})
 }
 
@@ -230,7 +237,7 @@ func TestReconnectWithBackoffStopsOnCancel(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		b := newFakeBroker()
 		b.dialErr = errors.New("connection refused")
-		ctx, cancel := context.WithTimeout(t.Context(), 12*time.Second) // between the 1st (5 s) and 2nd (15 s) attempt
+		ctx, cancel := context.WithTimeout(t.Context(), 12*time.Second) // full-jitter retry count varies within this budget
 		defer cancel()
 
 		err := reconnectWithBackoff(ctx, newFakeSubscriber(b), newTestLogger(io.Discard))
@@ -238,6 +245,9 @@ func TestReconnectWithBackoffStopsOnCancel(t *testing.T) {
 		appErr := requireAppError(t, err)
 		assert.Equal(t, ERR_MQ_CONNECTION_FAILED, appErr.Code())
 		assert.ErrorIs(t, err, context.DeadlineExceeded)
-		assert.Equal(t, 1, b.dialCount())
+		assert.Positive(t, b.dialCount())
+		calls := b.dialCount()
+		time.Sleep(time.Minute)
+		assert.Equal(t, calls, b.dialCount(), "no reconnect can outlive cancellation")
 	})
 }

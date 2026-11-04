@@ -159,7 +159,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 3. Calls `executeRequest`, which builds the `http.Request`, sends it, checks the status, and decodes the body.
 4. On success (2xx), returns `nil`.
 5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable` and whether resending is safe (see **Retryability** below). Errors that are not retriable, or not safe to resend, are returned immediately.
-6. Picks the wait before the next attempt. When the response carried a `Retry-After` header (delay-seconds or HTTP-date, typically on 429 and 503), the wait is exactly that value; if it exceeds `MaxDelay`, the error is returned without retrying, because an earlier retry would fail by design. Otherwise the wait is a random duration in `[0, backoff]` ("full jitter"), so clients that failed together do not retry in lockstep. If the wait would outlast the `ctx` deadline, the last error is returned at once instead of sleeping into a timeout.
+6. Picks the wait before the next attempt. When the response carried a `Retry-After` header (delay-seconds or HTTP-date, typically on 429 and 503), the wait is exactly that value; if it exceeds `MaxDelay`, the error is returned without retrying, because an earlier retry would fail by design. Otherwise the wait is a random duration in `[0, backoff)` ("full jitter"), so clients that failed together do not retry in lockstep. If the wait would outlast the `ctx` deadline, the last error is returned at once instead of sleeping into a timeout.
 7. Waits using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
 8. Doubles the backoff ceiling for the next attempt (`InitialDelay`, `2×`, `4×`, …), capped at `MaxDelay`.
 
@@ -344,3 +344,7 @@ inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
 still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
 exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
 client intentionally creates another span, so wrap a tracing-disabled client.
+
+Transport backoff growth and full jitter are shared with messaging through
+`internal/backoff`; growth saturates before duration overflow. Public retry
+configuration units, idempotency rules and `Retry-After` precedence are unchanged.

@@ -102,7 +102,7 @@ Connection drops are handled transparently at both ends:
 | Component | Strategy |
 |-----------|----------|
 | **Publisher** | Checks the connection before every `Publish`.  If closed (or the previous publish on it failed), reconnects first.  Exactly one retry layer applies: for a queue **with** a `retry` policy, the policy alone governs retries (`maxAttempts` = attempts per routing key, each on a fresh channel after a failure); for a queue **without** one, a failed publish reconnects once more and retries once.  The caller's `ctx` bounds the whole call: waiting for the shared channel, the dial (TCP connect and handshake), the publish and the backoff.  An ended `ctx` never dials and the error wraps `ctx.Err()` (`ERR_MQ_TIMEOUT` for a deadline).  Reconnects are single-flight and never block `Close`. |
-| **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  The delay starts at `DefaultReconnectDelay` (5 s) and doubles on each failed attempt, capped at `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position.  The loop stops and `Subscribe` returns the error when it is not retriable (`Metadata.Retriable == false`, e.g. `ERR_MQ_AUTH_FAILED`), since retrying cannot succeed. |
+| **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  Each delay is sampled uniformly below an exponential cap starting at `DefaultReconnectDelay` (5 s), doubling on failure up to `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position.  The loop stops and `Subscribe` returns the error when it is not retriable (`Metadata.Retriable == false`, e.g. `ERR_MQ_AUTH_FAILED`), since retrying cannot succeed. |
 
 Each subscriber sets the channel QoS to the queue's `prefetch`.  When the
 topology omits it (or sets `0`) the subscriber uses `DefaultPrefetch` (1):
@@ -139,7 +139,7 @@ to every publish.
 
 Retry is configured **per queue** in the topology (`retry` block).  The same
 policy is applied to both publish and consume via the shared `executeWithRetry`
-helper.  Under the hood it delegates to the internal `algorithms.ExponentialBackoff`
+helper.  Under the hood it delegates to the shared `internal/backoff`
 utility.
 
 For **publish**, each routing key of the binding is retried on its own: a
@@ -386,10 +386,10 @@ check one yourself.  Every problem is reported in one
   `maxDelay < initialDelay`, or `backoffMultiplier < 1` (an omitted multiplier
   is `0` and therefore rejected).
 
-Accepted retry values are interpreted by the shared `algorithms` exponential
+Accepted retry values are interpreted by the shared internal transport exponential
 backoff: an `initialDelay` or `maxDelay` of `0` is replaced by its default
 (1 s and 30 s respectively) instead of meaning "retry without delay", and
-`maxAttempts` is capped at `algorithms.MaxRetriesLimit` (1000).
+`maxAttempts` is capped at 1000.
 
 ---
 
@@ -457,3 +457,14 @@ inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
 still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
 exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
 client intentionally creates another span, so wrap a tracing-disabled client.
+
+### Shared retry schedule
+
+HTTP and messaging use the same internal full-jitter and saturating-growth
+implementation. Each delay is sampled from `[0, cap)`, avoiding synchronized
+retries. Messaging `InitialDelay`/`MaxDelay` remain milliseconds and `MaxAttempts`
+counts the first attempt; HTTP fields remain `time.Duration` and `MaxRetries`
+also counts total attempts. HTTP `Retry-After` takes priority over jitter.
+Messaging retry policies have an explicit 15-minute elapsed budget: after it is
+spent no further attempt starts; in-progress handler work still uses its context.
+Subscriber reconnection is bounded by its context, without a separate elapsed cap.
