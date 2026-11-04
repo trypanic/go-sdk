@@ -355,3 +355,12 @@ Portable raw evidence, negative-control patches and the matrix runner are in
 [`R-DEPS-loop2/`](./R-DEPS-loop2/README.md). `checks.jsonl` preserves exact
 commands and exit codes; implementation commit hooks also passed. The report
 and evidence are committed separately after these clean-tree release checks.
+
+## Orchestrator integration and evidence normalization
+
+Independent loop2 approved `ddf7afd`; merged at `2a56313`. Post-merge format,
+build, vet, short tests and race tests all exited 0. The sole mixed-indentation
+warning in the historical `integration-first.log` was removed by expanding tabs
+in that diagnostic transcript; test outcomes/content are retained. Original raw
+capture remains in `/tmp/DEPS-validation`. No SDK code changed in this packaging
+step. Final validation and report follow in P5.

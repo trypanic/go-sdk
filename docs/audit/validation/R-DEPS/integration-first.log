@@ -1,5 +1,5 @@
 task: [test:integration] go test -race -tags integration -run Integration -count=1 -timeout=5m ./postgres ./mongo ./messaging
-ok  	github.com/trypanic/go-sdk/postgres	3.019s
+ok      github.com/trypanic/go-sdk/postgres     3.019s
 2026/11/04 00:35:50 github.com/testcontainers/testcontainers-go - Connected to docker:
   Server Version: 29.9.2
   API Version: 1.55
@@ -25,15 +25,15 @@ ok  	github.com/trypanic/go-sdk/postgres	3.019s
 2026/11/04 00:35:51 🚫 Container terminated: 24c4c5be552c
 --- FAIL: TestMongoIntegration (1.12s)
     mongo_integration_test.go:45:
-        	Error Trace:	/tmp/go-sdk-audit-DEPS/mongo/mongo_integration_test.go:45
-        	            				/home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1462
-        	            				/home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1822
-        	            				/home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2189
-        	Error:      	Received unexpected error:
-        	            	[ERR_SYSTEM_UNEXPECTED] mongo disconnect used a disconnected client
-        	Test:       	TestMongoIntegration
+                Error Trace:    /tmp/go-sdk-audit-DEPS/mongo/mongo_integration_test.go:45
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1462
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1822
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2189
+                Error:          Received unexpected error:
+                                [ERR_SYSTEM_UNEXPECTED] mongo disconnect used a disconnected client
+                Test:           TestMongoIntegration
 FAIL
-FAIL	github.com/trypanic/go-sdk/mongo	1.179s
+FAIL    github.com/trypanic/go-sdk/mongo        1.179s
 2026/11/04 00:35:50 github.com/testcontainers/testcontainers-go - Connected to docker:
   Server Version: 29.9.2
   API Version: 1.55
@@ -59,11 +59,11 @@ FAIL	github.com/trypanic/go-sdk/mongo	1.179s
 2026/11/04 00:35:53 🚫 Container terminated: 39a9a37159bf
 --- FAIL: TestRabbitMQIntegration (3.15s)
     messaging_integration_test.go:46:
-        	Error Trace:	/tmp/go-sdk-audit-DEPS/messaging/messaging_integration_test.go:46
-        	Error:      	Received unexpected error:
-        	            	[ERR_MQ_QUEUE_ERROR] failed to declare queue
-        	Test:       	TestRabbitMQIntegration
+                Error Trace:    /tmp/go-sdk-audit-DEPS/messaging/messaging_integration_test.go:46
+                Error:          Received unexpected error:
+                                [ERR_MQ_QUEUE_ERROR] failed to declare queue
+                Test:           TestRabbitMQIntegration
 FAIL
-FAIL	github.com/trypanic/go-sdk/messaging	3.215s
+FAIL    github.com/trypanic/go-sdk/messaging    3.215s
 FAIL
 task: Failed to run task "test:integration": exit status 1

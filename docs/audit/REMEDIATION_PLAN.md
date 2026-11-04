@@ -1558,7 +1558,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-156 | approval | X | Release notes wording and consumer README | APPROVED | DONE | `e14d5e7` |
 | R-157 | approval | X | Release provenance and tidy checks | APPROVED | DONE | `1aa63f3` |
 | R-158 | auto | X | `deps:outdated` sees all requirements | — | DONE | `278819b` |
-| R-159 | approval | X | Hertz OTel contrib module (deferred) | DEFERRED | TODO | |
+| R-159 | approval | X | Hertz OTel contrib module (deferred) | DEFERRED | DEFERRED | |
 | R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | APPROVED | DONE | `7bcccb8`, `dc965b4`, `f32d1f3` |
 | R-160 | approval | R-DEPS | Module path `github.com/trypanic/go-sdk/v2` | APPROVED | DONE | `1f40242` |
 
