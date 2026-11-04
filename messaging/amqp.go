@@ -32,10 +32,7 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 		exchanges: exchanges,
 	}
 	if err := p.connect(); err != nil {
-		return nil, errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to connect"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, err
 	}
 	return p, nil
 }
@@ -97,10 +94,7 @@ func (p *Publisher) Publish(exchange, routingKey string, body []byte) error {
 	if p.conn == nil || p.conn.IsClosed() {
 		logger.Info("publisher connection closed, reconnecting")
 		if err := p.reconnect(); err != nil {
-			return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-				errorkit.WithReason("failed to reconnect"),
-				errorkit.WithWrapped(err),
-			)
+			return err
 		}
 		logger.Info("publisher reconnected")
 	}
@@ -115,10 +109,7 @@ func (p *Publisher) Publish(exchange, routingKey string, body []byte) error {
 		// Reconnect once and retry.
 		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
 		if reconnErr := p.reconnect(); reconnErr != nil {
-			return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-				errorkit.WithReason("failed to reconnect"),
-				errorkit.WithWrapped(reconnErr),
-			)
+			return reconnErr
 		}
 		if err := p.channel.Publish(exchange, routingKey, false, false, amqp.Publishing{
 			ContentType:  "application/json",
@@ -142,10 +133,7 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 	if p.conn == nil || p.conn.IsClosed() {
 		logger.Info("publisher connection closed, reconnecting")
 		if err := p.reconnect(); err != nil {
-			return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-				errorkit.WithReason("failed to reconnect"),
-				errorkit.WithWrapped(err),
-			)
+			return err
 		}
 	}
 
@@ -159,10 +147,7 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 	if err := p.channel.Publish(exchange, routingKey, false, false, pub); err != nil {
 		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
 		if reconnErr := p.reconnect(); reconnErr != nil {
-			return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-				errorkit.WithReason("failed to reconnect"),
-				errorkit.WithWrapped(reconnErr),
-			)
+			return reconnErr
 		}
 		if err := p.channel.Publish(exchange, routingKey, false, false, pub); err != nil {
 			return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
@@ -319,14 +304,7 @@ func (s *Subscriber) Reconnect() error {
 	if s.conn != nil && !s.conn.IsClosed() {
 		s.conn.Close()
 	}
-	err := s.connect()
-	if err != nil {
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to reconnect"),
-			errorkit.WithWrapped(err),
-		)
-	}
-	return nil
+	return s.connect()
 }
 
 // Consume starts (or resumes) consuming from the queue and returns the

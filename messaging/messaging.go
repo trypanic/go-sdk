@@ -3,6 +3,7 @@ package messaging
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -215,10 +216,7 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 	if err := executeWithRetry(ctx, publishOnce, queue.Retry); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "publish failed")
-		return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
-			errorkit.WithReason("failed to publish"),
-			errorkit.WithWrapped(err),
-		)
+		return asAppError(err, ERR_MQ_PUBLISH_FAILED, "failed to publish")
 	}
 
 	return nil
@@ -246,19 +244,13 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 
 	sub, err := NewSubscriber(p.amqpURL, exchange, queue, serviceName, args, binding.RoutingKeys)
 	if err != nil {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to create subscriber"),
-			errorkit.WithWrapped(err),
-		)
+		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to create subscriber")
 	}
 	defer sub.Close()
 
 	msgs, err := sub.Consume()
 	if err != nil {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to start consuming"),
-			errorkit.WithWrapped(err),
-		)
+		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to start consuming")
 	}
 
 	for {
@@ -477,4 +469,18 @@ func buildQueueArgs(queue QueueTopology) amqp.Table {
 	}
 
 	return args
+}
+
+// asAppError returns err unchanged when it already is (or wraps) an
+// *errorkit.AppError, so SDK codes and their retriability reach the caller
+// (AGENTS.md §2.1). Any other error is wrapped once with code and reason.
+func asAppError(err error, code errorkit.ErrorCode, reason string) error {
+	var appErr *errorkit.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	return errorkit.NewError(code).With(
+		errorkit.WithReason("%s", reason),
+		errorkit.WithWrapped(err),
+	)
 }
