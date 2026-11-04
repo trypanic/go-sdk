@@ -26,7 +26,7 @@ it is split into two items (marked "auto part" / "approval part").
 httpclient/httprequest/httpserver(/hertz)/llmclient · `C3` grpc · `C4`
 postgres/mongo/storage · `C5` messaging · `C6` utility packages · `X`
 cross-cutting (docs, tooling, CI, multi-package changes) · `R-DEPS`
-(`go.mod`/`go.sum`, runs alone after P4.M).
+(`go.mod`/`go.sum`, runs alone after P4.XP).
 
 **Cross-cluster rule.** `X` items that edit package code (marked
 "post-merge") run in a separate step **P4.XP** after the cluster branches
@@ -1136,8 +1136,8 @@ Cluster · Class.
 - Files: new *_integration_test.go, Taskfile.yml, go.mod, go.sum ·
   Tests: the suites themselves · Regression risk: none for consumers
   (test-only requirement still enters go.mod) · Compatibility: new
-  dependency + tooling · Effort: L · Depends on: P4.M ·
-  Cluster: R-DEPS (runs with R-DEPS, after P4.M) · Class: **approval**
+  dependency + tooling · Effort: L · Depends on: P4.XP ·
+  Cluster: R-DEPS (runs with R-DEPS, after P4.XP) · Class: **approval**
 
 ### R-126 — Messaging unit tests
 - Findings: C5-012 (auto part)
@@ -1341,8 +1341,10 @@ Cluster · Class.
   intended-behavior questions with their C/X items (e.g. R-048, R-104).
 - Files: README.md, AGENTS.md (sole editor, see "Shared documents"),
   llms.txt · Effort: M · Depends on: decisions on R-048, R-104, R-105 and
-  every item listing `AGENTS.md → R-153` · Cluster: X (post-merge) ·
-  Class: **approval**
+  every item listing `AGENTS.md → R-153` · If R-153 is rejected: apply
+  only the AGENTS.md wording of the approved items that list
+  `AGENTS.md → R-153`, and none of the root README/llms.txt corrections ·
+  Cluster: X (post-merge) · Class: **approval**
 - Tests: n/a (docs) · Regression risk: none · Compatibility: documented contracts change to match the code and the approved items; this item also applies every `AGENTS.md → R-153` edit listed by other items
 
 ### R-154 — Package documentation per cluster
@@ -1394,9 +1396,9 @@ Cluster · Class.
 - Solution: explicit deferral — monitor; if it breaks or gets an advisory,
   replace with an in-repo middleware on the OTel API.
 - Cluster: X · Class: **approval** (only if replacement is triggered)
-
-## 8. R-DEPS (runs alone after P4.M)
 - Files: httpserver/hertz/server.go (only if triggered) · Tests: n/a (deferred) · Regression risk: n/a (deferred) · Compatibility: n/a (deferred) · Effort: M if triggered · Depends on: an upstream break or advisory
+
+## 8. R-DEPS (runs alone after P4.XP)
 
 ### R-DEPS — `go.mod` changes (incl. the toolchain part of HIGH X3-001)
 - Findings: X3-001 (HIGH, toolchain part), X2-011/X3-002 (toolchain line),
@@ -1408,7 +1410,7 @@ Cluster · Class.
   approved test-only requirements.
 - Files: go.mod, go.sum, .github/workflows/release.yml · Tests: §6 V2–V8
 - Regression risk: low · Compatibility: `toolchain` does not affect
-  consumers · Effort: S · Depends on: P4.M, R-145 · Cluster: R-DEPS ·
+  consumers · Effort: S · Depends on: P4.XP, R-145 · Cluster: R-DEPS ·
   Class: **approval**
 
 ## 9. Status table
@@ -1528,7 +1530,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-122 | auto | C2 | Hertz adapter and `llmclient` tests | — | TODO | |
 | R-123 | auto | C3 | gRPC tests and hygiene | — | TODO | |
 | R-124 | auto | C4 | Postgres, Mongo and storage unit tests | — | TODO | |
-| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.M) | Integration suites with testcontainers | PENDING | TODO | |
+| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | PENDING | TODO | |
 | R-126 | auto | C5 | Messaging unit tests | — | TODO | |
 | R-127 | auto | C6 | Utility package tests | — | TODO | |
 | R-130 | auto | C1 | Cheap redaction path | — | TODO | |
@@ -1584,7 +1586,7 @@ All 181 raw finding IDs (170 unique + 11 merged duplicates) map to at least one 
 | C1-015 | R-131 |
 | C1-016 | R-040 |
 | C1-017 | R-040 |
-| C1-018 | R-040 |
+| C1-018 | R-040 (payload-in-`FormatPlain` part deferred; P5 reports it) |
 | C1-019 | R-040 |
 | C1-020 | R-101 |
 | C1-021 | R-030 |
