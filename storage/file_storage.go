@@ -69,15 +69,35 @@ type fileStorageConfig struct {
 	fileMode fs.FileMode
 }
 
+// validate rejects modes that would lock the owning process out of its own
+// store: it must traverse and write the directory and read and rewrite the
+// files.
+func (c fileStorageConfig) validate() error {
+	if c.dirMode&0o700 != 0o700 {
+		return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("FileStorage directory mode %v must grant the owner rwx (0700)", c.dirMode),
+		)
+	}
+	if c.fileMode&0o600 != 0o600 {
+		return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("FileStorage file mode %v must grant the owner read and write (0600)", c.fileMode),
+		)
+	}
+	return nil
+}
+
 // WithDirMode sets the permissions of baseDir when NewFileStorage creates
 // it (default DefaultDirMode). The process umask applies, and an existing
-// directory keeps its permissions.
+// directory keeps its permissions. The mode must grant the owner rwx (0o700),
+// or NewFileStorage returns errorkit.ERR_SYSTEM_CONFIG_INVALID.
 func WithDirMode(mode fs.FileMode) FileStorageOption {
 	return func(c *fileStorageConfig) { c.dirMode = mode.Perm() }
 }
 
 // WithFileMode sets the permissions of the storage files (default
-// DefaultFileMode). They are applied exactly, regardless of the umask.
+// DefaultFileMode). They are applied exactly, regardless of the umask. The
+// mode must grant the owner read and write (0o600), or NewFileStorage
+// returns errorkit.ERR_SYSTEM_CONFIG_INVALID.
 func WithFileMode(mode fs.FileMode) FileStorageOption {
 	return func(c *fileStorageConfig) { c.fileMode = mode.Perm() }
 }
@@ -89,6 +109,9 @@ func NewFileStorage[T any](baseDir string, opts ...FileStorageOption) (*FileStor
 	cfg := fileStorageConfig{dirMode: DefaultDirMode, fileMode: DefaultFileMode}
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(baseDir, cfg.dirMode); err != nil {
 		return nil, ioError("failed to create storage directory", err)

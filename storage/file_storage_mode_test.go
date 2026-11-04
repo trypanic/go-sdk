@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/trypanic/go-sdk/errorkit"
 )
 
 func storageFileMode(t *testing.T, dir, key string) fs.FileMode {
@@ -77,5 +79,34 @@ func TestFileStorageModeOptions(t *testing.T) {
 	}
 	if perm := storageFileMode(t, dir, "k"); perm != 0o640 {
 		t.Fatalf("file mode = %v, want 0640", perm)
+	}
+}
+
+// TestFileStorageRejectsModesWithoutOwnerAccess: a file mode without owner
+// read/write, or a directory mode without owner rwx, would make the store
+// unusable by its own process.
+func TestFileStorageRejectsModesWithoutOwnerAccess(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]FileStorageOption{
+		"file mode 0":    WithFileMode(0),
+		"file mode 0400": WithFileMode(0o400),
+		"file mode 0200": WithFileMode(0o200),
+		"dir mode 0":     WithDirMode(0),
+		"dir mode 0600":  WithDirMode(0o600),
+	}
+	for name, opt := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := filepath.Join(t.TempDir(), "store")
+			_, err := NewFileStorage[int](dir, opt)
+			appErr := requireCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
+			if appErr.Metadata.Retriable {
+				t.Fatal("configuration errors must not be retriable")
+			}
+			if _, err := os.Stat(dir); !os.IsNotExist(err) {
+				t.Fatalf("directory created despite the invalid option: %v", err)
+			}
+		})
 	}
 }

@@ -107,6 +107,11 @@ fs, err := storage.NewFileStorage[Event]("./data",
 )
 ```
 
+A directory mode without owner `rwx` (`0o700`) or a file mode without owner
+read and write (`0o600`), such as `0`, would lock the process out of its own
+store; `NewFileStorage` rejects it with a non-retriable
+`errorkit.ERR_SYSTEM_CONFIG_INVALID` before creating anything.
+
 The file mode applies when a key's file is created or rewritten (a new key,
 a legacy file being converted, a torn last line being repaired); appending a
 line keeps the file's current mode. An existing `baseDir` keeps its
