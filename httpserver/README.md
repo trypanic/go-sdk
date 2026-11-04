@@ -318,3 +318,5 @@ Use `httpserver.ReplyError(c, err)` in handlers to select the status from an
 The adapter's `WithError` hook still logs the failure. Nil errors do not write.
 `StatusFor(nil)` returns 200; unknown errors and invalid failure statuses return
 500. Registered 400–599 statuses are preserved. Do not serialize `err.Error()`.
+
+Consumer tests can import [`httpservertest`](./httpservertest/README.md) for a reusable public test double without a live service.

@@ -468,3 +468,5 @@ also counts total attempts. HTTP `Retry-After` takes priority over jitter.
 Messaging retry policies have an explicit 15-minute elapsed budget: after it is
 spent no further attempt starts; in-progress handler work still uses its context.
 Subscriber reconnection is bounded by its context, without a separate elapsed cap.
+
+Consumer tests can import [`messagingtest`](./messagingtest/README.md) for a reusable public test double without a live service.

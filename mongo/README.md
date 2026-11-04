@@ -381,3 +381,5 @@ errors, payloads and stacks. Successful spans retain their existing status.
 find span always ends when FindOne returns, even if the result is never decoded.
 
 Span names use the shared `Instrumenter.DB` convention. Update dashboards that previously selected `mongo.ping` or `mongo.close` to use `mongo.client.ping` or `mongo.client.close`.
+
+Consumer tests can import [`mongotest`](./mongotest/README.md) for a reusable public test double without a live service.
