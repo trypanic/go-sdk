@@ -139,7 +139,6 @@ jobs:
       - name: Warm the Go module proxy
         run: GOPROXY=https://proxy.golang.org go list -m "github.com/${GITHUB_REPOSITORY}@${TAG}"
 
-
   # Separate job so the build and test steps never run with id-token or
   # attestations write. It runs after the upload and the proxy warm-up, so a
   # failure here (e.g. attestations unavailable for the repository's plan)
