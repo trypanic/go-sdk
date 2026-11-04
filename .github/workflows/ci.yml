@@ -60,6 +60,8 @@ jobs:
     name: build, vet, test (race) / go ${{ matrix.go }}
     if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local # Keep setup-go's matrix toolchain; disable go.mod auto-switching.
     strategy:
       fail-fast: false
       matrix:
@@ -73,6 +75,17 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+
+      - name: Verify selected Go toolchain
+        env:
+          EXPECTED_GO_VERSION: ${{ matrix.go }}
+        run: |
+          version=$(go env GOVERSION)
+          echo "Selected toolchain: ${version}"
+          case "$version" in
+            "go${EXPECTED_GO_VERSION%.x}."*) ;;
+            *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+          esac
 
       - name: Build
         run: go build ./...
@@ -118,6 +131,8 @@ jobs:
   vuln:
     name: govulncheck / go ${{ matrix.go }}
     runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local # Keep setup-go's matrix toolchain; disable go.mod auto-switching.
     strategy:
       fail-fast: false
       matrix:
@@ -133,6 +148,17 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+
+      - name: Verify selected Go toolchain
+        env:
+          EXPECTED_GO_VERSION: ${{ matrix.go }}
+        run: |
+          version=$(go env GOVERSION)
+          echo "Selected toolchain: ${version}"
+          case "$version" in
+            "go${EXPECTED_GO_VERSION%.x}."*) ;;
+            *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+          esac
 
       - name: govulncheck
         run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
