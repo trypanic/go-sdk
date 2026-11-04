@@ -26,6 +26,7 @@ type amqpChannel interface {
 	Qos(prefetchCount, prefetchSize int, global bool) error
 	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
 	Confirm(noWait bool) error
+	IsClosed() bool
 	NotifyReturn(c chan amqp.Return) chan amqp.Return
 	// PublishDeferred publishes msg on a channel in confirm mode and returns
 	// the broker's pending confirmation.

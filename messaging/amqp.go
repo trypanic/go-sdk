@@ -302,7 +302,7 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, bo
 			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
 		}
 	}
-	return p.awaitConfirm(ctx, conf, l.returns)
+	return p.awaitConfirm(ctx, conf, l)
 }
 
 // markBroken makes the next publish replace the current link.
@@ -319,7 +319,7 @@ var errNotConfirmed = errors.New("broker did not confirm the message (nack or ch
 // awaitConfirm waits for the broker's answer to one publish. RabbitMQ sends
 // basic.return before the ack of an unroutable mandatory message, so a
 // return present once the ack has arrived belongs to this publish.
-func (p *Publisher) awaitConfirm(ctx context.Context, conf publishConfirmation, returns <-chan amqp.Return) error {
+func (p *Publisher) awaitConfirm(ctx context.Context, conf publishConfirmation, l publisherLink) error {
 	acked, err := conf.WaitContext(ctx)
 	if err != nil {
 		// The answer may still arrive: do not let the next publish read it.
@@ -327,10 +327,15 @@ func (p *Publisher) awaitConfirm(ctx context.Context, conf publishConfirmation, 
 		return publishCtxError(err)
 	}
 	if !acked {
+		if l.channel.IsClosed() {
+			// A channel-level exception closed it: do not waste the next
+			// attempt on it.
+			p.markBroken()
+		}
 		return mqError(ERR_MQ_PUBLISH_FAILED, "message not confirmed", errNotConfirmed)
 	}
 	select {
-	case r, ok := <-returns:
+	case r, ok := <-l.returns:
 		if !ok { // channel closed after the ack: nothing was returned
 			return nil
 		}

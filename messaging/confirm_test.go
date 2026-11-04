@@ -142,3 +142,23 @@ func TestNewPubSubDeclaresOnlyExchangesByDefault(t *testing.T) {
 	assert.Empty(t, b.queues)
 	assert.Empty(t, b.bindings)
 }
+
+// C5-002: when the channel dies with the nack (a channel-level exception),
+// the next publish reopens the link instead of wasting its attempt on the
+// dead channel.
+func TestPublishAfterChannelClosingNackReopensLink(t *testing.T) {
+	t.Parallel()
+
+	b := newFakeBroker()
+	b.nack = func(attempt int) bool { return attempt == 1 }
+	b.closeChannelOnNack = true
+	p := newFakePubSub(b, testTopology())
+
+	require.Error(t, p.Publish(context.Background(), "q", Event{}))
+	require.NoError(t, p.Publish(context.Background(), "q", Event{}))
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	assert.Equal(t, 2, b.attempts, "no attempt on the dead channel")
+	assert.Equal(t, 2, b.dials)
+}

@@ -44,6 +44,9 @@ type fakeBroker struct {
 	unroutable func(attempt int) bool
 	// holdConfirms makes every confirmation wait until the caller's ctx ends.
 	holdConfirms bool
+	// closeChannelOnNack closes the channel when an attempt is nacked, as a
+	// channel-level exception (e.g. 404 on a missing exchange) does.
+	closeChannelOnNack bool
 
 	exchanges  []string
 	queues     []string
@@ -126,6 +129,13 @@ type fakeChannel struct {
 	b       *fakeBroker
 	conn    *fakeConn
 	returns []chan amqp.Return // guarded by b.mu
+	closed  bool               // guarded by b.mu
+}
+
+func (ch *fakeChannel) IsClosed() bool {
+	ch.b.mu.Lock()
+	defer ch.b.mu.Unlock()
+	return ch.closed || ch.conn.closed
 }
 
 // fakeConfirmation is the broker's answer to one publish.
@@ -212,7 +222,7 @@ func (ch *fakeChannel) PublishDeferred(ctx context.Context, exchange, key string
 	ch.b.mu.Lock()
 	defer ch.b.mu.Unlock()
 	ch.b.attempts++
-	if ch.conn.closed {
+	if ch.conn.closed || ch.closed {
 		return nil, amqp.ErrClosed
 	}
 	if ch.b.publishErr != nil {
@@ -231,6 +241,9 @@ func (ch *fakeChannel) PublishDeferred(ctx context.Context, exchange, key string
 		}
 	}
 	ack := ch.b.nack == nil || !ch.b.nack(ch.b.attempts)
+	if !ack && ch.b.closeChannelOnNack {
+		ch.closed = true
+	}
 	return fakeConfirmation{ack: ack}, nil
 }
 
