@@ -113,10 +113,16 @@ tasks:
     vars:
       BASE:
         sh: git describe --tags --abbrev=0 --match 'v[0-9]*'
-    preconditions:
-      - sh: test -z "$(git status --porcelain)"
-        msg: "gorelease needs a clean working tree; commit or stash your changes first"
     cmds:
+      # gorelease refuses a dirty tree. Task hides precondition output, so the
+      # check is a command: it prints the offending paths (e.g. a stray .moon/).
+      - |
+        dirty=$(git status --porcelain)
+        if [ -n "$dirty" ]; then
+          echo "gorelease needs a clean working tree; commit, stash or remove these paths first (git status --porcelain):" >&2
+          printf '%s\n' "$dirty" >&2
+          exit 1
+        fi
       - go run golang.org/x/exp/cmd/gorelease@latest -base={{.BASE}}
 
   # ------------------------------------------------------------ dependencies

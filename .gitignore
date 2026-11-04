@@ -38,3 +38,6 @@ semgrep.sarif
 
 # task runner checksums
 .task/
+
+# cache of the former moon task runner (replaced by Taskfile.yml)
+.moon/
