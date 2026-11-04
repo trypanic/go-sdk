@@ -274,20 +274,20 @@ run_vet() {
   # vet emits diagnostics on stderr; treat captured log as the raw report too.
   [[ -s "${VET_ERR_LOG}" && ! -s "${VET_RAW}" ]] && cp "${VET_ERR_LOG}" "${VET_RAW}"
 
-  local findings_tmp
-  findings_tmp="$(mktemp)"
-  awk '
+  # Parse "file:line[:col]: message" into TSV; every other non-blank,
+  # non-"#" line is unparsable (e.g. a vet panic) and is kept apart.
+  local findings_tmp vet_tsv vet_unparsed
+  findings_tmp="$(mktemp)"; vet_tsv="$(mktemp)"; vet_unparsed="$(mktemp)"
+  awk -v unparsed="${vet_unparsed}" '
     /^#/ { next }
     /^[[:space:]]*$/ { next }
     {
       n = index($0, ":")
-      if (n == 0) next
+      n2 = (n > 0) ? index(substr($0, n+1), ":") : 0
+      line = (n2 > 0) ? substr($0, n+1, n2-1) : ""
+      if (n <= 1 || line !~ /^[0-9]+$/) { print > unparsed; next }
       file = substr($0, 1, n-1)
-      rest = substr($0, n+1)
-      n2 = index(rest, ":")
-      if (n2 == 0) next
-      line = substr(rest, 1, n2-1)
-      rest2 = substr(rest, n2+1)
+      rest2 = substr($0, n+n2+1)
       n3 = index(rest2, ":")
       col = "0"
       msg = rest2
@@ -296,21 +296,34 @@ run_vet() {
         msg = substr(rest2, n3+1)
       }
       sub(/^[[:space:]]+/, "", msg)
-      gsub(/"/, "\\\"", msg)
-      printf "{\"severity\":\"ERROR\",\"path\":\"%s\",\"line\":%s,\"column\":%s,\"check_id\":\"go-vet\",\"message\":\"%s\"}\n", file, line, col, msg
+      printf "%s\t%s\t%s\t%s\n", file, line, col, msg
     }
-  ' "${VET_RAW}" | jq -s '.' > "${findings_tmp}"
+  ' "${VET_RAW}" > "${vet_tsv}"
+  # jq builds the JSON, so quotes, backslashes and tabs in messages are safe.
+  jq -R -s 'split("\n") | map(select(length > 0) | split("\t") |
+    {severity: "ERROR", path: .[0], line: (.[1] | tonumber),
+     column: (.[2] | tonumber), check_id: "go-vet",
+     message: (.[3:] | join("\t"))})' "${vet_tsv}" > "${findings_tmp}"
 
   wrap_report "go-vet" "${findings_tmp}" > "${VET_REPORT}"
-  rm -f "${findings_tmp}"
+  rm -f "${findings_tmp}" "${vet_tsv}"
   write_plan "go-vet" "${VET_REPORT}" "${VET_PLAN}"
 
   VET_ERRORS=$(jq '.summary.errors' "${VET_REPORT}")
   VET_TOTAL=$(jq '.summary.total'  "${VET_REPORT}")
   # go vet exits 1 for diagnostics and for build/load errors. A non-zero exit
   # without a single parsed diagnostic means it did not analyse anything.
+  # Unparsable output on a failing run (a panic, a crash message) means the
+  # analysis did not complete, even if some diagnostics were parsed.
+  local unparsed_n
+  unparsed_n=$(wc -l < "${vet_unparsed}" | tr -d ' ')
+  rm -f "${vet_unparsed}"
   if [[ "${rc}" -ne 0 && "${VET_TOTAL}" -eq 0 ]]; then
     tool_failed 1 "go-vet" "exit ${rc} without parsable diagnostics" "${VET_ERR_LOG}"
+    return 0
+  fi
+  if [[ "${rc}" -ne 0 && "${unparsed_n}" -gt 0 ]]; then
+    tool_failed 1 "go-vet" "exit ${rc} with ${unparsed_n} unparsable output line(s)" "${VET_ERR_LOG}"
     return 0
   fi
   local mark="$OK_MARK"; [[ "${VET_ERRORS}" -gt 0 ]] && mark="$FAIL_MARK"
