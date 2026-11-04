@@ -89,6 +89,17 @@ it has no `.jsonl` file, and the next `Append` to that key rewrites the items
 as a `.jsonl` file and removes the `.json` file. If both exist (a crash between
 those two steps), the `.jsonl` file wins. `Delete` and `Clear` remove both.
 
+Compatibility across versions:
+
+- Older SDK versions (before 2.0.0) read only `.json` files. They cannot read
+  `.jsonl` files and see a converted key as missing (or as its stale `.json`
+  content, if one is still present). Do not run an older version against a
+  directory once a 2.0.0 or later `FileStorage` has appended to it.
+- If an older version writes `<hex key>.json` again after the key was
+  converted, that file is shadowed: this version keeps reading the `.jsonl`
+  file and ignores the newer `.json` content until `Delete` or `Clear`
+  removes both.
+
 `Append` adds one line to the end of the existing file (`O_APPEND`, then
 `fsync`), so the write no longer rewrites the whole list. It still reads and
 decodes the key's file, because it returns the full list.
