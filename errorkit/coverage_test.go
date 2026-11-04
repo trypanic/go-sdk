@@ -1,6 +1,7 @@
 package errorkit
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -127,5 +128,50 @@ func BenchmarkPublicJSON(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		_ = appErr.PublicJSON()
+	}
+}
+
+// TestTraceContextForDottedPackagePath: the Go linker escapes '.' in the
+// last import path element as "%2e" in runtime function names (a package
+// at example.com/m/pkg.v2 reports "example.com/m/pkg%2ev2.(*T).Where").
+// The trace must show the real import path, not the escaped one.
+func TestTraceContextForDottedPackagePath(t *testing.T) {
+	tests := []struct {
+		function, file          string
+		wantPkgPath, wantFunc   string
+		wantPackage, wantModule string
+	}{
+		{
+			function: "gopkg.in/yaml%2ev3.(*Decoder).Decode", file: "/home/u/go/pkg/mod/gopkg.in/yaml.v3@v3.0.1/yaml.go",
+			wantPkgPath: "gopkg.in/yaml.v3", wantFunc: "(*Decoder).Decode",
+			wantPackage: "yaml.v3", wantModule: "gopkg.in/yaml.v3/yaml.go",
+		},
+		{
+			function: "example.com/m/pkg%2ev2.Frames", file: "/src/m/pkg.v2/p.go",
+			wantPkgPath: "example.com/m/pkg.v2", wantFunc: "Frames",
+			wantPackage: "pkg.v2", wantModule: "example.com/m/pkg.v2/p.go",
+		},
+		{
+			function: "github.com/acme/svc/handler.(*H).Serve", file: "/build/handler/users.go",
+			wantPkgPath: "github.com/acme/svc/handler", wantFunc: "(*H).Serve",
+			wantPackage: "handler", wantModule: "github.com/acme/svc/handler/users.go",
+		},
+		{
+			function: "main.main", file: "/build/main.go",
+			wantPkgPath: "main", wantFunc: "main",
+			wantPackage: "main", wantModule: "main/main.go",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.function, func(t *testing.T) {
+			pkgPath, function := splitFuncName(tc.function)
+			if pkgPath != tc.wantPkgPath || function != tc.wantFunc {
+				t.Fatalf("splitFuncName(%q) = (%q, %q), want (%q, %q)", tc.function, pkgPath, function, tc.wantPkgPath, tc.wantFunc)
+			}
+			got := newTraceContext(runtime.Frame{Function: tc.function, File: tc.file, Line: 7})
+			if got.Package != tc.wantPackage || got.File != tc.wantModule || got.Function != tc.wantFunc {
+				t.Fatalf("newTraceContext = %+v, want package %q, file %q, function %q", got, tc.wantPackage, tc.wantModule, tc.wantFunc)
+			}
+		})
 	}
 }

@@ -1,6 +1,7 @@
 package errorkit
 
 import (
+	"net/url"
 	"path"
 	"runtime"
 	"strings"
@@ -85,7 +86,21 @@ func splitFuncName(fullName string) (pkgPath, function string) {
 	if !found {
 		return fullName, segment
 	}
-	return dir + pkg, function
+	return unescapePkgPath(dir + pkg), function
+}
+
+// unescapePkgPath undoes the linker's escaping of symbol names: a '.' in the
+// last import path element (and a few other bytes) is written as %XX, so a
+// function of gopkg.in/yaml.v3 is reported as "gopkg.in/yaml%2ev3.Func".
+// Cutting at the first '.' is therefore safe, and the escape is decoded here.
+func unescapePkgPath(pkgPath string) string {
+	if !strings.Contains(pkgPath, "%") {
+		return pkgPath
+	}
+	if unescaped, err := url.PathUnescape(pkgPath); err == nil {
+		return unescaped
+	}
+	return pkgPath
 }
 
 // moduleRelativeFile rewrites an absolute build path into the file's import
