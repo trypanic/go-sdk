@@ -490,7 +490,11 @@ func (s *Subscriber) connect() error {
 		}
 	}
 
-	if err := ch.Qos(s.queue.Prefetch, 0, false); err != nil {
+	prefetch := s.queue.Prefetch
+	if prefetch <= 0 {
+		prefetch = DefaultPrefetch // 0 would mean unlimited
+	}
+	if err := ch.Qos(prefetch, 0, false); err != nil {
 		conn.Close()
 		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to set QoS", err)
 	}

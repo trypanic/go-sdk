@@ -16,3 +16,9 @@ const (
 	// MaxReconnectDelay caps the exponential backoff in the subscriber reconnect loop.
 	MaxReconnectDelay = 60 * time.Second
 )
+
+// DefaultPrefetch is the QoS prefetch count a subscriber uses when the queue
+// topology omits prefetch (or sets it to 0). Handlers run one message at a
+// time, so a larger window only moves the backlog from the broker into
+// process memory; 0 would mean unlimited.
+const DefaultPrefetch = 1

@@ -99,6 +99,11 @@ Connection drops are handled transparently at both ends:
 | **Publisher** | Checks the connection before every `Publish`.  If closed (or the previous publish on it failed), reconnects first.  Exactly one retry layer applies: for a queue **with** a `retry` policy, the policy alone governs retries (`maxAttempts` = attempts per routing key, each on a fresh channel after a failure); for a queue **without** one, a failed publish reconnects once more and retries once.  The caller's `ctx` bounds the whole call: waiting for the shared channel, the dial (TCP connect and handshake), the publish and the backoff.  An ended `ctx` never dials and the error wraps `ctx.Err()` (`ERR_MQ_TIMEOUT` for a deadline).  Reconnects are single-flight and never block `Close`. |
 | **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  The delay starts at `DefaultReconnectDelay` (5 s) and doubles on each failed attempt, capped at `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position.  The loop stops and `Subscribe` returns the error when it is not retriable (`Metadata.Retriable == false`, e.g. `ERR_MQ_AUTH_FAILED`), since retrying cannot succeed. |
 
+Each subscriber sets the channel QoS to the queue's `prefetch`.  When the
+topology omits it (or sets `0`) the subscriber uses `DefaultPrefetch` (1):
+handlers run one message at a time, so a larger window would only buffer the
+backlog in process memory (`0` means *unlimited* to RabbitMQ).
+
 Both sides open their connections with an AMQP heartbeat interval
 (`DefaultHeartbeat`, 60 s) so dead TCP links are detected quickly.
 
