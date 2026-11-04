@@ -76,14 +76,16 @@ func publicError(err error) (code, message string) {
 	return string(appErr.Code()), message
 }
 
-// WithMetadataOpt returns an OptionReply that sets Reply.Metadata.
+// WithMetadataOpt returns an OptionReply that sets Reply.Metadata to
+// metadata as given; nil is omitted from the JSON.
 func WithMetadataOpt(metadata any) OptionReply {
-	return func(r *Reply) { r.Metadata = &metadata }
+	return func(r *Reply) { r.Metadata = metadata }
 }
 
-// WithDataOpt returns an OptionReply that sets Reply.Data.
+// WithDataOpt returns an OptionReply that sets Reply.Data to data as given;
+// nil is omitted from the JSON.
 func WithDataOpt(data any) OptionReply {
-	return func(r *Reply) { r.Data = &data }
+	return func(r *Reply) { r.Data = data }
 }
 
 // BuildReply produces a Reply by stamping the timestamp from ReplyOptions

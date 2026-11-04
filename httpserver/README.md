@@ -160,6 +160,10 @@ func WithDataOpt(data any) OptionReply
 func BuildReply(opts ReplyOptions, options ...OptionReply) *Reply
 ```
 
+`WithDataOpt` and `WithMetadataOpt` store the value as given, so
+`Reply.Data` holds the caller's type and a `nil` value is omitted from the
+JSON (`omitempty`) instead of being sent as `null`.
+
 **Error replies never carry `err.Error()`.** The text of an error can hold
 SQL, hostnames, file paths or panic values, so `WithErrorOpt` sets:
 

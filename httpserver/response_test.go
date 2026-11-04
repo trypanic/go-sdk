@@ -99,3 +99,27 @@ func TestWithErrorOptCopiesTraceIDAndIgnoresNil(t *testing.T) {
 	require.Nil(t, r.Error)
 	require.Empty(t, r.Code)
 }
+
+func TestNilDataAndMetadataAreOmitted(t *testing.T) {
+	t.Parallel()
+
+	r := buildReply(ReplyOptions{}, WithDataOpt(nil), WithMetadataOpt(nil), WithMessageOpt("ok"))
+	b, err := json.Marshal(r)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"message":"ok"}`, string(b), "omitempty must drop nil data and metadata")
+}
+
+func TestDataAndMetadataKeepTheCallersValue(t *testing.T) {
+	t.Parallel()
+
+	type payload struct{ ID int }
+	r := buildReply(ReplyOptions{}, WithDataOpt(payload{ID: 7}), WithMetadataOpt(map[string]int{"page": 2}))
+
+	data, ok := r.Data.(payload)
+	require.True(t, ok, "Reply.Data holds %T, want the caller's payload type", r.Data)
+	require.Equal(t, 7, data.ID)
+	require.Equal(t, map[string]int{"page": 2}, r.Metadata)
+	b, err := json.Marshal(r)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"data":{"ID":7},"metadata":{"page":2}}`, string(b))
+}
