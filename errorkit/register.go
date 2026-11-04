@@ -3,6 +3,7 @@ package errorkit
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 // ==============================
@@ -163,41 +164,54 @@ func (r *Registry) Merge(other *Registry) error {
 // ==============================
 
 // OverrideMetadata replaces metadata for an existing code in the package-global
-// registry. Returns false when the code is not yet registered.
+// registry. Returns false when the code is not yet registered, or when the
+// updated metadata fails ValidateMetadata or changes Code; the stored entry
+// is then left unchanged.
+//
+// The updater receives a copy of the current entry and runs without holding
+// the registry lock, so it may call errorkit (for example GetMetadata). If
+// the entry changes concurrently, the updater runs again on the new value.
 //
 // Production code should register canonical metadata via MustRegister. Use
 // OverrideMetadata only for tests or runtime overrides where conflict
 // detection must be bypassed deliberately.
 func OverrideMetadata(code ErrorCode, updater func(*Metadata)) bool {
-	errorRegistryMu.Lock()
-	defer errorRegistryMu.Unlock()
-
-	meta, exists := ErrorRegistry[code]
-	if !exists {
-		return false
-	}
-
-	updater(&meta)
-	ErrorRegistry[code] = meta
-	return true
+	return overrideMetadata(&errorRegistryMu, ErrorRegistry, code, updater)
 }
 
 // OverrideMetadata replaces metadata for an existing code in this registry.
-// Returns false when the code is not yet registered.
+// It has the same semantics as the package-level OverrideMetadata.
 func (r *Registry) OverrideMetadata(code ErrorCode, updater func(*Metadata)) bool {
 	if r == nil {
 		return false
 	}
+	return overrideMetadata(&r.mu, r.metadata, code, updater)
+}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+// overrideMetadata applies updater to a copy of m[code] outside the lock,
+// validates the result and stores it only if m[code] did not change in the
+// meantime (optimistic concurrency); otherwise it retries.
+func overrideMetadata(mu *sync.RWMutex, m map[ErrorCode]Metadata, code ErrorCode, updater func(*Metadata)) bool {
+	for {
+		mu.RLock()
+		current, exists := m[code]
+		mu.RUnlock()
+		if !exists {
+			return false
+		}
 
-	meta, exists := r.metadata[code]
-	if !exists {
-		return false
+		updated := current
+		updater(&updated)
+		if updated.Code != code || ValidateMetadata(updated) != nil {
+			return false
+		}
+
+		mu.Lock()
+		if m[code] == current {
+			m[code] = updated
+			mu.Unlock()
+			return true
+		}
+		mu.Unlock()
 	}
-
-	updater(&meta)
-	r.metadata[code] = meta
-	return true
 }

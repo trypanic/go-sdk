@@ -294,6 +294,8 @@ externalCodes := errorkit.GetCodesByType(errorkit.ErrorTypeExternal)
 
 `RegisterMany` and `MustRegister` validate required fields (`Code`, `Type`, `Group`, `Category`, `Description`, `HTTPStatus` in [100, 599]) and reject duplicate codes whose metadata differs from what is already registered. Identical duplicate metadata is a no-op.
 
+`OverrideMetadata` returns `false` (and leaves the entry unchanged) when the code is not registered, when the updated metadata fails the same validation, or when the updater changes `Code`. The updater runs on a copy without holding the registry lock, so it may call errorkit (for example `GetMetadata`); if the entry changes concurrently, the updater runs again on the new value.
+
 SDK consumers that need isolation should use an explicit registry:
 
 ```go
