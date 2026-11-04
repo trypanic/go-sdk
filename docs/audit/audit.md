@@ -465,7 +465,7 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | P4.C4 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C4` | | go-reviewer | | |
 | P4.C5 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C5` | | go-reviewer | | |
 | P4.C6 | Remediation | G1 | IN_REVIEW | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T12:00Z | branch `audit/2026-11-C6` | 5d5c63d | go-reviewer | | |
-| P4.X | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-X` | | go-reviewer | | docs, tooling, cross-cutting |
+| P4.X | Remediation | G1 | IN_REVIEW | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T12:30Z | branch `audit/2026-11-X` | dc33129 | go-reviewer | | docs, tooling, cross-cutting ; R-148: sentrux removed (binary needs OpenSSL 3). Owner action: enable GitHub private vulnerability reporting. |
 | P4.M | Remediation | all P4.C*, P4.X | TODO | | | merged `audit/2026-11` | | — | | |
 | P4.XP | Remediation | P4.M | TODO | | | X post-merge items on `audit/2026-11` | | go-reviewer | | sequential, after P4.M (see REMEDIATION_PLAN.md cross-cluster rule) |
 | R-DEPS | Remediation | P4.XP | TODO | | | `go.mod`/`go.sum` | | go-reviewer | | skip if no approved dep change |
