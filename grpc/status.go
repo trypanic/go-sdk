@@ -162,8 +162,7 @@ func ToStatusWithPolicy(err error, policy StatusPolicy) error {
 		return nil
 	}
 
-	var appErr *errorkit.AppError
-	if errors.As(err, &appErr) {
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
 		code := codeFor(appErr)
 		st := status.New(code, statusMessage(appErr, code, policy))
 		if withDetail, derr := st.WithDetails(errorInfoFor(appErr, policy.domain())); derr == nil {
