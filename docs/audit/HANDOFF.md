@@ -260,3 +260,16 @@ recovered panics), `1179adf` (example errcheck).
   or released. Next actions belong to the owner: push/open PR, dispatch CI,
   enable private vulnerability reporting and protect main after a test PR;
   optional release-please App/PAT. See the final report for limits and details.
+
+- **Session 4 (2026-11-04, Codex CI follow-up):** inspected hosted CI run
+  `41787540948` on `eb2743d`: overall success, but informational gorelease
+  failed because it could not infer the version across module paths. Owner
+  supplied the full log and a CodeQL narrowing warning, then authorized fixes.
+  Commit `38c8b1d` qualifies the gorelease base module, supplies the initial
+  major version only for module-path transitions, and explicitly bounds stack
+  depth before int32 conversion. Added architecture-sized integer limit cases.
+  `task test`, errorkit race tests, full static analysis and all hooks pass;
+  static analysis retains 12 known warnings / 0 errors. The exact corrected
+  workflow gorelease script passes from clean `38c8b1d`, reporting v2.0.0 valid.
+  CodeQL is unavailable locally; the next hosted scan must confirm resolution.
+  No push, workflow dispatch, tag or release was performed by this agent.
