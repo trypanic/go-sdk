@@ -297,19 +297,40 @@ func newLogger(env Environment, appName, version string) zerolog.Logger {
 }
 
 // newLoggerWithWriter builds a zerolog.Logger writing to w, with level and
-// format determined by env. Used by Init when composing a MultiLevelWriter.
+// format determined by env. Used by Init and New.
+//
+// It never touches zerolog's process-wide state: the level is set on the
+// instance and the timestamp is written by a per-logger hook, so loggers
+// built concurrently or with different environments do not affect each
+// other (or any other zerolog logger in the process).
 func newLoggerWithWriter(w io.Writer, env Environment) zerolog.Logger {
-	// Set global level
-	switch env {
-	case Prod:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	default:
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	return zerolog.New(newRedactingWriter(w)).
+		Level(levelFor(env)).
+		Hook(timestampHook{})
+}
+
+// levelFor returns the minimum level a logger built for env emits.
+func levelFor(env Environment) zerolog.Level {
+	if env == Prod {
+		return zerolog.InfoLevel
 	}
+	return zerolog.DebugLevel
+}
 
+// timestampHook stamps every event with the current time as Unix epoch
+// seconds, independently of zerolog.TimeFieldFormat.
+type timestampHook struct{}
+
+func (timestampHook) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
+	e.Int64(zerolog.TimestampFieldName, zerolog.TimestampFunc().Unix())
+}
+
+// applyGlobalSettings sets zerolog's process-wide level and time format for
+// env. Only Init calls it: Init is the one SDK function allowed to mutate
+// zerolog globals (AGENTS.md §2.3).
+func applyGlobalSettings(env Environment) {
+	zerolog.SetGlobalLevel(levelFor(env))
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-
-	return zerolog.New(newRedactingWriter(w)).With().Timestamp().Logger()
 }
 
 type redactingWriter struct {

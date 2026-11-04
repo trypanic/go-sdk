@@ -43,6 +43,7 @@ func globalLogger() *zerolog.Logger {
 //	defer cleanup.Close()
 func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, io.Closer) {
 	env := DetectEnv()
+	applyGlobalSettings(env)
 
 	var l zerolog.Logger
 
