@@ -2,6 +2,8 @@ module github.com/trypanic/go-sdk
 
 go 1.26.1
 
+toolchain go1.27.3
+
 require (
 	github.com/caarlos0/env/v11 v11.4.2
 	github.com/cenkalti/backoff/v4 v4.3.0
