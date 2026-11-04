@@ -34,6 +34,9 @@ func NewExponentialBackoff(config ExponentialBackoffConfig) backoff.BackOff {
 	expBackoff.InitialInterval = config.InitialInterval
 	expBackoff.MaxInterval = config.MaxInterval
 	expBackoff.Multiplier = config.Multiplier
+	// NewExponentialBackOff already called Reset with the library defaults;
+	// reset again so the first NextBackOff uses the configured InitialInterval.
+	expBackoff.Reset()
 
 	// WithMaxRetries expects the number of retries (not attempts)
 	// So if MaxRetries is 5, it means 1 initial attempt + 5 retries = 6 total attempts

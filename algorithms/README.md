@@ -122,7 +122,10 @@ Constructs a `backoff.BackOff` by:
 
 1. Creating a `*backoff.ExponentialBackOff` with `InitialInterval`, `MaxInterval`, and
    `Multiplier` applied from the config.
-2. Wrapping it with `backoff.WithMaxRetries(expBackoff, config.MaxRetries-1)` to bound
+2. Calling `Reset()` so the first `NextBackOff()` already uses the configured
+   `InitialInterval` (relevant for custom loops that call `NextBackOff()` directly;
+   `backoff.Retry` resets on its own).
+3. Wrapping it with `backoff.WithMaxRetries(expBackoff, config.MaxRetries-1)` to bound
    the total number of attempts.
 
 The returned value satisfies the `backoff.BackOff` interface and is intended to be passed

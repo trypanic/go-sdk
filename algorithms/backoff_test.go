@@ -58,3 +58,30 @@ func TestNewExponentialBackoffExhausts(t *testing.T) {
 		t.Fatalf("retries before Stop = %d, want 2 (MaxRetries-1)", got)
 	}
 }
+
+// The factory overrides InitialInterval after cenkalti's constructor has
+// already reset the current interval to its own 500ms default; without a
+// Reset the first NextBackOff ignores the configured InitialInterval, which
+// matters for custom loops that call NextBackOff directly.
+func TestNewExponentialBackoffFirstDelayUsesInitialInterval(t *testing.T) {
+	const (
+		initial = 10 * time.Second
+		// cenkalti/backoff default RandomizationFactor.
+		randomization = 0.5
+	)
+	lo := time.Duration(float64(initial) * (1 - randomization))
+	hi := time.Duration(float64(initial) * (1 + randomization))
+
+	for range 20 {
+		b := NewExponentialBackoff(ExponentialBackoffConfig{
+			InitialInterval: initial,
+			MaxInterval:     time.Minute,
+			Multiplier:      2,
+			MaxRetries:      3,
+		})
+		d := b.NextBackOff()
+		if d < lo || d > hi {
+			t.Fatalf("first NextBackOff = %v, want within [%v, %v]", d, lo, hi)
+		}
+	}
+}
