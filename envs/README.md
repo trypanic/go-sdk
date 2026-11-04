@@ -8,7 +8,9 @@ Thin wrapper around [`caarlos0/env`](https://github.com/caarlos0/env) that parse
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `NewLoader` | `func(c any) error` | Parse environment variables into a config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `Load[T]` | `func[T any]() (T, error)` | Parse environment variables into a new `T` and return it; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `NewLoader` | `func(c any) error` | Parse environment variables into an existing config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `LoadWithOptions` | `func(c any, opts env.Options) error` | Like `NewLoader`, with `caarlos0/env` options (prefix, custom parsers, injected environment map) |
 
 ---
 
@@ -22,12 +24,15 @@ type Config struct {
     Port int    `env:"SERVER_PORT,required"`
 }
 
-func Load() (*Config, error) {
-    cfg := &Config{}
-    if err := envs.NewLoader(cfg); err != nil {
-        return nil, err
-    }
-    return cfg, nil
+cfg, err := envs.Load[Config]()
+if err != nil {
+    return err // *errorkit.AppError, ERR_SYSTEM_CONFIG_INVALID
+}
+
+// Equivalent, filling an existing struct:
+var c Config
+if err := envs.NewLoader(&c); err != nil {
+    return err
 }
 ```
 
@@ -42,7 +47,7 @@ func Load() (*Config, error) {
 | Tag | Type | Default | Description |
 |---|---|---|---|
 | `env:"VAR_NAME"` | `string` | — | Maps the field to the named environment variable |
-| `env:"VAR_NAME,required"` | `string` | — | Marks the variable as mandatory; `NewLoader` returns an error if it is absent or empty |
+| `env:"VAR_NAME,required"` | `string` | — | Marks the variable as mandatory; loading fails if it is not set (a set but empty value passes; add `notEmpty` to reject it) |
 | `envDefault:"value"` | `string` | — | Value used when the environment variable is not set |
 
 ### Supported Field Types
@@ -77,6 +82,42 @@ type Config struct {
 
 ## API Reference
 
+### `Load`
+
+```go
+func Load[T any]() (T, error)
+```
+
+Allocates a `T`, parses the environment into it (same rules and errors as
+`NewLoader`) and returns it. On failure it returns the zero `T` (never a
+partially loaded value) and the `ERR_SYSTEM_CONFIG_INVALID` error. `T` must be
+a struct type, not a pointer; any other type fails with
+`ERR_SYSTEM_CONFIG_INVALID`.
+
+---
+
+### `LoadWithOptions`
+
+```go
+func LoadWithOptions(c any, opts env.Options) error
+```
+
+Same as `NewLoader`, but calls `env.ParseWithOptions(c, opts)` from
+`caarlos0/env/v11`, so callers can set a `Prefix`, custom parsers (`FuncMap`)
+or an `Environment` map that replaces the process environment. The last one
+lets tests of consumer code avoid mutating the process environment:
+
+```go
+import "github.com/caarlos0/env/v11"
+
+var cfg Config
+err := envs.LoadWithOptions(&cfg, env.Options{
+    Environment: map[string]string{"SERVER_PORT": "8080"},
+})
+```
+
+---
+
 ### `NewLoader`
 
 ```go
@@ -107,7 +148,7 @@ func NewLoader(c any) error
 
 | Condition | errorkit Code | Notes |
 |---|---|---|
-| Required variable absent or empty | `ERR_SYSTEM_CONFIG_INVALID` | The wrapped error names the missing variable |
+| Required variable not set (or empty with `notEmpty`) | `ERR_SYSTEM_CONFIG_INVALID` | The reason names the missing variable |
 | Value cannot be converted to field type | `ERR_SYSTEM_CONFIG_INVALID` | e.g. `"abc"` for an `int` field |
 | `c` is `nil` or not a pointer | `ERR_SYSTEM_CONFIG_INVALID` | Propagated from `env.Parse` |
 
@@ -191,8 +232,8 @@ if err := envs.NewLoader(cfg); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-- `NewLoader` has no internal state and is safe to call from multiple goroutines simultaneously, though in practice it is called once at process startup before any concurrent code runs.
-- The function reads from the process environment at call time. Environment variables must be set before `NewLoader` is invoked (e.g. via a `.env` file loaded by `godotenv`, or injected by the container runtime).
+- `Load`, `NewLoader` and `LoadWithOptions` have no internal state and are safe to call from multiple goroutines simultaneously, though in practice they are called once at process startup before any concurrent code runs.
+- The functions read from the process environment at call time (`LoadWithOptions` reads `opts.Environment` instead when it is set). Environment variables must be set before loading (e.g. via a `.env` file loaded by `godotenv`, or injected by the container runtime).
 - There is no `Close` or teardown step — the populated struct is a plain Go value.
 
 ---

@@ -91,3 +91,69 @@ func TestNewLoaderErrorDoesNotLeakValues(t *testing.T) {
 		t.Errorf("errors.AsType[env.ParseError] failed; cause must stay inspectable")
 	}
 }
+
+type loadTestConfig struct {
+	Host string `env:"ENVS_TEST_LOAD_HOST" envDefault:"0.0.0.0"`
+	Port int    `env:"ENVS_TEST_LOAD_PORT,required"`
+}
+
+func TestLoad(t *testing.T) {
+	t.Setenv("ENVS_TEST_LOAD_PORT", "8080")
+
+	cfg, err := Load[loadTestConfig]()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if want := (loadTestConfig{Host: "0.0.0.0", Port: 8080}); cfg != want {
+		t.Fatalf("Load() = %+v, want %+v", cfg, want)
+	}
+}
+
+func TestLoadReturnsZeroValueAndConfigError(t *testing.T) {
+	// t.Setenv registers the restore; Unsetenv makes the required var absent.
+	t.Setenv("ENVS_TEST_LOAD_PORT", "")
+	if err := os.Unsetenv("ENVS_TEST_LOAD_PORT"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ENVS_TEST_LOAD_HOST", "partially-loaded")
+
+	cfg, err := Load[loadTestConfig]()
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+		t.Fatalf("Load() error = %v, want ERR_SYSTEM_CONFIG_INVALID", err)
+	}
+	if cfg != (loadTestConfig{}) {
+		t.Fatalf("Load() on error = %+v, want zero value", cfg)
+	}
+}
+
+func TestLoadRejectsNonStructType(t *testing.T) {
+	t.Parallel()
+
+	_, err := Load[int]()
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+		t.Fatalf("Load[int]() error = %v, want ERR_SYSTEM_CONFIG_INVALID", err)
+	}
+}
+
+// LoadWithOptions passes caarlos0/env options through, so tests of consumer
+// code can inject an environment map instead of mutating the process.
+func TestLoadWithOptions(t *testing.T) {
+	t.Parallel()
+
+	var cfg loadTestConfig
+	err := LoadWithOptions(&cfg, env.Options{
+		Prefix:      "APP_",
+		Environment: map[string]string{"APP_ENVS_TEST_LOAD_PORT": "9090", "APP_ENVS_TEST_LOAD_HOST": "h"},
+	})
+	if err != nil {
+		t.Fatalf("LoadWithOptions() error = %v", err)
+	}
+	if want := (loadTestConfig{Host: "h", Port: 9090}); cfg != want {
+		t.Fatalf("LoadWithOptions() = %+v, want %+v", cfg, want)
+	}
+
+	err = LoadWithOptions(&cfg, env.Options{Environment: map[string]string{}})
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+		t.Fatalf("LoadWithOptions() missing required error = %v, want ERR_SYSTEM_CONFIG_INVALID", err)
+	}
+}

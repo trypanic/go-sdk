@@ -23,6 +23,31 @@ func NewLoader(c any) error {
 	return nil
 }
 
+// Load parses environment variables into a new value of the struct type T
+// and returns it. On failure it returns the zero T and the same
+// ERR_SYSTEM_CONFIG_INVALID error as NewLoader. T must be a struct type (not
+// a pointer); any other type fails with ERR_SYSTEM_CONFIG_INVALID.
+//
+//	cfg, err := envs.Load[Config]()
+func Load[T any]() (T, error) {
+	var cfg T
+	if err := NewLoader(&cfg); err != nil {
+		var zero T
+		return zero, err
+	}
+	return cfg, nil
+}
+
+// LoadWithOptions is like NewLoader but passes opts to caarlos0/env, for
+// example a Prefix, custom FuncMap parsers, or an Environment map that
+// replaces the process environment (useful in tests).
+func LoadWithOptions(c any, opts env.Options) error {
+	if err := env.ParseWithOptions(c, opts); err != nil {
+		return configError(err)
+	}
+	return nil
+}
+
 // configError wraps a caarlos0/env error in a value-free AppError.
 func configError(err error) error {
 	safe := &valueFreeError{msg: describe(err), cause: err}
