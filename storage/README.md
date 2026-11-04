@@ -95,11 +95,26 @@ The encoding is reversible. `GetAll` decodes the filename back to the
 original key, so the returned map is keyed by what the caller originally
 passed to `Append`.
 
-### Atomicity
+### Atomicity and durability
 
-Each write goes to `<file>.tmp` first and is then renamed onto the final
-path. A failed rename leaves the target file untouched and removes the
-temporary file.
+Each write goes to a fresh temporary file in `baseDir`, created with
+`os.CreateTemp` (`O_EXCL`, a random `.tmp-*` name, so an existing file or
+symlink is never followed). The data is synced to disk, the temporary file is
+renamed onto the final path, and the directory is synced so the rename
+survives a crash. Any failure leaves the target file untouched and removes
+the temporary file.
+
+A zero-length storage file can only be the result of lost data (writes never
+produce one), so reading it returns an error instead of an empty list.
+
+### Concurrency
+
+One `FileStorage` value is safe for concurrent use: an in-process
+`sync.RWMutex` serializes its read-modify-write cycles. Use **one
+`FileStorage` per directory per host**. Two values (or two processes) on the
+same `baseDir` never corrupt a file, because they never share a temporary
+file, but their read-modify-write cycles are not coordinated, so one
+`Append` can overwrite another's concurrent update.
 
 ### Other methods
 

@@ -6,15 +6,25 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// tempFilePattern names the temp files used for atomic writes. They start
+// with a dot and do not end in ".json", so List, GetAll and Clear never treat
+// them as storage files.
+const tempFilePattern = ".tmp-*"
+
 // FileStorage is an append-log file store. Each key maps to a single JSON
 // file containing an []T value. Append adds to that list; List reads it.
 // Keys are hex-encoded so that arbitrary byte sequences map to distinct files.
+//
+// A FileStorage is safe for concurrent use. Use one FileStorage per directory
+// per host: writes are atomic, so several instances on one directory never
+// corrupt a file, but their read-modify-write cycles are not coordinated.
 type FileStorage[T any] struct {
 	baseDir string
 	mu      sync.RWMutex
@@ -169,7 +179,8 @@ func keyFromFileName(name string) (string, bool) {
 }
 
 // readUnsafe reads and unmarshals the JSON file. A missing file yields an
-// empty slice; a read or parse failure surfaces as ERR_STORAGE_ERROR.
+// empty slice; a read or parse failure, or a zero-length file, surfaces as
+// ERR_STORAGE_ERROR.
 // Caller must hold the lock.
 func (fs *FileStorage[T]) readUnsafe(filename string) ([]T, error) {
 	data, err := os.ReadFile(filename)
@@ -183,7 +194,13 @@ func (fs *FileStorage[T]) readUnsafe(filename string) ([]T, error) {
 		)
 	}
 	if len(data) == 0 {
-		return []T{}, nil
+		// Writes are atomic renames of non-empty files, so a zero-length
+		// file means the data was lost (for example by a crash before the
+		// rename reached the disk). Reading it as an empty list would let
+		// the next Append silently drop the key's history.
+		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
+			errorkit.WithReason("storage file is empty (corrupt)"),
+		)
 	}
 	var result []T
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -195,7 +212,11 @@ func (fs *FileStorage[T]) readUnsafe(filename string) ([]T, error) {
 	return result, nil
 }
 
-// writeUnsafe atomically writes the slice to the file.
+// writeUnsafe atomically and durably replaces the file with the encoded
+// slice. The data goes to a fresh temp file created with O_EXCL (a unique,
+// unpredictable name that never follows a symlink), is synced, and is then
+// renamed onto the final path; the directory is synced afterwards so the
+// rename survives a crash. Concurrent writers never share a temp file.
 // Caller must hold the lock.
 func (fs *FileStorage[T]) writeUnsafe(filename string, slice []T) error {
 	jsonData, err := json.MarshalIndent(slice, "", "  ")
@@ -205,19 +226,59 @@ func (fs *FileStorage[T]) writeUnsafe(filename string, slice []T) error {
 			errorkit.WithWrapped(err),
 		)
 	}
-	tempFile := filename + ".tmp"
-	if err := os.WriteFile(tempFile, jsonData, 0o644); err != nil {
+	if err := writeFileAtomic(fs.baseDir, filename, jsonData); err != nil {
 		return errorkit.NewError(ERR_STORAGE_ERROR).With(
 			errorkit.WithReason("failed to write storage file"),
 			errorkit.WithWrapped(err),
 		)
 	}
-	if err := os.Rename(tempFile, filename); err != nil {
-		_ = os.Remove(tempFile)
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to commit storage file"),
-			errorkit.WithWrapped(err),
-		)
-	}
 	return nil
+}
+
+// writeFileAtomic writes data to a unique temp file in dir and renames it
+// onto filename. The temp file is removed on every failure path.
+func writeFileAtomic(dir, filename string, data []byte) (err error) {
+	tmp, err := os.CreateTemp(dir, tempFilePattern)
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		if err != nil {
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	if _, err = tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err = tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(tmpName, filename); err != nil {
+		return err
+	}
+	return syncDir(dir)
+}
+
+// syncDir flushes a directory entry change (create, rename) to disk.
+// Windows cannot sync a directory handle, so it is a no-op there.
+func syncDir(dir string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	if err := d.Sync(); err != nil {
+		_ = d.Close()
+		return err
+	}
+	return d.Close()
 }
