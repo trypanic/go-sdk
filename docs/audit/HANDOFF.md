@@ -52,10 +52,11 @@ CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 - **P4.XP DONE:** approved `6a390d4`, merged `55be1c0`; post-merge V1-V5 pass.
   Review: `reviews/P4.XP-loop1.md`; complete validation: `validation/P4.XP.md`.
-- **R-DEPS CHANGES_REQUESTED (loop1 fixes in progress):** one sequential remediator, branch
-  `audit/2026-11-DEPS` in `/tmp/go-sdk-audit-DEPS`, clean head `ac8ab8e`.
-  Loop1 found wildcard service/Ryuk bindings and CI Go1.26 auto-switch;
-  original worker is fixing both. Other independent gates pass. Evidence:
+- **R-DEPS IN_REVIEW (loop2):** one sequential remediator, branch
+  `audit/2026-11-DEPS` in `/tmp/go-sdk-audit-DEPS`, clean head `ddf7afd`.
+  Loop1 fixes are committed: `40580e0` loopback bindings/crash cleanup,
+  `f32d1f3` actual CI toolchain matrix. Author final gates pass; fresh
+  independent loop2 review pending. Original evidence:
   `reviews/R-DEPS-loop1.md`. Report: `validation/R-DEPS.md`.
   Scope: toolchain, tagged-only crypto decision, testcontainers suites,
   `/v2` module migration, and exact minor XP review followups. Root owns ledger.
