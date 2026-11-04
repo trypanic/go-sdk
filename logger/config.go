@@ -9,7 +9,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/rs/zerolog"
 )
@@ -264,13 +266,21 @@ func redactStructuredValue(fieldKey string, value any, custom func(key string, v
 		if shouldRedactEmailField(fieldKey) {
 			return maskEmailDomain(v)
 		}
-		if compacted, ok := compactAndRedactJSON(strings.TrimSpace(v), custom); ok {
-			return compacted
+		if trimmed := strings.TrimSpace(v); looksLikeJSONContainer(trimmed) {
+			if compacted, ok := compactAndRedactJSON(trimmed, custom); ok {
+				return compacted
+			}
 		}
 		return maskURLUserinfo(v)
 	default:
 		return value
 	}
+}
+
+// looksLikeJSONContainer reports whether s may hold a JSON object or array,
+// the only string values worth decoding for nested redaction.
+func looksLikeJSONContainer(s string) bool {
+	return s != "" && (s[0] == '{' || s[0] == '[')
 }
 
 // urlUserinfoPassword matches "scheme://user:password@" so the password can
@@ -405,6 +415,10 @@ func newRedactingWriter(next io.Writer, custom func(key string, value any) any) 
 }
 
 func (w redactingWriter) Write(p []byte) (int, error) {
+	if w.custom == nil && !mayNeedRedaction(p) {
+		return w.next.Write(p)
+	}
+
 	trimmed := strings.TrimSpace(string(p))
 	if trimmed == "" {
 		return w.next.Write(p)
@@ -425,4 +439,78 @@ func (w redactingWriter) Write(p []byte) (int, error) {
 	}
 
 	return len(p), nil
+}
+
+// redactionNeedles are the normalized substrings whose presence anywhere in
+// a log line sends it through the full (decode, redact, re-encode) path:
+// every sensitive key suffix plus "email".
+var redactionNeedles = func() [][]byte {
+	needles := make([][]byte, 0, len(sensitiveKeySuffixes)+1)
+	for _, suffix := range sensitiveKeySuffixes {
+		needles = append(needles, []byte(suffix))
+	}
+	return append(needles, []byte("email"))
+}()
+
+var (
+	urlSchemeSeparator = []byte("://")
+	jsonUnicodeEscape  = []byte(`\u`)
+)
+
+// normalizedLinePool recycles the scratch buffers used by mayNeedRedaction.
+var normalizedLinePool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 0, 512)
+		return &b
+	},
+}
+
+// mayNeedRedaction is a cheap, conservative pre-filter: it returns false only
+// when the built-in policy cannot change line, i.e. the line contains no URL,
+// no JSON \u escape (which could hide a key) and, after the same
+// normalization applied to keys (lower case, letters and digits only), none
+// of redactionNeedles. Lines it rejects are written through untouched.
+func mayNeedRedaction(line []byte) bool {
+	if bytes.Contains(line, urlSchemeSeparator) || bytes.Contains(line, jsonUnicodeEscape) {
+		return true
+	}
+
+	bufPtr := normalizedLinePool.Get().(*[]byte)
+	normalized := appendNormalized((*bufPtr)[:0], line)
+	found := false
+	for _, needle := range redactionNeedles {
+		if bytes.Contains(normalized, needle) {
+			found = true
+			break
+		}
+	}
+	*bufPtr = normalized
+	normalizedLinePool.Put(bufPtr)
+	return found
+}
+
+// appendNormalized appends the ASCII letters and digits of line, lower-cased,
+// to dst. Non-ASCII runes are lower-cased with unicode.ToLower (as
+// normalizeSensitiveFieldKey does) and kept only when the result is ASCII,
+// so every needle present in a normalized key is present in the output.
+func appendNormalized(dst, line []byte) []byte {
+	for i := 0; i < len(line); {
+		c := line[i]
+		if c < utf8.RuneSelf {
+			i++
+			switch {
+			case 'a' <= c && c <= 'z', '0' <= c && c <= '9':
+				dst = append(dst, c)
+			case 'A' <= c && c <= 'Z':
+				dst = append(dst, c+('a'-'A'))
+			}
+			continue
+		}
+		r, size := utf8.DecodeRune(line[i:])
+		i += size
+		if lower := unicode.ToLower(r); lower < utf8.RuneSelf && (unicode.IsLetter(lower) || unicode.IsDigit(lower)) {
+			dst = append(dst, byte(lower))
+		}
+	}
+	return dst
 }

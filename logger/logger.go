@@ -3,6 +3,7 @@ package logger
 import (
 	"io"
 	"os"
+	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -15,10 +16,15 @@ func globalLogger() *zerolog.Logger {
 	if global != nil {
 		return global
 	}
+	return fallbackLogger()
+}
 
+// fallbackLogger is the logger used before Init: plain JSON to stderr,
+// built once and reused.
+var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
 	l := zerolog.New(os.Stderr).With().Timestamp().Logger()
 	return &l
-}
+})
 
 // Init creates and configures the logger for the given environment.
 // It sets both the package-level global AND zerolog's global log.Logger.
