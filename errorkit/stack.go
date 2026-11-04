@@ -1,113 +1,101 @@
 package errorkit
 
 import (
+	"path"
 	"runtime"
 	"strings"
 )
 
-// skipNewErrorFrames is the number of frames to skip when capturing stack
-// from NewError() call (NewError -> captureStack -> runtime.Caller)
-const skipNewErrorFrames = 2
+// maxCapturedPCs bounds the program counters captured per error: the
+// largest allowed stack depth (100) plus room for errorkit's own frames and
+// the runtime frames that are filtered out.
+const maxCapturedPCs = 128
 
-func captureStackWithDepth(skip int, maxStackDepth int) []TraceContext {
-	rawFrames := captureRawStackWithDepth(skip, maxStackDepth)
-	return filterStack(rawFrames)
-}
+// errorkitFuncPrefix is the fully qualified function-name prefix of this
+// package (for example "github.com/trypanic/go-sdk/errorkit."). Frames with
+// this prefix at the top of a captured stack are errorkit internals.
+var errorkitFuncPrefix = func() string {
+	pc, _, _, _ := runtime.Caller(0)
+	name := runtime.FuncForPC(pc).Name()
+	pkgPath, _ := splitFuncName(name)
+	return pkgPath + "."
+}()
 
-func captureRawStackWithDepth(skip int, maxStackDepth int) []TraceContext {
+// captureStackWithDepth captures up to maxStackDepth frames starting at the
+// first frame outside errorkit (the code that created the error). runtime
+// frames are dropped.
+func captureStackWithDepth(maxStackDepth int) []TraceContext {
 	maxStackDepth = clampStackDepth(maxStackDepth)
-	frames := make([]TraceContext, 0, maxStackDepth)
 
-	for i := skip; i < skip+maxStackDepth; i++ {
-		pc, file, line, ok := runtime.Caller(i)
-		if !ok {
-			break
-		}
+	var pcs [maxCapturedPCs]uintptr
+	// Skip runtime.Callers and captureStackWithDepth itself.
+	n := runtime.Callers(2, pcs[:])
+	frames := runtime.CallersFrames(pcs[:n])
 
-		fn := runtime.FuncForPC(pc)
-		if fn == nil {
+	trace := make([]TraceContext, 0, min(maxStackDepth, n))
+	inErrorkit := true
+	for len(trace) < maxStackDepth {
+		frame, more := frames.Next()
+		if inErrorkit && isErrorkitInternal(frame) {
+			if !more {
+				break
+			}
 			continue
 		}
+		inErrorkit = false
 
-		fnName := fn.Name()
-		pkg, function := parseFuncName(fnName)
-
-		frames = append(frames, TraceContext{
-			File:     formatFilePath(file),
-			Line:     line,
-			Package:  pkg,
-			Function: function,
-		})
-	}
-
-	return frames
-}
-
-// filterStack removes noise frames from runtime and errorkit package
-func filterStack(frames []TraceContext) []TraceContext {
-	filtered := make([]TraceContext, 0, len(frames))
-
-	for _, frame := range frames {
-		// Build full function name for filtering
-		fullName := frame.Package + "." + frame.Function
-
-		// Filter out runtime and errorkit frames
-		if strings.HasPrefix(fullName, "runtime.") ||
-			strings.HasPrefix(fullName, "errorkit.") {
-			continue
+		if frame.Function != "" && !strings.HasPrefix(frame.Function, "runtime.") {
+			trace = append(trace, newTraceContext(frame))
 		}
-
-		filtered = append(filtered, frame)
-	}
-
-	return filtered
-}
-
-// parseFuncName extracts package and function from runtime.Func.Name()
-// Example in: "github.com/user/project/service.(*MyType).Method"
-// Returns: pkg="service", function="(*MyType).Method"
-func parseFuncName(fullName string) (pkg string, function string) {
-	// Find the last slash to get the final segment
-	lastSlash := -1
-	for i := len(fullName) - 1; i >= 0; i-- {
-		if fullName[i] == '/' {
-			lastSlash = i
+		if !more {
 			break
 		}
 	}
-
-	// Get the segment after last slash (or full name if no slash)
-	segment := fullName
-	if lastSlash != -1 {
-		segment = fullName[lastSlash+1:]
-	}
-
-	// Find the first dot which separates package from function
-	firstDot := -1
-	for i := 0; i < len(segment); i++ {
-		if segment[i] == '.' {
-			firstDot = i
-			break
-		}
-	}
-
-	// If no dot found, return segment as both package and function
-	if firstDot == -1 {
-		return segment, segment
-	}
-
-	// Split at first dot
-	pkg = segment[:firstDot]
-	function = segment[firstDot+1:]
-
-	return pkg, function
+	return trace
 }
 
-// formatFilePath strips the absolute path to a project-relative path
-func formatFilePath(file string) string {
-	const projectRoot = "market-ecosystem/"
-	if idx := strings.LastIndex(file, projectRoot); idx != -1 {
-		return "./" + file[idx+len(projectRoot):]
+// isErrorkitInternal reports whether frame belongs to errorkit's own
+// (non-test) code.
+func isErrorkitInternal(frame runtime.Frame) bool {
+	return strings.HasPrefix(frame.Function, errorkitFuncPrefix) &&
+		!strings.HasSuffix(frame.File, "_test.go")
+}
+
+func newTraceContext(frame runtime.Frame) TraceContext {
+	pkgPath, function := splitFuncName(frame.Function)
+	return TraceContext{
+		File:     moduleRelativeFile(pkgPath, frame.File),
+		Line:     frame.Line,
+		Package:  path.Base(pkgPath),
+		Function: function,
 	}
-	return file
+}
+
+// splitFuncName splits a runtime function name into its package import path
+// and the function part.
+// Example: "github.com/user/project/service.(*MyType).Method" returns
+// "github.com/user/project/service" and "(*MyType).Method".
+func splitFuncName(fullName string) (pkgPath, function string) {
+	lastSlash := strings.LastIndexByte(fullName, '/')
+	dir, segment := "", fullName
+	if lastSlash >= 0 {
+		dir, segment = fullName[:lastSlash+1], fullName[lastSlash+1:]
+	}
+	pkg, function, found := strings.Cut(segment, ".")
+	if !found {
+		return fullName, segment
+	}
+	return dir + pkg, function
+}
+
+// moduleRelativeFile rewrites an absolute build path into the file's import
+// path ("github.com/acme/svc/handler/users.go"), so traces do not expose
+// the build host's directory layout. A Go package lives in one directory,
+// so the package import path plus the file name identifies the file. The
+// "_test" suffix of external test packages is dropped.
+func moduleRelativeFile(pkgPath, file string) string {
+	if pkgPath == "" {
+		return path.Base(file)
+	}
+	return strings.TrimSuffix(pkgPath, "_test") + "/" + path.Base(file)
 }

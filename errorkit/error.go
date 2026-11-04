@@ -75,7 +75,7 @@ func newAppErrorWithStackDepth(code ErrorCode, meta Metadata, maxStackDepth int)
 	}
 
 	// Automatic stack capture
-	e.Trace = captureStackWithDepth(skipNewErrorFrames, maxStackDepth)
+	e.Trace = captureStackWithDepth(maxStackDepth)
 
 	return e
 }

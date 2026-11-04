@@ -142,7 +142,7 @@ err := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
 
 This automatically:
 - Looks up metadata from the registry
-- Captures the current stack trace
+- Captures the current stack trace, starting at the caller of `NewError` (errorkit's own frames and `runtime` frames are skipped and do not count against the stack depth); file paths are reported as import paths (`github.com/acme/app/handler/users.go`), never as absolute build paths
 - Generates a unique ULID as the error ID
 - Records an ISO 8601 timestamp
 
@@ -228,7 +228,7 @@ err.WriteTo(logFile)
   },
   "stack_trace": [
     {
-      "file": "/app/handler/users.go",
+      "file": "github.com/acme/app/handler/users.go",
       "line": 42,
       "package": "handler",
       "function": "CreateUser"
