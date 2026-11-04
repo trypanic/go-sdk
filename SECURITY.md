@@ -24,11 +24,15 @@ What happens next:
 
 The SDK is a single Go module; every package shares the module's version.
 
-| Version                          | Security fixes                         |
-|----------------------------------|----------------------------------------|
-| Latest release of the latest major (today `v1.0.0`) | Yes                     |
-| Older minor/patch releases of that major | No — upgrade to the latest release |
-| Earlier majors                   | No                                     |
+| Version                                   | Security fixes                      |
+|-------------------------------------------|-------------------------------------|
+| Latest release of the latest major        | Yes                                 |
+| Older minor/patch releases of that major  | No — upgrade to the latest release  |
+| Earlier majors                            | No                                  |
+
+The latest release is the newest `vX.Y.Z` tag
+([releases](https://github.com/trypanic/go-sdk/releases),
+[pkg.go.dev](https://pkg.go.dev/github.com/trypanic/go-sdk?tab=versions)).
 
 Fixes are released only on the latest major version. When `v2.0.0` is
 published (module path `github.com/trypanic/go-sdk/v2`), `v1` stops receiving
