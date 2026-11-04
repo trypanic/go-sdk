@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -62,6 +63,33 @@ func DefaultBodyRedactor(b []byte) []byte {
 
 // rawBodyRedactor is the identity redactor used when WithRawBodies is set.
 func rawBodyRedactor(b []byte) []byte { return b }
+
+// redactorNeedsContent reports whether the configured redactor looks at the
+// body bytes. DefaultBodyRedactor only needs to know whether the body is
+// empty, so the response body is not copied for it.
+func (h *HTTPRequest) redactorNeedsContent() bool {
+	if h.redactor == nil {
+		return false
+	}
+	return reflect.ValueOf(h.redactor).Pointer() != reflect.ValueOf(DefaultBodyRedactor).Pointer()
+}
+
+// nonEmptyBody stands in for a body that was read but not kept; any
+// redactor that does not need content treats it as "non-empty".
+var nonEmptyBody = []byte{0}
+
+// auditBody returns the bytes to hand to the redactor for the audit line:
+// the copied body when one was kept, otherwise a non-empty placeholder when
+// the body had content.
+func auditBody(buf *bytes.Buffer, read int64) []byte {
+	if buf != nil {
+		return buf.Bytes()
+	}
+	if read > 0 {
+		return nonEmptyBody
+	}
+	return nil
+}
 
 // HTTPRequest implements the HTTPRequester interface.
 type HTTPRequest struct {
@@ -278,14 +306,20 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 
 	// Process successful response
 	if out != nil {
-		var respBuf bytes.Buffer
 		body := newLimitedBody(res.Body, h.maxResponseBytes)
-		err := h.processResponse(io.TeeReader(body, &respBuf), out)
+		var reader io.Reader = body
+		// Keep a copy of the body only when the audit line needs its content.
+		var respBuf *bytes.Buffer
+		if h.auditLog && h.redactorNeedsContent() {
+			respBuf = new(bytes.Buffer)
+			reader = io.TeeReader(body, respBuf)
+		}
+		err := h.processResponse(reader, out)
 		if err != nil && body.overLimit() {
 			err = buildBodyTooLargeError(redact.URL(config.URL), h.maxResponseBytes)
 		}
 		if h.auditLog {
-			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, respBuf.Bytes())
+			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, auditBody(respBuf, body.read))
 		}
 		return err
 	}
