@@ -4,6 +4,7 @@ package llmclient
 
 import (
 	"context"
+	"net/url"
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -65,6 +66,9 @@ type Config struct {
 	// Zero applies DefaultTimeout; a negative value disables the
 	// client-side deadline (the caller's context must then bound it).
 	Timeout time.Duration
+	// AllowInsecureEndpoint permits a plain http:// Endpoint, which sends
+	// the API key in cleartext. Use it only for local model servers.
+	AllowInsecureEndpoint bool
 }
 
 // DefaultTimeout bounds an Execute call when Config.Timeout is zero. It is
@@ -100,6 +104,30 @@ func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, inst
 	return WrapWithInstrumenter(NewClient(httpRequest, cfg), instrumenter)
 }
 
+// validate checks the settings Execute needs before the API key is sent:
+// a key, and an absolute https endpoint (http only with
+// AllowInsecureEndpoint). The endpoint is never echoed, as it may embed
+// credentials.
+func (c Config) validate() error {
+	reason := ""
+	u, err := url.Parse(c.Endpoint)
+	switch {
+	case c.APIKey == "":
+		reason = "llm api key is empty"
+	case err != nil || u.Host == "":
+		reason = "llm endpoint must be an absolute URL"
+	case u.Scheme == "https":
+		return nil
+	case u.Scheme == "http" && c.AllowInsecureEndpoint:
+		return nil
+	case u.Scheme == "http":
+		reason = "llm endpoint must use https (set AllowInsecureEndpoint for a local http server)"
+	default:
+		reason = "llm endpoint must use https"
+	}
+	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(errorkit.WithReason("%s", reason))
+}
+
 // timeout returns the per-call deadline: Config.Timeout, DefaultTimeout
 // when it is zero, or 0 (none) when it is negative.
 func (c *Client) timeout() time.Duration {
@@ -118,6 +146,10 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 		return "", errorkit.
 			NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).
 			With(errorkit.WithReason("model is required"))
+	}
+
+	if err := c.cfg.validate(); err != nil {
+		return "", err
 	}
 
 	if timeout := c.timeout(); timeout > 0 {

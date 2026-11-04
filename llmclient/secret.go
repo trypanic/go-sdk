@@ -18,12 +18,14 @@ func maskedKey(key string) string {
 
 // String prints c with the API key masked.
 func (c Config) String() string {
-	return fmt.Sprintf("{APIKey:%s Endpoint:%s Timeout:%s}", maskedKey(c.APIKey), c.Endpoint, c.Timeout)
+	return fmt.Sprintf("{APIKey:%s Endpoint:%s Timeout:%s AllowInsecureEndpoint:%t}",
+		maskedKey(c.APIKey), c.Endpoint, c.Timeout, c.AllowInsecureEndpoint)
 }
 
 // GoString prints c for %#v with the API key masked.
 func (c Config) GoString() string {
-	return fmt.Sprintf("llmclient.Config{APIKey:%q, Endpoint:%q, Timeout:%d}", maskedKey(c.APIKey), c.Endpoint, c.Timeout)
+	return fmt.Sprintf("llmclient.Config{APIKey:%q, Endpoint:%q, Timeout:%d, AllowInsecureEndpoint:%t}",
+		maskedKey(c.APIKey), c.Endpoint, c.Timeout, c.AllowInsecureEndpoint)
 }
 
 // MarshalJSON encodes c with the API key masked, so structured loggers
@@ -33,8 +35,12 @@ func (c Config) MarshalJSON() ([]byte, error) {
 		APIKey   string `json:"APIKey"`
 		Endpoint string `json:"Endpoint"`
 		Timeout  int64  `json:"Timeout"`
+		Insecure bool   `json:"AllowInsecureEndpoint"`
 	}
-	return json.Marshal(masked{APIKey: maskedKey(c.APIKey), Endpoint: c.Endpoint, Timeout: int64(c.Timeout)})
+	return json.Marshal(masked{
+		APIKey: maskedKey(c.APIKey), Endpoint: c.Endpoint,
+		Timeout: int64(c.Timeout), Insecure: c.AllowInsecureEndpoint,
+	})
 }
 
 // LogValue implements slog.LogValuer with the API key masked.

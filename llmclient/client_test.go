@@ -37,7 +37,7 @@ func TestNewClientExecutePostsToConfiguredEndpointWithBearer(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "key-123", Endpoint: "http://llm.example/v1/chat"})
+	c := NewClient(stub, Config{APIKey: "key-123", Endpoint: "https://llm.example/v1/chat"})
 
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{
 		Model: "m1", SystemPrompt: "s", UserMessage: "u",
@@ -45,7 +45,7 @@ func TestNewClientExecutePostsToConfiguredEndpointWithBearer(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if stub.cfg.URL != "http://llm.example/v1/chat" {
+	if stub.cfg.URL != "https://llm.example/v1/chat" {
 		t.Fatalf("URL = %q, want endpoint from Config", stub.cfg.URL)
 	}
 	if stub.cfg.Method != "POST" {
@@ -60,7 +60,7 @@ func TestExecuteAppliesConfiguredTimeoutAsContextDeadline(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u", Timeout: 50 * time.Millisecond})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: 50 * time.Millisecond})
 
 	start := time.Now()
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
@@ -80,7 +80,7 @@ func TestExecuteNoDeadlineWhenTimeoutNegative(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u", Timeout: -1})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: -1})
 
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -94,7 +94,7 @@ func TestExecuteDefaultDeadlineWhenTimeoutZero(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
 	start := time.Now()
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
@@ -113,7 +113,7 @@ func TestExecuteRequiresModel(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{}); err == nil {
 		t.Fatalf("expected error when Model is empty")
@@ -124,7 +124,7 @@ func TestExecutePayloadOmitsStreamField(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{
 		Model: "m", SystemPrompt: "s", UserMessage: "u",
@@ -148,7 +148,7 @@ func TestExecuteReturnsResponseContentUnchanged(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{responseText: "```json\n{\"a\":1}\n```"}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
 	got, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"})
 	if err != nil {
@@ -166,7 +166,7 @@ func (emptyChoicesRequester) Do(context.Context, httprequest.RequestConfig, any)
 func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
 	t.Parallel()
 
-	c := NewClient(emptyChoicesRequester{}, Config{Endpoint: "http://llm.example/v1/chat"})
+	c := NewClient(emptyChoicesRequester{}, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 	_, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m1"})
 
 	appErr, ok := err.(*errorkit.AppError)

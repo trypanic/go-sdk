@@ -42,6 +42,11 @@ content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
 ```
 
 * `Model` is required; an empty value returns `ERR_VALIDATION_MISSING_FIELD`.
+* Before anything is sent, `Execute` checks the config and returns
+  `ERR_SYSTEM_CONFIG_INVALID` when `APIKey` is empty or `Endpoint` is not an
+  absolute `https://` URL. A plain `http://` endpoint (for example a local
+  model server) needs `Config.AllowInsecureEndpoint = true`, because the key
+  then travels in cleartext.
 * `Execute` derives a child context with a deadline of `cfg.Timeout` (or
   `DefaultTimeout`, 5 minutes, when it is zero) that bounds the whole call,
   retries included. `SetupForLLM` disables the per-attempt client timeout,
