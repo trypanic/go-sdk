@@ -17,7 +17,9 @@ type Config struct {
 	// DSN is a postgres:// or postgresql:// URL (for example
 	// "postgres://user:pass@localhost:5432/mydb") or a key/value string.
 	// Required.
-	DSN             string
+	DSN string
+	// ConnectTimeout bounds initial connection setup; zero uses 5s only when ctx has no deadline.
+	ConnectTimeout  time.Duration
 	MaxConnLifetime time.Duration // e.g. time.Hour
 	MaxConnIdleTime time.Duration // e.g. time.Minute
 	MaxConns        int32
@@ -33,6 +35,21 @@ const PostgresEnvVar = "POSTGRES_DSN"
 // It does NOT read any environment variable — callers that want env-based
 // fallback should use NewPostgresClientFromEnv.
 func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
+	return NewPostgresClientContext(context.Background(), cfg)
+}
+
+// NewPostgresClientContext creates and verifies a pool using ctx for setup only.
+// The returned pool belongs to the caller; canceling ctx later does not close it.
+// Without a deadline, setup defaults to five seconds. ConnectTimeout, when
+// positive, caps setup even when the caller has a later deadline.
+func NewPostgresClientContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, poolError("connect to database", err)
+	}
+	if cfg.ConnectTimeout < 0 {
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(errorkit.WithReason("ConnectTimeout must not be negative"))
+	}
+
 	if cfg.DSN == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("missing DSN"),
@@ -61,8 +78,15 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
 	}
 
 	// Connect with timeout for production reliability
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	timeout := cfg.ConnectTimeout
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline && timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -82,13 +106,18 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
 // (pool tuning fields) to NewPostgresClient. Returns ERR_SYSTEM_CONFIG_INVALID
 // if the env var is unset or empty.
 func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error) {
+	return NewPostgresClientFromEnvContext(context.Background(), cfg)
+}
+
+// NewPostgresClientFromEnvContext reads POSTGRES_DSN and uses ctx during setup.
+func NewPostgresClientFromEnvContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	cfg.DSN = os.Getenv(PostgresEnvVar)
 	if cfg.DSN == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("%s env var is unset or empty", PostgresEnvVar),
 		)
 	}
-	return NewPostgresClient(cfg)
+	return NewPostgresClientContext(ctx, cfg)
 }
 
 // poolError builds the error returned by the pool constructors. The driver

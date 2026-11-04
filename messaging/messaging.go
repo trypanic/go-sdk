@@ -145,7 +145,12 @@ func WithDeclareTopology() PubSubOption {
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
 func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
-	ps, err := newPubSub(amqpURL, nil, opts...)
+	return NewPubSubContext(context.Background(), amqpURL, opts...)
+}
+
+// NewPubSubContext uses ctx for setup only. Close owns the returned PubSub lifetime.
+func NewPubSubContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (Messager, error) {
+	ps, err := newPubSubContext(ctx, amqpURL, nil, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +163,13 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 // with ERR_SYSTEM_CONFIG_INVALID, before dialing, when no topology source is
 // available.
 func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
+	return NewPubSubFromEnvContext(context.Background(), amqpURL, opts...)
+}
+
+// NewPubSubFromEnvContext reads the topology from the environment and uses ctx during setup.
+func NewPubSubFromEnvContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (Messager, error) {
 	fromEnv := func(b *pubSubBuild) { b.topologyFromEnv = true }
-	ps, err := newPubSub(amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
+	ps, err := newPubSubContext(ctx, amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +179,10 @@ func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
 // newPubSub is NewPubSub with the publisher dialing through dial (nil means
 // dialAMQP).
 func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
+	return newPubSubContext(context.Background(), amqpURL, dial, opts...)
+}
+
+func newPubSubContext(ctx context.Context, amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
 	build := &pubSubBuild{}
 	for _, opt := range opts {
 		opt(build)
@@ -183,7 +197,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 	if build.declareTopo {
 		pub.declare = topo
 	}
-	if err := pub.connect(); err != nil {
+	if err := pub.connectContext(ctx); err != nil {
 		return nil, err
 	}
 

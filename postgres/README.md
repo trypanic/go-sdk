@@ -134,7 +134,7 @@ Behavior:
 2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@`, `/`, `?` or `#` parse
    correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
-   5-second timeout context.
+   5-second timeout context by default. The context variants preserve caller deadlines.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
 
 Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
@@ -362,3 +362,12 @@ freely across goroutines.
 
 The package has **no dependency on `otelpgx`** or any other pgx tracer. Callers that want
 driver-level tracing wire it up themselves.
+
+### Cancellable setup
+
+`NewPostgresClientContext(ctx, cfg)` and `NewPostgresClientFromEnvContext(ctx, cfg)`
+use the caller context during pool creation and verification. With no deadline,
+the default setup timeout is five seconds. Positive `Config.ConnectTimeout`
+caps setup even with a later caller deadline; negative values are rejected.
+The caller owns `pool.Close()`. Canceling the construction context after success
+does not close the pool or control later queries.

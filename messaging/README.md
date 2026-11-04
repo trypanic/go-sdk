@@ -439,3 +439,12 @@ Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
 `messaging.WithInstrumenter`; each keeps its component scope and uses
 `instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
 Hertz tracing remains an exception: its adapter uses the global provider.
+
+### Cancellable setup
+
+`NewPubSubContext(ctx, url, opts...)` and `NewPubSubFromEnvContext` bound initial
+TCP/TLS/AMQP setup, channel confirmation and topology declaration with the caller
+context and `WithDialTimeout` (30 seconds by default), whichever ends first.
+Cancellation interrupts an in-progress handshake. The construction context does
+not own the resulting instance: use `Close` for its lifetime and pass a context
+to each operation. Existing constructors delegate with a background context.
