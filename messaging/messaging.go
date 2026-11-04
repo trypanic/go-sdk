@@ -212,7 +212,7 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 		return nil
 	}
 
-	if err := executeWithRetry(publishOnce, queue.Retry); err != nil {
+	if err := executeWithRetry(ctx, publishOnce, queue.Retry); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "publish failed")
 		return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
@@ -284,6 +284,13 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 }
 
 func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.Delivery, queue QueueTopology, handler MessageHandler) {
+	// The subscription is shutting down: hand the message back to the broker
+	// untouched instead of running the handler against a cancelled ctx.
+	if ctx.Err() != nil {
+		_ = msg.Nack(false, true)
+		return
+	}
+
 	carrier := newCarrier(msg.Headers)
 	parentCtx := p.propagatorOrDefault().Extract(ctx, carrier)
 
@@ -325,8 +332,15 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 		return err
 	}
 
-	if err := executeWithRetry(run, queue.Retry); err != nil {
+	if err := executeWithRetry(ctx, run, queue.Retry); err != nil {
 		recvSpan.RecordError(err)
+		if ctx.Err() != nil {
+			// Shutdown interrupted processing: requeue so the message is not
+			// dead-lettered (or dropped when the queue has no DLX).
+			recvSpan.SetStatus(codes.Error, "subscription canceled; message requeued")
+			_ = msg.Nack(false, true)
+			return
+		}
 		recvSpan.SetStatus(codes.Error, "handler failed after retries")
 		_ = msg.Nack(false, false)
 		return
@@ -366,9 +380,9 @@ func (p *PubSub) getQueueAndBinding(queueName string) (QueueTopology, Binding, e
 
 // executeWithRetry runs fn with exponential backoff when retry is non-nil.
 // If retry is nil fn is called exactly once — no retry wrapper is created.
-// This eliminates the duplicated if/else retry block that previously existed
-// in both Publish and Subscribe.
-func executeWithRetry(fn func() error, retry *RetryConfig) error {
+// The backoff is bound to ctx: once ctx is done no further attempt is made
+// and no backoff delay is waited.
+func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) error {
 	if retry == nil {
 		return fn()
 	}
@@ -378,7 +392,7 @@ func executeWithRetry(fn func() error, retry *RetryConfig) error {
 		Multiplier:      retry.BackoffMult,
 		MaxRetries:      uint64(retry.MaxAttempts),
 	})
-	return backoff.Retry(fn, bo)
+	return backoff.Retry(fn, backoff.WithContext(bo, ctx))
 }
 
 // reconnectWithBackoff retries sub.Reconnect with exponential delay until
