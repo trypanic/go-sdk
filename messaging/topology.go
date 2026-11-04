@@ -188,7 +188,7 @@ func LoadTopologyFromBytes(data []byte) (*Topology, error) {
 // the supplied path. No directory discovery, no parent traversal.
 func LoadTopologyFromFile(path string) (*Topology, error) {
 	if path == "" {
-		return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("topology file path is empty"),
 		)
 	}
@@ -208,7 +208,7 @@ func LoadTopologyFromFile(path string) (*Topology, error) {
 func LoadTopologyFromEnv() (*Topology, error) {
 	path := os.Getenv(TopologyEnvVar)
 	if path == "" {
-		return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("%s environment variable is not set", TopologyEnvVar),
 		)
 	}

@@ -50,11 +50,15 @@ Without it, a message published to a queue that no subscriber has declared yet
 has no route and `Publish` returns `ERR_MQ_PUBLISH_FAILED` (see
 [Delivery Guarantee](#delivery-guarantee)).
 
-The topology source is selected via constructor options, in priority order:
+The topology source is selected in priority order:
 
 1. `WithTopology(*Topology)` — supply a fully-built topology in memory (best for tests).
 2. `WithTopologyFile(path)` — load from a specific file.
-3. Otherwise, `RABBITMQ_TOPOLOGY_FILE` env var. The package no longer walks parent directories looking for `migrations/rabbitmq/topology.json`; supply the path explicitly.
+3. `NewPubSubFromEnv` only: the file named by the `RABBITMQ_TOPOLOGY_FILE` env var.
+
+`NewPubSub` never reads environment variables: without one of the first two
+options it fails with `ERR_SYSTEM_CONFIG_INVALID` before dialing.  No
+directory walking is performed; supply the path explicitly.
 
 ### Why `Publish` Takes a Queue Name — Not a Routing Key
 
@@ -156,8 +160,8 @@ When retries are exhausted:
 ```go
 import "github.com/trypanic/go-sdk/messaging"
 
-// Minimal: relies on RABBITMQ_TOPOLOGY_FILE env var.
-pubsub, err := messaging.NewPubSub("amqp://user:pass@rabbitmq:5672/")
+// Topology file named by the RABBITMQ_TOPOLOGY_FILE env var.
+pubsub, err := messaging.NewPubSubFromEnv("amqp://user:pass@rabbitmq:5672/")
 if err != nil {
     log.Fatal(err)
 }

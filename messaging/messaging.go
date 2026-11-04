@@ -55,6 +55,8 @@ type pubSubBuild struct {
 	log          *logger.Logger
 	declareTopo  bool
 	conn         connOptions
+
+	topologyFromEnv bool // set by NewPubSubFromEnv
 }
 
 // WithTracer overrides the OpenTelemetry tracer used for publish/consume spans.
@@ -75,8 +77,8 @@ func WithTopology(topo *Topology) PubSubOption {
 	return func(p *pubSubBuild) { p.topology = topo }
 }
 
-// WithTopologyFile supplies an explicit path to a topology JSON file. Takes
-// precedence over the legacy env-var fallback.
+// WithTopologyFile supplies an explicit path to a topology JSON file. It
+// takes precedence over RABBITMQ_TOPOLOGY_FILE in NewPubSubFromEnv.
 func WithTopologyFile(path string) PubSubOption {
 	return func(p *pubSubBuild) { p.topologyPath = path }
 }
@@ -128,17 +130,29 @@ func WithDeclareTopology() PubSubOption {
 	return func(p *pubSubBuild) { p.declareTopo = true }
 }
 
-// NewPubSub builds a Messager. The topology source is selected in order:
-//
-//  1. WithTopology — the supplied *Topology is used as-is.
-//  2. WithTopologyFile — the file at the supplied path is loaded.
-//  3. Legacy fallback: RABBITMQ_TOPOLOGY_FILE env var. Returns an error if
-//     none of the three are available; no directory walking is performed.
+// NewPubSub builds a Messager. The topology comes from WithTopology (used
+// as-is) or, failing that, WithTopologyFile (the file is loaded); one of
+// them is required. NewPubSub never reads environment variables: use
+// NewPubSubFromEnv to load the topology from RABBITMQ_TOPOLOGY_FILE.
 //
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
 func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 	ps, err := newPubSub(amqpURL, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return ps, nil
+}
+
+// NewPubSubFromEnv is NewPubSub with the topology loaded from the file named
+// by the RABBITMQ_TOPOLOGY_FILE environment variable (TopologyEnvVar). An
+// explicit WithTopology or WithTopologyFile still takes precedence. It fails
+// with ERR_SYSTEM_CONFIG_INVALID, before dialing, when no topology source is
+// available.
+func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
+	fromEnv := func(b *pubSubBuild) { b.topologyFromEnv = true }
+	ps, err := newPubSub(amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +201,12 @@ func resolveTopology(b *pubSubBuild) (*Topology, error) {
 		return b.topology, nil
 	case b.topologyPath != "":
 		return LoadTopologyFromFile(b.topologyPath)
-	default:
+	case b.topologyFromEnv:
 		return LoadTopologyFromEnv()
+	default:
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("no topology: pass WithTopology or WithTopologyFile, or use NewPubSubFromEnv"),
+		)
 	}
 }
 
