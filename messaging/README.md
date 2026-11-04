@@ -396,7 +396,17 @@ backoff: an `initialDelay` or `maxDelay` of `0` is replaced by its default
 ## Error Codes
 
 Every error is an `*errorkit.AppError`. SDK errors are returned unchanged, so
-callers can branch on `.Code()` and `Metadata.Retriable`:
+callers can branch on `.Code()` and `Metadata.Retriable`.
+
+`PubSub.Publish` returns the code of the step that failed, not always
+`ERR_MQ_PUBLISH_FAILED`: a broker outage is `ERR_MQ_CONNECTION_FAILED`, a
+missing exchange `ERR_MQ_EXCHANGE_ERROR` (`ERR_MQ_QUEUE_ERROR` for a queue
+declared by `WithDeclareTopology`), refused credentials `ERR_MQ_AUTH_FAILED`,
+an expired `ctx` `ERR_MQ_TIMEOUT`, a closed `PubSub` `ERR_MQ_CLOSED`, and only a
+failed, nacked or returned publish `ERR_MQ_PUBLISH_FAILED`.  Do not match on
+`ERR_MQ_PUBLISH_FAILED` alone: decide on `Metadata.Retriable`, or test for a
+specific code with `errorkit.HasCode(err, code)` (or `errors.As` and
+`.Code()`).
 
 | Code | Raised when | Retriable |
 |------|-------------|-----------|
