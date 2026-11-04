@@ -44,7 +44,9 @@ type ServerKeepalive struct {
 
 // ServerConfig holds the settings for a gRPC server.
 type ServerConfig struct {
-	// Address is the listen address in host:port form. Required.
+	// Address is the TCP listen address in host:port form that
+	// (*Server).ListenAndServe binds. Required. (*Server).Serve takes its own
+	// listener and does not read it.
 	Address string
 	// Keepalive configures server-side keepalive and its enforcement policy.
 	Keepalive ServerKeepalive

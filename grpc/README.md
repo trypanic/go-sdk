@@ -47,7 +47,8 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `New(cfg ServerConfig, opts ...ServerOption) (*Server, error)`           | Build a gRPC server (tracing + recovery on by default).                      |
 | `(*Server).Registrar() grpc.ServiceRegistrar`                            | Register generated services: `pb.RegisterEchoServer(srv.Registrar(), impl)`. |
-| `(*Server).Serve(lis net.Listener) error`                                | Serve on a listener; blocks until stopped.                                   |
+| `(*Server).ListenAndServe() error`                                       | Listen on TCP at `ServerConfig.Address` and serve; blocks until stopped.     |
+| `(*Server).Serve(lis net.Listener) error`                                | Serve on your own listener (e.g. a bufconn); blocks until stopped.           |
 | `(*Server).Shutdown(ctx) error`                                          | Graceful drain of in-flight RPCs/streams; hard-stops on ctx expiry.          |
 | `(*Server).Stop()`                                                       | Immediate hard stop.                                                         |
 | `Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error)` | Dial a connection to wrap with a generated client.                           |
@@ -65,7 +66,8 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 
 Construction errors are `*errorkit.AppError`: `ERR_SYSTEM_CONFIG_INVALID` for a
 missing address/target or missing (or conflicting) transport credentials,
-`ERR_SYSTEM_UNEXPECTED` for serve/dial failures,
+`ERR_SYSTEM_UNEXPECTED` for listen/serve/dial failures (a taken port
+included),
 `ERR_SYSTEM_TIMEOUT_INTERNAL` when `Shutdown` exceeds its deadline.
 
 ### Error mapping
