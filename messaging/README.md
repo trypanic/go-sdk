@@ -375,12 +375,21 @@ check one yourself.  Every problem is reported in one
 * an exchange or queue name is empty or declared twice, or an exchange has no
   `type`;
 * a binding names an undeclared queue or exchange, has no routing keys (use
-  `[""]` for a fanout exchange), or a queue has **more than one binding**;
-* a queue's `dlx.exchange` is not declared;
+  `[""]` for a fanout exchange), or a queue has **more than one binding**.
+  Bindings to the predeclared `amq.*` exchanges (`amq.direct`, `amq.topic`,
+  …) are therefore rejected unless listed in `exchanges`, and RabbitMQ refuses
+  to declare `amq.*` names, so use your own exchanges;
+* a queue's `dlx.exchange` is not declared — this includes `""`, the default
+  exchange, which cannot be used as a dead-letter exchange here;
 * `prefetch`, `ttl` or `maxLength` is negative;
 * a `retry` block has `maxAttempts < 1`, a negative delay,
   `maxDelay < initialDelay`, or `backoffMultiplier < 1` (an omitted multiplier
   is `0` and therefore rejected).
+
+Accepted retry values are interpreted by the shared `algorithms` exponential
+backoff: an `initialDelay` or `maxDelay` of `0` is replaced by its default
+(1 s and 30 s respectively) instead of meaning "retry without delay", and
+`maxAttempts` is capped at `algorithms.MaxRetriesLimit` (1000).
 
 ---
 

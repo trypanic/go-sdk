@@ -82,6 +82,16 @@ func (t *Topology) GetExchangeByName(name string) (Exchange, bool) {
 //   - a retry policy has maxAttempts >= 1, delays >= 0, maxDelay >=
 //     initialDelay and backoffMultiplier >= 1.
 //
+// Because every referenced exchange must be declared in t, a dead-letter
+// exchange of "" (the default exchange) is rejected, and so is a binding to
+// a predeclared amq.* exchange that t does not list (RabbitMQ refuses to
+// declare amq.* names, so a topology must use its own exchanges).
+//
+// Retry values that pass validation are interpreted by the algorithms
+// backoff: an initialDelay or maxDelay of 0 is replaced by its default
+// (1 s and 30 s) rather than meaning "no delay", and maxAttempts is capped
+// at algorithms.MaxRetriesLimit (1000).
+//
 // The loaders and NewPubSub call it.
 func (t *Topology) Validate() error {
 	if t == nil {
