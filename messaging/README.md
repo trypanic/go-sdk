@@ -9,7 +9,7 @@ queues — is declared in a single JSON topology file.
 ## Architecture at a Glance
 
 ```
-┌────────────┐   Publish("queue.name", event)   ┌──────────┐
+┌────────────┐   Publish(ctx, "queue", event)   ┌──────────┐
 │ Your Code  │ ────────────────────────────────> │  PubSub  │
 │            │                                   │          │
 │            │ Subscribe(ctx, "queue.name", fn)  │          │
@@ -39,8 +39,9 @@ broker-specific knowledge leaks into application code.
 All RabbitMQ resources are declared in a JSON topology file.  When `NewPubSub`
 is called it:
 
-1. Reads and parses the topology file.
-2. Declares **every exchange** listed in the file on the broker (idempotent).
+1. Reads, parses and validates the topology (see [Validation](#validation)).
+2. Opens the publisher connection and declares **every exchange** listed in
+   the topology on the broker (idempotent).
 
 Queues and bindings are declared lazily: each call to `Subscribe` declares the
 target queue and binds it before it starts consuming.  Pass
@@ -63,13 +64,13 @@ directory walking is performed; supply the path explicitly.
 ### Why `Publish` Takes a Queue Name — Not a Routing Key
 
 ```go
-pubsub.Publish("order.created.processor", event)
+pubsub.Publish(ctx, "order.created.processor", event)
 ```
 
 Internally the library resolves the exchange and routing keys from the topology:
 
 ```
-Publish("order.created.processor")
+Publish(ctx, "order.created.processor", event)
   └── topology lookup
         ├── queue      → "order.created.processor"
         ├── exchange   → "order.events"          (from the binding)
@@ -158,12 +159,15 @@ When retries are exhausted:
 ### Initialisation
 
 ```go
-import "github.com/trypanic/go-sdk/messaging"
+import (
+    "github.com/trypanic/go-sdk/logger"
+    "github.com/trypanic/go-sdk/messaging"
+)
 
 // Topology file named by the RABBITMQ_TOPOLOGY_FILE env var.
 pubsub, err := messaging.NewPubSubFromEnv("amqp://user:pass@rabbitmq:5672/")
 if err != nil {
-    log.Fatal(err)
+    logger.Panic(err, "messaging init failed")
 }
 defer pubsub.Close()
 
@@ -255,7 +259,8 @@ event := messaging.Event{
 }
 
 if err := pubsub.Publish(ctx, "order.created.processor", event); err != nil {
-    slog.Error("publish failed", "error", err)
+    // err is an *errorkit.AppError: branch on Code() / Metadata.Retriable.
+    logger.Error(err, "publish failed")
 }
 ```
 
@@ -284,17 +289,17 @@ defer cancel()
 handler := func(ctx context.Context, msg messaging.Message) error {
     var event messaging.EventMessage
     if err := json.Unmarshal(msg.Raw, &event); err != nil {
-        return err  // triggers retry per the queue's retry config
+        return err  // retried per the queue's retry config, then dead-lettered
     }
 
-    slog.InfoContext(ctx, "processing", "event_id", event.EventID, "type", event.EventType)
+    logger.LogInfoWithTrace(ctx, "processing event "+event.EventID)
     // … do work …
     return nil  // nil → message is Acked
 }
 
 // Blocks until ctx is cancelled or pubsub.Close is called.  Reconnection is automatic.
 if err := pubsub.Subscribe(ctx, "order.created.processor", "order-worker", handler); err != nil {
-    slog.Error("subscriber exited", "error", err)
+    logger.Error(err, "subscriber exited")
 }
 ```
 
@@ -304,6 +309,20 @@ returns `nil`; if the channel dies before the ack reaches the broker (heartbeat
 timeout, broker restart), the broker redelivers it and the handler runs again.
 A failed `Ack`/`Nack` is recorded on the `messaging.receive.<queue>` span and logged at
 Warn level (through `WithLogger` when set) with `ERR_MQ_CHANNEL_ERROR`.
+
+### Concurrency and Lifecycle
+
+* A `PubSub` (the `Messager` returned by `NewPubSub`/`NewPubSubFromEnv`) is
+  safe for concurrent use.  Create **one per process** and share it; do not
+  build one per request.
+* Its publisher serializes publishes on one AMQP channel; concurrent
+  `Publish` calls queue for it, each bounded by its own `ctx`.
+* Each `Subscribe` call blocks, owns its own connection, and runs its handler
+  **one message at a time**; run several `Subscribe` calls (goroutines) for
+  parallelism.
+* A standalone `Subscriber` (from `NewSubscriber`) is **not** safe for
+  concurrent use.
+* The caller owns the lifecycle: `defer pubsub.Close()` at process scope.
 
 ### Closing
 

@@ -1,4 +1,3 @@
-// messaging/otel_carrier.go
 package messaging
 
 import (
@@ -9,6 +8,9 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+// amqpHeadersCarrier adapts AMQP message headers to an OpenTelemetry
+// propagation.TextMapCarrier, so trace context and baggage travel with the
+// message.
 type amqpHeadersCarrier struct {
 	h amqp.Table
 }

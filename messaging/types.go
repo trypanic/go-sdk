@@ -70,8 +70,14 @@ type MessageHandler func(ctx context.Context, msg Message) error
 // Messager is the public contract for publish/subscribe operations.
 // Use this interface in function signatures to allow mocking in tests.
 type Messager interface {
-	// keep old methods for backward compatibility
+	// Publish sends payload to the exchange and routing keys that the
+	// topology binds to queueName, and waits for the broker's confirms.
 	Publish(ctx context.Context, queueName string, payload Event) error
+	// Subscribe consumes queueName as serviceName, calling handler for each
+	// delivery, until ctx ends, Close is called or an unrecoverable error
+	// occurs.
 	Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) error
+	// Close stops every subscription and closes the publisher; it is
+	// terminal.
 	Close() error
 }

@@ -419,6 +419,10 @@ func (p *Publisher) Close() error {
 // Subscriber consumes messages from a single AMQP queue.  Reconnect re-builds
 // the full connection + channel + bindings so the caller only needs to call
 // Consume again after a successful Reconnect.
+//
+// A Subscriber is not safe for concurrent use: Consume, Reconnect and Close
+// read and replace its connection without a lock, so drive it from one
+// goroutine (PubSub.Subscribe does).
 type Subscriber struct {
 	conn        amqpConnection
 	channel     amqpChannel
