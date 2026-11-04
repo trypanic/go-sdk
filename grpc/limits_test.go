@@ -17,6 +17,7 @@ import (
 // With MaxConcurrentStreams = 1, a second stream on the same connection does
 // not reach a handler while the first one is open.
 func TestServerConfig_MaxConcurrentStreamsApplied(t *testing.T) {
+	t.Parallel()
 	var calls atomic.Int32 // handlers ever started; never decremented
 	started := make(chan struct{}, 2)
 	release := make(chan struct{})

@@ -32,8 +32,9 @@ func (f *fakeServerStream) SendMsg(any) error            { return nil }
 func (f *fakeServerStream) RecvMsg(any) error            { return nil }
 
 func TestRecoveryUnaryInterceptor_PanicReturnsInternal(t *testing.T) {
+	t.Parallel()
 	interceptor := recoveryUnaryInterceptor(nil, "")
-	_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+	_, err := interceptor(t.Context(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
 		func(context.Context, any) (any, error) { panic("boom") })
 
 	if status.Code(err) != codes.Internal {
@@ -42,9 +43,10 @@ func TestRecoveryUnaryInterceptor_PanicReturnsInternal(t *testing.T) {
 }
 
 func TestRecoveryUnaryInterceptor_NoPanicPassesThrough(t *testing.T) {
+	t.Parallel()
 	want := errors.New("handler error")
 	interceptor := recoveryUnaryInterceptor(nil, "")
-	resp, err := interceptor(context.Background(), "req", &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
+	resp, err := interceptor(t.Context(), "req", &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
 		func(_ context.Context, req any) (any, error) { return req, want })
 
 	if !errors.Is(err, want) {
@@ -56,8 +58,9 @@ func TestRecoveryUnaryInterceptor_NoPanicPassesThrough(t *testing.T) {
 }
 
 func TestRecoveryStreamInterceptor_PanicReturnsInternal(t *testing.T) {
+	t.Parallel()
 	interceptor := recoveryStreamInterceptor(nil, "")
-	ss := &fakeServerStream{ctx: context.Background()}
+	ss := &fakeServerStream{ctx: t.Context()}
 	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
 		func(any, grpc.ServerStream) error { panic("boom") })
 
@@ -67,9 +70,10 @@ func TestRecoveryStreamInterceptor_PanicReturnsInternal(t *testing.T) {
 }
 
 func TestRecoveryStreamInterceptor_NoPanicPassesThrough(t *testing.T) {
+	t.Parallel()
 	want := errors.New("stream error")
 	interceptor := recoveryStreamInterceptor(nil, "")
-	ss := &fakeServerStream{ctx: context.Background()}
+	ss := &fakeServerStream{ctx: t.Context()}
 	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
 		func(any, grpc.ServerStream) error { return want })
 
@@ -127,6 +131,7 @@ func assertNoPanicLeak(t *testing.T, err error, secret, method string) {
 const panicSecret = "db password=hunter2 at 10.0.0.5"
 
 func TestRecovery_UnaryPanicValueNotSentToClient(t *testing.T) {
+	t.Parallel()
 	impl := &echoImpl{
 		unary: func(context.Context, *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
 			panic(panicSecret)
@@ -139,6 +144,7 @@ func TestRecovery_UnaryPanicValueNotSentToClient(t *testing.T) {
 }
 
 func TestRecovery_StreamPanicValueNotSentToClient(t *testing.T) {
+	t.Parallel()
 	impl := &echoImpl{
 		serverStream: func(grpc.ServerStream) error { panic(panicSecret) },
 	}
@@ -160,6 +166,9 @@ func TestRecovery_StreamPanicValueNotSentToClient(t *testing.T) {
 
 // The panic value and the stack stay in the server log, keyed by the same
 // errorkit ID the client receives in ErrorInfo.
+//
+// Not parallel: logger.New writes zerolog's process-wide settings, which the
+// other tests' loggers read (a logger package issue tracked outside grpc).
 func TestRecovery_PanicValueLoggedWithClientVisibleID(t *testing.T) {
 	var buf syncBuffer
 	log := logger.New(logger.Config{Env: logger.Prod, Writer: &buf})

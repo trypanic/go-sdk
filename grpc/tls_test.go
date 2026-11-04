@@ -56,6 +56,7 @@ func testTLS(t *testing.T) (server, client credentials.TransportCredentials) {
 }
 
 func TestTLS_RoundTripWithConfigCreds(t *testing.T) {
+	t.Parallel()
 	serverCreds, clientCreds := testTLS(t)
 	srv, lis := serve(t, ServerConfig{Creds: serverCreds}, &echoImpl{})
 	t.Cleanup(srv.Stop)
@@ -73,6 +74,7 @@ func TestTLS_RoundTripWithConfigCreds(t *testing.T) {
 
 // The server really enforces TLS: a plaintext client cannot call it.
 func TestTLS_PlaintextClientRejectedByTLSServer(t *testing.T) {
+	t.Parallel()
 	serverCreds, _ := testTLS(t)
 	srv, lis := serve(t, ServerConfig{Creds: serverCreds}, &echoImpl{})
 	t.Cleanup(srv.Stop)
@@ -88,6 +90,7 @@ func TestTLS_PlaintextClientRejectedByTLSServer(t *testing.T) {
 // Asking for credentials and for plaintext at the same time is a
 // configuration error, not a silent pick.
 func TestCreds_ConflictWithInsecureIsConfigError(t *testing.T) {
+	t.Parallel()
 	serverCreds, clientCreds := testTLS(t)
 
 	_, err := New(ServerConfig{Address: "bufnet", Creds: serverCreds}, WithServerInsecure())
@@ -100,6 +103,7 @@ func TestCreds_ConflictWithInsecureIsConfigError(t *testing.T) {
 // Plaintext is never a silent default: nil credentials without the explicit
 // insecure option are a configuration error on both sides.
 func TestCreds_NilWithoutInsecureIsConfigError(t *testing.T) {
+	t.Parallel()
 	_, err := New(ServerConfig{Address: "bufnet"})
 	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
 
@@ -108,6 +112,7 @@ func TestCreds_NilWithoutInsecureIsConfigError(t *testing.T) {
 }
 
 func TestCreds_NilWithInsecureIsAccepted(t *testing.T) {
+	t.Parallel()
 	srv, err := New(ServerConfig{Address: "bufnet"}, WithServerInsecure())
 	if err != nil {
 		t.Fatalf("New with WithServerInsecure: %v", err)

@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -43,7 +44,7 @@ func (e *echoImpl) ServerStream(s grpc.ServerStream) error {
 	if err := s.RecvMsg(in); err != nil {
 		return err
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if err := s.SendMsg(wrapperspb.String(fmt.Sprintf("%s-%d", in.GetValue(), i))); err != nil {
 			return err
 		}
@@ -59,7 +60,7 @@ func (e *echoImpl) ClientStream(s grpc.ServerStream) error {
 	for {
 		in := new(wrapperspb.StringValue)
 		err := s.RecvMsg(in)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return s.SendMsg(wrapperspb.String(fmt.Sprintf("count=%d", count)))
 		}
 		if err != nil {
@@ -76,7 +77,7 @@ func (e *echoImpl) Bidi(s grpc.ServerStream) error {
 	for {
 		in := new(wrapperspb.StringValue)
 		err := s.RecvMsg(in)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
@@ -135,9 +136,10 @@ func startTestServer(t *testing.T, impl testsvc.Impl, opts ...ServerOption) *grp
 }
 
 func TestRoundTrip_Unary(t *testing.T) {
+	t.Parallel()
 	cc := startTestServer(t, &echoImpl{})
 	out := new(wrapperspb.StringValue)
-	if err := cc.Invoke(context.Background(), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
+	if err := cc.Invoke(testCtx(t), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
 		t.Fatalf("Invoke: %v", err)
 	}
 	if out.GetValue() != "ping-pong" {
@@ -146,8 +148,9 @@ func TestRoundTrip_Unary(t *testing.T) {
 }
 
 func TestRoundTrip_ServerStream(t *testing.T) {
+	t.Parallel()
 	cc := startTestServer(t, &echoImpl{})
-	cs, err := cc.NewStream(context.Background(), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
+	cs, err := cc.NewStream(testCtx(t), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
@@ -161,7 +164,7 @@ func TestRoundTrip_ServerStream(t *testing.T) {
 	for {
 		out := new(wrapperspb.StringValue)
 		err := cs.RecvMsg(out)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -175,12 +178,13 @@ func TestRoundTrip_ServerStream(t *testing.T) {
 }
 
 func TestRoundTrip_ClientStream(t *testing.T) {
+	t.Parallel()
 	cc := startTestServer(t, &echoImpl{})
-	cs, err := cc.NewStream(context.Background(), testsvc.ClientStreamDesc, testsvc.ClientStreamMethod)
+	cs, err := cc.NewStream(testCtx(t), testsvc.ClientStreamDesc, testsvc.ClientStreamMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		if err := cs.SendMsg(wrapperspb.String("x")); err != nil {
 			t.Fatalf("SendMsg: %v", err)
 		}
@@ -198,30 +202,29 @@ func TestRoundTrip_ClientStream(t *testing.T) {
 }
 
 func TestRoundTrip_BidiConcurrent(t *testing.T) {
+	t.Parallel()
 	cc := startTestServer(t, &echoImpl{})
-	cs, err := cc.NewStream(context.Background(), testsvc.BidiStreamDesc, testsvc.BidiMethod)
+	cs, err := cc.NewStream(testCtx(t), testsvc.BidiStreamDesc, testsvc.BidiMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
 
 	const n = 10
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for i := 0; i < n; i++ {
+	wg.Go(func() {
+		for i := range n {
 			if err := cs.SendMsg(wrapperspb.String(fmt.Sprintf("m%d", i))); err != nil {
 				return
 			}
 		}
 		_ = cs.CloseSend()
-	}()
+	})
 
 	got := 0
 	for {
 		out := new(wrapperspb.StringValue)
 		err := cs.RecvMsg(out)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -236,6 +239,7 @@ func TestRoundTrip_BidiConcurrent(t *testing.T) {
 }
 
 func TestRoundTrip_RecoveryUnary_ServerStaysUp(t *testing.T) {
+	t.Parallel()
 	impl := &echoImpl{
 		unary: func(_ context.Context, in *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
 			if in.GetValue() == "panic" {
@@ -247,16 +251,17 @@ func TestRoundTrip_RecoveryUnary_ServerStaysUp(t *testing.T) {
 	cc := startTestServer(t, impl)
 
 	out := new(wrapperspb.StringValue)
-	err := cc.Invoke(context.Background(), testsvc.UnaryMethod, wrapperspb.String("panic"), out)
+	err := cc.Invoke(testCtx(t), testsvc.UnaryMethod, wrapperspb.String("panic"), out)
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("panic call code = %s, want %s", status.Code(err), codes.Internal)
 	}
-	if err := cc.Invoke(context.Background(), testsvc.UnaryMethod, wrapperspb.String("ok"), out); err != nil {
+	if err := cc.Invoke(testCtx(t), testsvc.UnaryMethod, wrapperspb.String("ok"), out); err != nil {
 		t.Fatalf("second call failed (server down?): %v", err)
 	}
 }
 
 func TestRoundTrip_RecoveryStream_ServerStaysUp(t *testing.T) {
+	t.Parallel()
 	impl := &echoImpl{
 		serverStream: func(s grpc.ServerStream) error {
 			in := new(wrapperspb.StringValue)
@@ -268,37 +273,40 @@ func TestRoundTrip_RecoveryStream_ServerStaysUp(t *testing.T) {
 	}
 	cc := startTestServer(t, impl)
 
-	cs, err := cc.NewStream(context.Background(), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
+	cs, err := cc.NewStream(testCtx(t), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
 	if err := cs.SendMsg(wrapperspb.String("x")); err != nil {
 		t.Fatalf("SendMsg: %v", err)
 	}
-	_ = cs.CloseSend()
+	if err := cs.CloseSend(); err != nil {
+		t.Fatalf("CloseSend: %v", err)
+	}
 	out := new(wrapperspb.StringValue)
 	if err := cs.RecvMsg(out); status.Code(err) != codes.Internal {
 		t.Fatalf("stream panic code = %s, want %s", status.Code(err), codes.Internal)
 	}
-	if err := cc.Invoke(context.Background(), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
+	if err := cc.Invoke(testCtx(t), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
 		t.Fatalf("server down after stream panic: %v", err)
 	}
 }
 
 func TestRoundTrip_WithKeepalive(t *testing.T) {
+	t.Parallel()
 	scfg := ServerConfig{Keepalive: ServerKeepalive{
 		Time: time.Second, Timeout: time.Second,
 		MinTime: 100 * time.Millisecond, PermitWithoutStream: true,
 	}}
 	srv, lis := serve(t, scfg, &echoImpl{})
-	defer srv.Stop()
+	t.Cleanup(srv.Stop)
 	cc := connect(t, lis, ClientConfig{Keepalive: ClientKeepalive{
 		Time: 500 * time.Millisecond, Timeout: time.Second, PermitWithoutStream: true,
 	}})
-	defer cc.Close()
+	t.Cleanup(func() { _ = cc.Close() })
 
 	out := new(wrapperspb.StringValue)
-	if err := cc.Invoke(context.Background(), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
+	if err := cc.Invoke(testCtx(t), testsvc.UnaryMethod, wrapperspb.String("ping"), out); err != nil {
 		t.Fatalf("Invoke with keepalive configured: %v", err)
 	}
 	if out.GetValue() != "ping-pong" {
@@ -306,9 +314,40 @@ func TestRoundTrip_WithKeepalive(t *testing.T) {
 	}
 }
 
+// closeNotifyListener wraps a listener and closes closed when the server
+// closes it, which GracefulStop does as its first step.
+type closeNotifyListener struct {
+	net.Listener
+	once   sync.Once
+	closed chan struct{}
+}
+
+func (l *closeNotifyListener) Close() error {
+	l.once.Do(func() { close(l.closed) })
+	return l.Listener.Close()
+}
+
+// waitFor fails the test if ch is not closed (or does not deliver) before
+// ctx expires, so a hang fails fast instead of blocking until go test's
+// timeout.
+func waitFor(ctx context.Context, t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for %s: %v", what, ctx.Err())
+	}
+}
+
+// Shutdown lets an in-flight stream finish: the handler sends its remaining
+// messages only after the graceful stop has started (the server closed its
+// listener), and the client still receives all of them.
 func TestShutdown_DrainsActiveStream(t *testing.T) {
+	t.Parallel()
 	const n = 5
+	ctx := testCtx(t)
 	started := make(chan struct{})
+	release := make(chan struct{})
 	impl := &echoImpl{
 		serverStream: func(s grpc.ServerStream) error {
 			in := new(wrapperspb.StringValue)
@@ -316,41 +355,53 @@ func TestShutdown_DrainsActiveStream(t *testing.T) {
 				return err
 			}
 			close(started)
-			for i := 0; i < n; i++ {
+			select {
+			case <-release:
+			case <-s.Context().Done():
+				return s.Context().Err()
+			}
+			for i := range n {
 				if err := s.SendMsg(wrapperspb.String(fmt.Sprintf("d%d", i))); err != nil {
 					return err
 				}
-				time.Sleep(20 * time.Millisecond)
 			}
 			return nil
 		},
 	}
-	srv, lis := serve(t, ServerConfig{}, impl)
-	cc := connect(t, lis, ClientConfig{})
-	defer cc.Close()
+	srv, err := New(ServerConfig{Address: "bufnet"}, WithServerInsecure())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(srv.Stop)
+	testsvc.Register(srv.Registrar(), impl)
+	bl := bufconn.Listen(1024 * 1024)
+	lis := &closeNotifyListener{Listener: bl, closed: make(chan struct{})}
+	go func() { _ = srv.Serve(lis) }()
+	cc := connect(t, bl, ClientConfig{})
+	t.Cleanup(func() { _ = cc.Close() })
 
-	cs, err := cc.NewStream(context.Background(), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
+	cs, err := cc.NewStream(ctx, testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
 	if err := cs.SendMsg(wrapperspb.String("go")); err != nil {
 		t.Fatalf("SendMsg: %v", err)
 	}
-	_ = cs.CloseSend()
-	<-started // handler is mid-stream
+	if err := cs.CloseSend(); err != nil {
+		t.Fatalf("CloseSend: %v", err)
+	}
+	waitFor(ctx, t, started, "the handler to start") // handler is mid-stream
 
 	shutErr := make(chan error, 1)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		shutErr <- srv.Shutdown(ctx)
-	}()
+	go func() { shutErr <- srv.Shutdown(ctx) }()
+	waitFor(ctx, t, lis.closed, "the graceful stop to close the listener")
+	close(release)
 
 	got := 0
 	for {
 		out := new(wrapperspb.StringValue)
 		err := cs.RecvMsg(out)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -361,12 +412,19 @@ func TestShutdown_DrainsActiveStream(t *testing.T) {
 	if got != n {
 		t.Fatalf("drained %d messages, want %d", got, n)
 	}
-	if err := <-shutErr; err != nil {
-		t.Fatalf("Shutdown returned error: %v", err)
+	select {
+	case err := <-shutErr:
+		if err != nil {
+			t.Fatalf("Shutdown returned error: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("Shutdown did not return after the stream drained")
 	}
 }
 
 func TestShutdown_DeadlineForcesStop(t *testing.T) {
+	t.Parallel()
+	ctx := testCtx(t)
 	started := make(chan struct{})
 	block := make(chan struct{})
 	impl := &echoImpl{
@@ -384,21 +442,24 @@ func TestShutdown_DeadlineForcesStop(t *testing.T) {
 		},
 	}
 	srv, lis := serve(t, ServerConfig{}, impl)
+	t.Cleanup(srv.Stop)
 	cc := connect(t, lis, ClientConfig{})
-	defer cc.Close()
-	defer close(block)
+	t.Cleanup(func() { _ = cc.Close() })
+	t.Cleanup(func() { close(block) })
 
-	cs, err := cc.NewStream(context.Background(), testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
+	cs, err := cc.NewStream(ctx, testsvc.ServerStreamDesc, testsvc.ServerStreamMethod)
 	if err != nil {
 		t.Fatalf("NewStream: %v", err)
 	}
 	if err := cs.SendMsg(wrapperspb.String("go")); err != nil {
 		t.Fatalf("SendMsg: %v", err)
 	}
-	_ = cs.CloseSend()
-	<-started
+	if err := cs.CloseSend(); err != nil {
+		t.Fatalf("CloseSend: %v", err)
+	}
+	waitFor(ctx, t, started, "the handler to start")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	expired, cancel := context.WithCancel(ctx)
 	cancel() // already expired
-	wantCode(t, srv.Shutdown(ctx), errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL)
+	wantCode(t, srv.Shutdown(expired), errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL)
 }

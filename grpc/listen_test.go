@@ -31,6 +31,7 @@ func freeLoopbackAddr(t *testing.T) string {
 // ListenAndServe listens on ServerConfig.Address, so the configured address
 // is the one the server actually serves on.
 func TestServer_ListenAndServeUsesConfigAddress(t *testing.T) {
+	t.Parallel()
 	addr := freeLoopbackAddr(t)
 	srv, err := New(ServerConfig{Address: addr}, WithServerInsecure())
 	if err != nil {
@@ -70,6 +71,7 @@ func TestServer_ListenAndServeUsesConfigAddress(t *testing.T) {
 // A listen failure (here: the port is taken) is returned at once as an
 // errorkit error that wraps the net error.
 func TestServer_ListenAndServeListenError(t *testing.T) {
+	t.Parallel()
 	taken, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("occupy loopback port: %v", err)

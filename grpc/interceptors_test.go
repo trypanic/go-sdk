@@ -16,6 +16,7 @@ import (
 // inside recovery: a panic in one of them is recovered, reaches the client
 // as codes.Internal, and the server stays up.
 func TestRecovery_WrapsSDKManagedUnaryInterceptor(t *testing.T) {
+	t.Parallel()
 	panicky := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, h grpc.UnaryHandler) (any, error) {
 		if req.(*wrapperspb.StringValue).GetValue() == "panic" {
 			panic("interceptor " + panicSecret)
@@ -37,6 +38,7 @@ func TestRecovery_WrapsSDKManagedUnaryInterceptor(t *testing.T) {
 }
 
 func TestRecovery_WrapsSDKManagedStreamInterceptor(t *testing.T) {
+	t.Parallel()
 	panicky := func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, h grpc.StreamHandler) error {
 		panic("interceptor " + panicSecret)
 	}
@@ -57,6 +59,7 @@ func TestRecovery_WrapsSDKManagedStreamInterceptor(t *testing.T) {
 // User interceptors run in the order given, after recovery and before the
 // handler, for unary and streaming calls.
 func TestServerInterceptors_RunInOrder(t *testing.T) {
+	t.Parallel()
 	var mu sync.Mutex
 	var trail []string
 	record := func(s string) {

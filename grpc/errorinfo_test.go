@@ -28,6 +28,7 @@ func mustErrorInfo(t *testing.T, err error) *errdetails.ErrorInfo {
 // ErrorInfo.Metadata carries the errorkit ID and the registered Retriable
 // flag, so callers can decide on retries without parsing messages.
 func TestToStatus_ErrorInfoMetadataCarriesIDAndRetriable(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		code errorkit.ErrorCode
 		want string
@@ -51,6 +52,7 @@ func TestToStatus_ErrorInfoMetadataCarriesIDAndRetriable(t *testing.T) {
 
 // StatusPolicy.Domain sets ErrorInfo.Domain; the zero value keeps "go-sdk".
 func TestToStatusWithPolicy_Domain(t *testing.T) {
+	t.Parallel()
 	appErr := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
 	if got := mustErrorInfo(t, ToStatus(appErr)).GetDomain(); got != "go-sdk" {
 		t.Fatalf("default Domain = %q, want %q", got, "go-sdk")
@@ -95,6 +97,7 @@ func recoveredErrors(t *testing.T, opts ...ServerOption) map[string]error {
 // The recovery status is built by ToStatus: the same code, message and
 // ErrorInfo shape a handler returning an ERR_SYSTEM_UNEXPECTED gets.
 func TestRecovery_StatusBuiltLikeToStatus(t *testing.T) {
+	t.Parallel()
 	want := status.Convert(ToStatus(errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED)))
 	for mode, err := range recoveredErrors(t) {
 		t.Run(mode, func(t *testing.T) {
@@ -115,6 +118,7 @@ func TestRecovery_StatusBuiltLikeToStatus(t *testing.T) {
 
 // WithServerErrorDomain sets ErrorInfo.Domain on recovered panics.
 func TestRecovery_ServerErrorDomain(t *testing.T) {
+	t.Parallel()
 	for mode, err := range recoveredErrors(t, WithServerErrorDomain("payments.example.com")) {
 		t.Run(mode, func(t *testing.T) {
 			if got := mustErrorInfo(t, err).GetDomain(); got != "payments.example.com" {

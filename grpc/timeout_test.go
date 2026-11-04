@@ -36,6 +36,7 @@ func deadlineProbe(seen chan<- time.Duration) *echoImpl {
 }
 
 func TestClientDefaultTimeout_AppliedWhenCtxHasNoDeadline(t *testing.T) {
+	t.Parallel()
 	const d = 2 * time.Second
 	seen := make(chan time.Duration, 2)
 	srv, lis := serve(t, ServerConfig{}, deadlineProbe(seen))
@@ -66,6 +67,7 @@ func TestClientDefaultTimeout_AppliedWhenCtxHasNoDeadline(t *testing.T) {
 }
 
 func TestClientDefaultTimeout_DoesNotOverrideCallerDeadline(t *testing.T) {
+	t.Parallel()
 	seen := make(chan time.Duration, 1)
 	srv, lis := serve(t, ServerConfig{}, deadlineProbe(seen))
 	t.Cleanup(srv.Stop)
@@ -84,6 +86,7 @@ func TestClientDefaultTimeout_DoesNotOverrideCallerDeadline(t *testing.T) {
 
 // The default timeout actually ends a call the server never answers.
 func TestClientDefaultTimeout_ExpiresHungCall(t *testing.T) {
+	t.Parallel()
 	impl := &echoImpl{
 		unary: func(ctx context.Context, _ *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
 			<-ctx.Done()
