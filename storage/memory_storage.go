@@ -1,6 +1,9 @@
 package storage
 
-import "sync"
+import (
+	"slices"
+	"sync"
+)
 
 // MemoryStorage is a generic, thread-safe in-memory store. It implements
 // both KVStorager (Put/Get with overwrite semantics) and AppendLogStorager
@@ -51,7 +54,7 @@ func (ms *MemoryStorage[T]) Append(key string, item *T) (*[]T, error) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.list[key] = append(ms.list[key], *item)
-	out := append([]T(nil), ms.list[key]...)
+	out := slices.Clone(ms.list[key])
 	return &out, nil
 }
 
@@ -64,7 +67,7 @@ func (ms *MemoryStorage[T]) List(key string) (*[]T, bool, error) {
 	if !ok {
 		return nil, false, nil
 	}
-	out := append([]T(nil), slice...)
+	out := slices.Clone(slice)
 	return &out, true, nil
 }
 
