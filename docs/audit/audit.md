@@ -379,17 +379,36 @@ orchestrator's model unless told otherwise. The agent definitions in
 `.claude/agents/` carry these defaults, and the orchestrator passes `model`
 and `effort` overrides where this table differs from them.
 
-| Role / task | Claude Code agent | Model | Effort |
-| --- | --- | --- | --- |
-| Orchestrator (this file, ledger, P2 reviews) | main session | Opus 5.5 | `high` |
-| P1 discovery | `go-auditor` | Opus 5.5 | `high` |
-| P2.C1–C5, P2.X1, P2.X3 | `go-auditor` | Opus 5.5 | `high` |
-| P2.C6, P2.X2 | `go-auditor` | Sonnet 5.5 | `high` |
-| P2.Z consolidation, P3 plan | main session | Opus 5.5 | `xhigh` |
-| Reviews of P2.Z, P3, P4, R-DEPS | `go-reviewer` | Opus 5.5 | `high` |
-| P4 remediation (concurrency/security items) | `go-remediator` | Opus 5.5 | `high` |
-| P4 remediation (other items) | `go-remediator` | Opus 5.5 | `medium` |
-| P5 validation and report | `go-remediator` | Sonnet 5.5 | `medium` |
+| Role / task | Claude Code agent | Model | Effort | GPT-6.1 Astra | Kimi K3.1 Pro |
+| --- | --- | --- | --- | --- | --- |
+| Orchestrator (this file, ledger, P2 reviews) | main session | Opus 5.5 | `high` | GPT-6.1 Astra, reasoning `high` | Kimi K3.1 Pro, thinking mode, high effort |
+| P1 discovery | `go-auditor` | Opus 5.5 | `high` | GPT-6.1 Astra, reasoning `high` | Kimi K3.1 Pro, thinking mode, high effort |
+| P2.C1–C5, P2.X1, P2.X3 | `go-auditor` | Opus 5.5 | `high` | GPT-6.1 Astra, reasoning `high` | Kimi K3.1 Pro, thinking mode, high effort |
+| P2.C6, P2.X2 | `go-auditor` | Sonnet 5.5 | `high` | GPT-6.1 Astra, reasoning `medium` | Kimi K3.1 Pro, thinking mode, medium effort |
+| P2.Z consolidation, P3 plan | main session | Opus 5.5 | `xhigh` | GPT-6.1 Astra, highest reasoning setting available | Kimi K3.1 Pro, thinking mode, highest effort available |
+| Reviews of P2.Z, P3, P4, R-DEPS | `go-reviewer` | Opus 5.5 | `high` | GPT-6.1 Astra, reasoning `high` | Kimi K3.1 Pro, thinking mode, high effort |
+| P4 remediation (concurrency/security items) | `go-remediator` | Opus 5.5 | `high` | GPT-6.1 Astra, reasoning `high` | Kimi K3.1 Pro, thinking mode, high effort |
+| P4 remediation (other items) | `go-remediator` | Opus 5.5 | `medium` | GPT-6.1 Astra, reasoning `medium` | Kimi K3.1 Pro, thinking mode, medium effort |
+| P5 validation and report | `go-remediator` | Sonnet 5.5 | `medium` | GPT-6.1 Astra, reasoning `medium` | Kimi K3.1 Pro, thinking mode, medium effort |
+
+The GPT-6.1 Astra and Kimi K3.1 Pro columns were added on 2026-11-04, when
+the work moved from Claude Code to those agents; the Claude columns record
+what produced the work so far. Use the setting names your tool exposes for
+the effort shown (e.g. `reasoning_effort` for GPT, thinking mode / effort
+for Kimi); if a tool has no effort control, use its most capable model.
+
+How non-Claude agents map the roles:
+
+- `.claude/agents/*.md` are Claude Code subagent definitions. Other agents
+  do not load them automatically: read `go-auditor.md`, `go-reviewer.md` and
+  `go-remediator.md` as the role instructions, together with the brief
+  templates in §8.4, and give them to the worker/sub-session you start.
+- Without subagents, use **independent sessions mode** (§8.1): one session
+  per task, each claiming its ledger row per §0.2–§0.4.
+- The reviewer must still be a different session/context than the author
+  (§8.2). A review by a different model family (e.g. Kimi reviewing GPT
+  work, or the reverse) is welcome but not required.
+- Start every session with [`HANDOFF.md`](./HANDOFF.md) while it exists.
 
 Other agents (Codex, Cursor, …): use your most capable reasoning model at
 high effort for discovery, audit, consolidation, planning and review, and a

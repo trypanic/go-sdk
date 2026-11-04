@@ -5,6 +5,26 @@ Read this first, then `audit.md` §0 and §9 (ledger), then
 orchestrator's working memory; the ledger is the source of truth for task
 status.
 
+## 0. Who continues and how to find this file
+
+- The work continues with **GPT-6.1 Astra** and possibly **Kimi K3.1 Pro**
+  (not Claude). Model and effort per role: `audit.md` §8.3 (columns for both
+  were added; the Claude columns record how sessions 1 ran).
+- Entry points that any agent reads: the notice at the top of the root
+  [`AGENTS.md`](../../AGENTS.md) (on branch `audit/2026-11`) points here, and
+  `audit.md` starts with the same pointer. Check out `audit/2026-11` first:
+  `main` does not have these files.
+- The Claude-only memory under `~/.claude/` is a convenience copy; nothing
+  there is required.
+- `.claude/agents/*.md` are Claude Code subagent definitions. Other agents
+  use them as plain role instructions together with the brief templates in
+  `audit.md` §8.4 (see §8.3 "How non-Claude agents map the roles").
+- R-153 (P4.XP) rewrites `AGENTS.md`: it must keep the "Ongoing work"
+  notice at the top until P5 is `DONE`, then remove it.
+- Each new session should append a short dated "Session N" note at the end
+  of this file (what it finished, what it left), so the next agent of any
+  vendor can resume.
+
 ## 1. Where things are
 
 - Orchestration branch: `audit/2026-11` (main checkout
@@ -162,3 +182,10 @@ recovered panics), `1179adf` (example errcheck).
 - Reviewer technique: for new-API items, prove "fails without the fix" with a
   mutation on HEAD; when changing a write path from rename to in-place,
   re-check symlink handling at the final path.
+
+## 7. Session log
+
+- **Session 1 (2026-11-04, Claude Code, Opus 5.5):** P0.1 → P3, G1 (owner
+  approved everything, 2.0.0, MIT), P4 workers for all clusters; C3, C6, X
+  approved; C1, C4, C5 loop-1 fixes committed; C2 awaiting first review.
+  Handed over to GPT-6.1 Astra / Kimi K3.1 Pro.

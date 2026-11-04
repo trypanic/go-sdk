@@ -1,5 +1,12 @@
 # AGENTS.md
 
+> **Ongoing work (any AI agent: GPT, Kimi, Claude, …).** An audit and v2.0.0
+> remediation is in progress on branch `audit/2026-11`. Before doing anything
+> in this repository, read [`docs/audit/HANDOFF.md`](./docs/audit/HANDOFF.md),
+> then the work order and ledger in [`docs/audit/audit.md`](./docs/audit/audit.md)
+> (§0 resume protocol, §8.3 models, §9 ledger). Remove this notice when the
+> ledger task P5 is `DONE`.
+
 Operational guide for AI coding agents (Claude, Codex, Cursor, Continue, Cline,
 Qwen, DeepSeek, etc.) working in projects that **import** `github.com/trypanic/go-sdk`,
 or working **inside this repository** to extend it.
