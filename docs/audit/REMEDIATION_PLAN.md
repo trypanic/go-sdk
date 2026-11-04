@@ -1426,7 +1426,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-003 | auto | C3 | gRPC recovery returns a fixed message | — | DONE | `643631d` |
 | R-004 | approval | C3 | `ToStatus` hides internal reasons | APPROVED | DONE | `8355dcd` |
 | R-005 | auto | C4 | Postgres pool errors: wrap the cause, never the raw driver error | — | DONE | `880ed17` |
-| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | APPROVED | CHANGES_REQUESTED | `e645be3` |
+| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | APPROVED | IN_REVIEW | `6586058` |
 | R-007 | auto | C1 | Wider log redaction in `logger` | — | DONE | `8f65f47` |
 | R-008 | auto | C2 | Single, wider sensitive-header list | — | IN_REVIEW | `6f09952` |
 | R-009 | approval | C6 | `urlkit.BuildURL` treats `path` as a path | APPROVED | DONE | `d390f64` |
@@ -1436,7 +1436,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-013 | approval | C2 | Inbound audit middleware: implement or remove | APPROVED | IN_REVIEW | `9e1e2b2` |
 | R-014 | auto | C2 | `MaxRetries < 1` must still send one request | — | IN_REVIEW | `f1111cc` |
 | R-015 | auto | C2 | Response decoding without panics | — | IN_REVIEW | `d17c97f` |
-| R-016 | approval | C2 | Idempotency-aware retries | APPROVED | CHANGES_REQUESTED | `536b83e` |
+| R-016 | approval | C2 | Idempotency-aware retries | APPROVED | IN_REVIEW | `6ce5b4a` |
 | R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | IN_REVIEW | `94bf3e5` |
 | R-018 | approval | C4 | Postgres error classifier | APPROVED | DONE | `422f509` |
 | R-019 | approval | C3 | gRPC code fallback from errorkit metadata | APPROVED | DONE | `207ec87` |

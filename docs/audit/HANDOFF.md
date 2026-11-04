@@ -41,7 +41,7 @@ status.
 | Cluster | Branch head | Commits | Ledger status | Next action |
 | --- | --- | --- | --- | --- |
 | C1 errorkit/logger/telemetry | `f0808cb` | — | DONE (loop 3 approved) | Merge in P4.M |
-| C2 http*/llmclient | `48c1971` | — | IN_REVIEW (loop 2) | Independent review of response-size bypass fix and full branch |
+| C2 http*/llmclient | `6586058` | — | IN_REVIEW (loop 3) | Final independent review of redirected retries and nested diagnostic redaction |
 | C3 grpc | `f58b77b` | 15 | DONE | Merge in P4.M |
 | C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merge in P4.M |
 | C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merge in P4.M |
