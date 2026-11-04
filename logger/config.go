@@ -32,21 +32,37 @@ const (
 	Prod Environment = "production"
 )
 
-// DetectEnv reads APP_ENV. Defaults to Dev if unset or unrecognised.
+// environmentVariable is the variable DetectEnv reads.
+const environmentVariable = "ENVIRONMENT"
+
+// DetectEnv reads the ENVIRONMENT variable, ignoring case and surrounding
+// spaces. "development", "dev" and "local" select Dev; every other value,
+// including an unset or empty variable, selects Prod (JSON, Info level), so
+// a deployment that forgets or misspells the variable never logs at Debug
+// level in console format.
 func DetectEnv() Environment {
-	switch os.Getenv("ENVIRONMENT") {
-	case "production", "prod":
-		return Prod
-	default:
+	switch environmentValue() {
+	case "development", "dev", "local":
 		return Dev
+	default:
+		return Prod
 	}
+}
+
+// environmentValue returns ENVIRONMENT trimmed and lower-cased.
+func environmentValue() string {
+	return strings.ToLower(strings.TrimSpace(os.Getenv(environmentVariable)))
 }
 
 // newWriter returns the io.Writer used by the logger for the given environment.
 // Extracted so that logger.Init can compose it with additional writers
 // (e.g. OTLPWriter) via zerolog.MultiLevelWriter before building the logger.
+//
+// The Dev console omits service_name/service_version when ENVIRONMENT is
+// "local"; the variable is read once, here, not on every log line.
 func newWriter(env Environment, appName, version string) io.Writer {
 	if env == Dev {
+		includeServiceMetadata := environmentValue() != "local"
 		return zerolog.ConsoleWriter{
 			Out:             os.Stdout,
 			NoColor:         false,
@@ -58,7 +74,7 @@ func newWriter(env Environment, appName, version string) io.Writer {
 				return ""
 			},
 			FormatExtra: func(evt map[string]any, buf *bytes.Buffer) error {
-				return formatConsoleExtras(evt, buf, appName, version, os.Getenv("ENVIRONMENT") != "local")
+				return formatConsoleExtras(evt, buf, appName, version, includeServiceMetadata)
 			},
 		}
 	}

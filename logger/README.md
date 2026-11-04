@@ -57,7 +57,7 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `OTLPWriter`         | struct          | `io.Writer` that converts zerolog JSON lines to OTEL `LogRecord`s  |
 | `LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Shutdown` on exit            |
 | `Init`               | func            | Creates, configures, and installs the global logger                |
-| `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Dev`                     |
+| `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Prod`                    |
 | `InitLogProvider`    | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC     |
 | `NewOTLPWriter`      | func            | Creates an `OTLPWriter` backed by the global `LoggerProvider`      |
 | `SetupOTLP`          | func            | Bundles `InitLogProvider` + `NewOTLPWriter` in correct order; returns handle + writer |
@@ -115,10 +115,17 @@ func main() {
 
 `Init` calls `DetectEnv()` internally to select the output format.
 
-| `ENVIRONMENT` value      | Resolved constant | Log level | Output format             |
-| ------------------------ | ----------------- | --------- | ------------------------- |
-| `production`, `prod`     | `Prod`            | `Info`    | JSON to stdout            |
-| anything else (or unset) | `Dev`             | `Debug`   | Colored console to stdout |
+| `ENVIRONMENT` value (case-insensitive) | Resolved constant | Log level | Output format             |
+| -------------------------------------- | ----------------- | --------- | ------------------------- |
+| `development`, `dev`, `local`          | `Dev`             | `Debug`   | Colored console to stdout |
+| anything else, including unset         | `Prod`            | `Info`    | JSON to stdout            |
+
+The default is `Prod` so a deployment that forgets or misspells the variable
+(`PRODUCTION`, `prd`, `staging`) never logs at Debug level in a format log
+pipelines cannot parse. Set `ENVIRONMENT=development` (or `dev`/`local`) for
+the console output on a workstation. With `local`, the console omits
+`service_name`/`service_version`; the variable is read once when the writer is
+built.
 
 Both environments add a `time` field to every log line automatically: the UTC time as an RFC 3339 string with nanosecond precision (`2026-11-03T10:00:00.123456789Z`). The Dev console renders it as local `HH:MM:SS`. Earlier versions wrote whole Unix epoch seconds. `caller` (file:line) is also added to every log line.
 
@@ -190,7 +197,7 @@ Calling `Init` more than once replaces the global logger.
 func DetectEnv() Environment
 ```
 
-Reads `os.Getenv("ENVIRONMENT")`. Returns `Prod` for `"production"` or `"prod"`; returns `Dev` for any other value including the empty string.
+Reads `os.Getenv("ENVIRONMENT")`, ignoring case and surrounding spaces. Returns `Dev` for `"development"`, `"dev"` or `"local"`; returns `Prod` for any other value, including an unset or empty variable.
 
 ---
 
