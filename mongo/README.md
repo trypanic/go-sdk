@@ -159,8 +159,10 @@ Startup behavior is identical across constructors:
 
 1. Options are resolved: `Config` field, then URI, then SDK default (see [Defaults](#defaults)).
 2. `mongo.Connect` builds the driver client (no I/O yet).
-3. A 5-second context pings the primary. On failure the driver client is disconnected
-   before the error is returned.
+3. The primary is pinged with a timeout of `max(5s, ServerSelectionTimeout)` (the
+   effective value from `Config` or the URI); an earlier deadline on `ctx` still applies.
+   On failure the driver client is disconnected (bounded to 5 s, even if `ctx` is already
+   cancelled) before the error is returned.
 4. Invalid URIs or options return `ERR_SYSTEM_CONFIG_INVALID`; a failed ping returns
    `ERR_DB_MONGO_UNAVAILABLE`.
 
@@ -209,7 +211,10 @@ fields callers typically need (`GetInsertedID`, `GetMatchedCount`,
 
 `New` and `WrapWithTracing` install a wrapper that opens one span per
 collection operation, named `mongo.<collection>.<operation>` (e.g.
-`mongo.products.insertOne`).
+`mongo.products.insertOne`). The cursor returned by `Find` opens a second span,
+`mongo.<collection>.find.all`, around `Cursor.All`, because fetching further
+batches and decoding happen after `Find` returns. `ClientPort.Ping` and
+`ClientPort.Close` open `mongo.ping` and `mongo.close`.
 
 The wrapper holds an explicit `*telemetry.Instrumenter`, so consumers can:
 

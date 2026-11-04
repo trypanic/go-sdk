@@ -92,3 +92,29 @@ func TestClientOptionsPrecedence(t *testing.T) {
 		})
 	}
 }
+
+// TestStartupPingTimeout covers C4-019: the start-up ping was cut at 5 s
+// even when ServerSelectionTimeout (from Config or the URI) was larger.
+func TestStartupPingTimeout(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  Config
+		want time.Duration
+	}{
+		{"default", Config{URI: "mongodb://h1"}, 5 * time.Second},
+		{"smaller selection timeout keeps the floor", Config{URI: "mongodb://h1", ServerSelectionTimeout: 2 * time.Second}, 5 * time.Second},
+		{"larger Config selection timeout", Config{URI: "mongodb://h1", ServerSelectionTimeout: 30 * time.Second}, 30 * time.Second},
+		{"larger URI selection timeout", Config{URI: "mongodb://h1/?serverSelectionTimeoutMS=20000"}, 20 * time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := startupPingTimeout(clientOptions(tt.cfg)); got != tt.want {
+				t.Fatalf("startupPingTimeout = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

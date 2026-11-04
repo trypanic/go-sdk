@@ -8,6 +8,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/trypanic/go-sdk/telemetry"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestWrapWithInstrumenterNilReturnsInner(t *testing.T) {
@@ -63,4 +66,94 @@ func (stubCollection) UpdateOne(context.Context, any, any, ...options.Lister[opt
 }
 func (stubCollection) DeleteOne(context.Context, any, ...options.Lister[options.DeleteOneOptions]) (DeleteResult, error) {
 	return nil, nil
+}
+
+type recordingCursor struct {
+	allSpan trace.SpanContext
+}
+
+func (c *recordingCursor) All(ctx context.Context, _ any) error {
+	c.allSpan = trace.SpanFromContext(ctx).SpanContext()
+	return nil
+}
+func (c *recordingCursor) Close(context.Context) error { return nil }
+
+type cursorCollection struct {
+	stubCollection
+	cursor Cursor
+}
+
+func (c cursorCollection) Find(context.Context, any, ...options.Lister[options.FindOptions]) (Cursor, error) {
+	return c.cursor, nil
+}
+
+type cursorClientPort struct {
+	stubClientPort
+	collection Collection
+}
+
+func (c *cursorClientPort) Collection(string) Collection { return c.collection }
+
+func newRecordingInstrumenter() (*telemetry.Instrumenter, *tracetest.InMemoryExporter) {
+	exporter := tracetest.NewInMemoryExporter()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	return telemetry.NewInstrumenter(telemetry.InstrumenterConfig{ScopeName: "mongo-test", TracerProvider: provider}), exporter
+}
+
+// TestTracingCursorAllRunsInsideASpan covers C4-019: the find span ended
+// when Find returned, so Cursor.All (getMore round trips and decoding) ran
+// outside any span.
+func TestTracingCursorAllRunsInsideASpan(t *testing.T) {
+	t.Parallel()
+
+	instrumenter, exporter := newRecordingInstrumenter()
+	cursor := &recordingCursor{}
+	client := WrapWithInstrumenter(&cursorClientPort{collection: cursorCollection{cursor: cursor}}, instrumenter)
+
+	found, err := client.Collection("products").Find(t.Context(), nil)
+	if err != nil {
+		t.Fatalf("Find: %v", err)
+	}
+	var out []any
+	if err := found.All(t.Context(), &out); err != nil {
+		t.Fatalf("All: %v", err)
+	}
+
+	spans := map[string]sdktrace.ReadOnlySpan{}
+	var names []string
+	for _, span := range exporter.GetSpans().Snapshots() {
+		spans[span.Name()] = span
+		names = append(names, span.Name())
+	}
+	if _, ok := spans["mongo.products.find"]; !ok {
+		t.Fatalf("missing span mongo.products.find; got %v", names)
+	}
+	allSpan, ok := spans["mongo.products.find.all"]
+	if !ok {
+		t.Fatalf("missing span mongo.products.find.all; got %v", names)
+	}
+	if cursor.allSpan.SpanID() != allSpan.SpanContext().SpanID() {
+		t.Fatal("Cursor.All did not run inside the mongo.products.find.all span")
+	}
+}
+
+func TestTracingClientPortTracesPingAndClose(t *testing.T) {
+	t.Parallel()
+
+	instrumenter, exporter := newRecordingInstrumenter()
+	client := WrapWithInstrumenter(&stubClientPort{}, instrumenter)
+	if err := client.Ping(t.Context()); err != nil {
+		t.Fatalf("Ping: %v", err)
+	}
+	if err := client.Close(t.Context()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	var names []string
+	for _, span := range exporter.GetSpans() {
+		names = append(names, span.Name)
+	}
+	if len(names) != 2 || names[0] != "mongo.ping" || names[1] != "mongo.close" {
+		t.Fatalf("spans = %v, want [mongo.ping mongo.close]", names)
+	}
 }

@@ -60,11 +60,14 @@ func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetr
 		)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, startupPingTimeout(clientOpts))
 	defer cancel()
 
 	if err := mongoClient.Ping(pingCtx, readpref.Primary()); err != nil {
-		_ = mongoClient.Disconnect(context.Background())
+		// Bounded clean-up that still runs when ctx is already cancelled.
+		disconnectCtx, cancelDisconnect := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancelDisconnect()
+		_ = mongoClient.Disconnect(disconnectCtx)
 		return nil, wrapUnavailable(err, "ping")
 	}
 
@@ -110,6 +113,24 @@ const (
 	defaultMaxConnIdleTime               = 30 * time.Second
 	defaultRetryWrites                   = true
 )
+
+// minStartupPingTimeout is the floor of the start-up ping budget, and
+// cleanupTimeout bounds the Disconnect after a failed ping.
+const (
+	minStartupPingTimeout = 5 * time.Second
+	cleanupTimeout        = 5 * time.Second
+)
+
+// startupPingTimeout gives the start-up ping at least the effective server
+// selection timeout, so a slow cluster configured with a larger
+// ServerSelectionTimeout is not cut at 5 s. A deadline on the caller's ctx
+// still applies when it is earlier.
+func startupPingTimeout(opts *options.ClientOptions) time.Duration {
+	if opts.ServerSelectionTimeout == nil {
+		return minStartupPingTimeout
+	}
+	return max(minStartupPingTimeout, *opts.ServerSelectionTimeout)
+}
 
 // clientOptions builds the driver options with this precedence per option:
 // a non-zero Config field, else the value in the URI, else the SDK default.
