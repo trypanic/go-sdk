@@ -103,7 +103,7 @@ func TestCursorAdapterAll(t *testing.T) {
 			t.Parallel()
 
 			var out []namedDoc
-			appErr := requireCode(t, newCursor(t, tt.docs, tt.iterErr).All(context.Background(), &out), tt.wantCode)
+			appErr := requireCode(t, newCursor(t, tt.docs, tt.iterErr).All(t.Context(), &out), tt.wantCode)
 			if tt.iterErr != nil && !errors.Is(appErr, tt.iterErr) {
 				t.Fatalf("cause %v not wrapped: %v", tt.iterErr, appErr)
 			}
@@ -116,7 +116,7 @@ func TestCursorAdapterAllSuccess(t *testing.T) {
 
 	docs := []any{bson.D{{Key: "name", Value: "a"}}, bson.D{{Key: "name", Value: "b"}}}
 	out := []namedDoc{{Name: "stale"}, {Name: "stale"}, {Name: "stale"}}
-	if err := newCursor(t, docs, nil).All(context.Background(), &out); err != nil {
+	if err := newCursor(t, docs, nil).All(t.Context(), &out); err != nil {
 		t.Fatalf("All: %v", err)
 	}
 	if len(out) != 2 || out[0].Name != "a" || out[1].Name != "b" {
@@ -124,7 +124,7 @@ func TestCursorAdapterAllSuccess(t *testing.T) {
 	}
 
 	var empty []namedDoc
-	if err := newCursor(t, nil, nil).All(context.Background(), &empty); err != nil {
+	if err := newCursor(t, nil, nil).All(t.Context(), &empty); err != nil {
 		t.Fatalf("All on empty cursor: %v", err)
 	}
 	if len(empty) != 0 {
@@ -136,7 +136,7 @@ func TestCursorAdapterAllRejectsNonSlice(t *testing.T) {
 	t.Parallel()
 
 	var out namedDoc
-	requireCode(t, newCursor(t, nil, nil).All(context.Background(), &out), ERR_DB_MONGO_DECODE_FAILED)
+	requireCode(t, newCursor(t, nil, nil).All(t.Context(), &out), ERR_DB_MONGO_DECODE_FAILED)
 }
 
 // TestCursorAdapterStreams covers C4-021: Cursor exposed only All, so every

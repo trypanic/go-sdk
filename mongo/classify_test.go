@@ -70,7 +70,7 @@ func TestWrapOperationErrorMatrix(t *testing.T) {
 func TestNewConfigErrorIsConfigInvalid(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewWithoutTracing(context.Background(), Config{URI: "mongodb://localhost:notaport"})
+	_, err := NewWithoutTracing(t.Context(), Config{URI: "mongodb://localhost:notaport"})
 	appErr := requireCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
 	if appErr.Metadata.Retriable {
 		t.Fatal("configuration errors must not be retriable")
