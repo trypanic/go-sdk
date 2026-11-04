@@ -51,9 +51,9 @@ Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 - **P4.XP in progress:** `audit/2026-11-XP` in `/tmp/go-sdk-audit-XP`.
-  First seventeen ordered items through R-094 committed, plus OTLP nil,
-  urlkit and PostgreSQL JSON followups through `1e49097`. Remaining lint,
-  R-155 documentation, R-153 LAST, full gates and independent review. Independent review follows the complete XP sequence.
+  All nineteen items and followups committed at clean head `6a390d4`,
+  with R-153 last. Author full gates complete; independent loop1 review
+  in progress. Report on XP branch: `validation/P4.XP.md`. Independent review follows the complete XP sequence.
 
 ## 2. Pending review details
 

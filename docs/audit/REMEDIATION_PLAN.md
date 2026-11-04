@@ -1552,9 +1552,9 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-150 | approval | X | Local gates match CI | APPROVED | DONE | `662d189` |
 | R-151 | approval | X | SECURITY.md accuracy and reporting policy | APPROVED | DONE | `94beeda` |
 | R-152 | approval | X | LICENSE | APPROVED (MIT) | DONE | `dc33129` |
-| R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | TODO | |
+| R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | IN_REVIEW | `6a390d4` |
 | R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | DONE | C1: `5213861`, C2: `c7977c5`, C3: `f58b77b`, C4: `e7465c1`, C5: `1179adf`, C6: `5d5c63d` |
-| R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | TODO | |
+| R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | IN_REVIEW | `9be7035` |
 | R-156 | approval | X | Release notes wording and consumer README | APPROVED | DONE | `e14d5e7` |
 | R-157 | approval | X | Release provenance and tidy checks | APPROVED | DONE | `1aa63f3` |
 | R-158 | auto | X | `deps:outdated` sees all requirements | — | DONE | `278819b` |
