@@ -41,7 +41,7 @@ status.
 | Cluster | Branch head | Commits | Ledger status | Next action |
 | --- | --- | --- | --- | --- |
 | C1 errorkit/logger/telemetry | `f0808cb` | — | DONE (loop 3 approved) | Merge in P4.M |
-| C2 http*/llmclient | `6586058` | — | IN_REVIEW (loop 3) | Final independent review of redirected retries and nested diagnostic redaction |
+| C2 http*/llmclient | `6586058` | — | BLOCKED (loop 3 CHANGES_REQUESTED) | Owner decision required; URL-header secrets leak in both audit directions |
 | C3 grpc | `f58b77b` | 15 | DONE | Merge in P4.M |
 | C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merge in P4.M |
 | C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merge in P4.M |
@@ -53,14 +53,17 @@ CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 ## 2. Pending review details
 
-**Continuation update:** the ledger contains progress after the original
-session-1 notes below. C4 and C5 passed loop 2. C1 loop 2 requested skipping
-typed-nil AppErrors throughout wrapped/joined trees; `f0808cb` implements
-that and reuses `errorkit.As` in logger. C1 is now in its final loop 3.
-C2 loop 1 found the response-size limit could be bypassed after successful
-JSON processing; `48c1971` fixes the successful-processing path and adds
-boundary/trailing-data regressions. C2 is now in loop 2. Fresh independent
-GPT-6.1 Astra reviewers are running both reviews; see the ledger for status.
+**Continuation update:** C1 passed final loop 3 at `f0808cb`; C4 and C5
+passed loop 2. C2 is **BLOCKED** at `6586058` after loop 3 found a HIGH
+URL-header leak: `Referer` and `Location` query secrets reach outbound audit
+and default inbound audit. The orchestrator independently reproduced the
+outbound leak. Evidence and preserved reproduction sources:
+[`reviews/P4.C2-loop3.md`](./reviews/P4.C2-loop3.md). The two loop-2 fixes
+are committed and independently verified: `6ce5b4a` prevents redirected
+POST replay, `6586058` masks nested redirect diagnostics. The response-size
+fix `48c1971` also passed mutation verification. Owner authorization is
+required before any extra remediation/review cycle; do not merge C2 or
+start P4.M until it is approved. All other clusters are DONE.
 The following subsections preserve the original reproduction details.
 
 
@@ -203,3 +206,17 @@ recovered panics), `1179adf` (example errcheck).
   approved everything, 2.0.0, MIT), P4 workers for all clusters; C3, C6, X
   approved; C1, C4, C5 loop-1 fixes committed; C2 awaiting first review.
   Handed over to GPT-6.1 Astra / Kimi K3.1 Pro.
+
+- **Session 2 (2026-11-04, Codex orchestrator with GPT-6.1 Astra
+  reviewers/remediator):** resumed from the newer ledger, fetched refs,
+  approved C1 loop 3 (`f0808cb`), recorded new C2-028 routing defect,
+  reconciled plan item statuses with branch commits. C2 loop 2 found
+  redirect replay and nested diagnostic leaks; remediator committed
+  `6ce5b4a` and `6586058`. Fresh loop-3 reviewer verified those fixes but
+  found URL-bearing-header leaks in both audit directions. C2 is BLOCKED
+  under the three-loop cap; owner must decide whether to authorize another
+  fix/review cycle. No cluster merged, pushed, tagged or released; P4.M,
+  P4.XP, R-DEPS and P5 remain TODO. Cluster heads are in §1. Seven cluster
+  worktrees remain, plus the pre-existing clean detached C2 loop-2 review
+  worktree at `48c1971`; current reviewer temporary worktrees were removed.
+  `/tmp/audit-merge-checks.py` is prepared for sequential V1–V5 logging.
