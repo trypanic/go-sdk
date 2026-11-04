@@ -76,19 +76,25 @@ func newDefaultConfig() *ClientConfig {
 	}
 }
 
+// DefaultConfig returns a new ClientConfig filled with the production
+// defaults (the Default* constants). The caller may change it before
+// passing it to NewClient.
 func DefaultConfig() *ClientConfig {
 	return newDefaultConfig()
 }
 
-// SetupForLLM returns a configuration optimized for LLM API interactor.
-// Suitable for OpenAI, Anthropic, Google AI, and other LLM providers.
+// SetupForLLM returns a configuration for OpenAI-compatible LLM providers.
 //
-// Key optimizations:
-// - Long timeout for generation (120s default, can take 60-120s for complex prompts)
-// - Long response header timeout (30s, some LLMs are slow to start streaming)
-// - Moderate connection pool (not too aggressive to respect rate limits)
-// - Keep-alive enabled for streaming responses
-// - Compression enabled for large prompts/responses
+// Differences from DefaultConfig:
+//   - Timeout 0: no per-attempt client deadline, so long generations are
+//     not cut off. Bound each call with a context deadline (llmclient
+//     applies Config.Timeout, 5 minutes by default).
+//   - ResponseHeaderTimeout 4m: allows for model warm-up and queueing
+//     before the first response byte.
+//   - DialTimeout and TLSHandshakeTimeout 10s.
+//   - A small pool (MaxConnsPerHost 5, MaxIdleConnsPerHost 10) to stay
+//     within provider rate limits; keep-alive and compression enabled.
+//   - MaxRedirects 5.
 func SetupForLLM() *ClientConfig {
 	return &ClientConfig{
 		Timeout:               0, // Streaming and long generations should be bounded by caller contexts.
@@ -297,6 +303,8 @@ func NewClientWithOptions(opts ...ClientOption) *http.Client {
 	return NewClient(config)
 }
 
+// NewDefaultClient returns NewClient(DefaultConfig()). Build it once and
+// share it: every call creates a new connection pool.
 func NewDefaultClient() *http.Client {
 	return NewClient(DefaultConfig())
 }

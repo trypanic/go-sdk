@@ -6,6 +6,7 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// OptionReply sets one field of a Reply; see BuildReply.
 type OptionReply func(*Reply)
 
 // Reply is the JSON envelope written by HTTPContext.Reply. Code and Error

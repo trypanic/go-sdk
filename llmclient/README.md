@@ -45,7 +45,13 @@ returned value is safe for concurrent `Execute` calls.
 ## Execute
 
 ```go
-provider := llmclient.New(httpClient, cfg)
+// One requester for the process: a single attempt over a client tuned for
+// slow first bytes (see httpclient.SetupForLLM).
+requester := httprequest.NewHTTPRequestWithRetry(
+    httpclient.NewClient(httpclient.SetupForLLM()),
+    httprequest.RetryConfig{MaxRetries: 1},
+)
+provider := llmclient.New(requester, cfg)
 
 content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
     Model:        "gpt-4o-mini",

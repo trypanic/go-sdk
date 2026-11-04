@@ -34,6 +34,8 @@ type RequestConfig struct {
 	Headers     map[string]string
 }
 
+// HTTPRequester sends one logical request (with retries) and decodes the
+// response into out. Accept it in constructors so tests can pass a fake.
 type HTTPRequester interface {
 	Do(ctx context.Context, config RequestConfig, out any) error
 }
@@ -382,8 +384,9 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 	}
 
 	// Inject W3C trace context so downstream services can link incoming spans
-	// to the caller's trace. Requires a global propagator to be configured
-	// (installed by telemetry.InitProvider).
+	// to the caller's trace. The SDK installs no propagator: the service must
+	// call otel.SetTextMapPropagator (e.g. propagation.TraceContext{}) at
+	// startup, otherwise nothing is injected.
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header))
 
 	return req, nil

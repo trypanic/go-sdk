@@ -1,5 +1,3 @@
-// llmclient/client.go
-
 package llmclient
 
 import (
@@ -14,11 +12,13 @@ import (
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
+// Message is one chat message (role "system", "user" or "assistant").
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
+// LLMRequest is the chat-completions request body.
 type LLMRequest struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
@@ -26,6 +26,7 @@ type LLMRequest struct {
 	Temperature float64   `json:"temperature,omitzero"`
 }
 
+// LLMResponse is the chat-completions response body.
 type LLMResponse struct {
 	ID      string   `json:"id"`
 	Model   string   `json:"model"`
@@ -33,17 +34,21 @@ type LLMResponse struct {
 	Usage   Usage    `json:"usage"`
 }
 
+// Choice is one completion in an LLMResponse.
 type Choice struct {
 	Index   int     `json:"index"`
 	Message Message `json:"message"`
 }
 
+// Usage reports the token counts of a completion.
 type Usage struct {
 	CompletionTokens int `json:"completion_tokens"`
 	PromptTokens     int `json:"prompt_tokens"`
 	TotalTokens      int `json:"total_tokens"`
 }
 
+// LLMProvider runs one chat completion and returns the first choice's
+// content. *Client and the tracing wrapper implement it.
 type LLMProvider interface {
 	Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error)
 }

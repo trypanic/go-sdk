@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// DateTimeLayout is the default ReplyOptions.Layout for Reply.Timestamp.
 const DateTimeLayout = "2006-01-02 15:04:05"
 
 // ServerConfig holds HTTP server configuration.

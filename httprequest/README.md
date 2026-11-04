@@ -38,13 +38,15 @@ Package `httprequest` wraps `net/http` with automatic retries (exponential backo
 ```go
 import (
     "context"
-    "net/http"
 
+    "github.com/trypanic/go-sdk/httpclient"
     "github.com/trypanic/go-sdk/httprequest"
 )
 
-// 1. Build a requester with default retry settings (5 attempts, jittered backoff capped at 100 ms → 5 s)
-requester := httprequest.New(http.DefaultClient)
+// 1. Build one requester per process with default retry settings (5 attempts,
+//    jittered backoff capped at 100 ms → 5 s). httpclient.NewDefaultClient has
+//    a 60 s per-attempt timeout; http.DefaultClient has none.
+requester := httprequest.New(httpclient.NewDefaultClient())
 
 // 2. Describe the request
 cfg := httprequest.RequestConfig{
@@ -95,17 +97,18 @@ type RetryConfig struct {
 }
 ```
 
-| Field          | Default (via `New`) | Zero-value fallback (via `NewHTTPRequestWithRetry`) |
-| -------------- | ------------------- | --------------------------------------------------- |
-| `MaxRetries`   | `5`                 | `1` (single attempt)                                |
-| `InitialDelay` | `100ms`             | `100ms`                                             |
-| `MaxDelay`     | `5s`                | `5s`                                                |
+| Field          | Default (via `New`) | Zero value in a `RetryConfig` you pass | Negative value |
+| -------------- | ------------------- | -------------------------------------- | -------------- |
+| `MaxRetries`   | `5`                 | `5` (`DefaultMaxRetries`)              | `1` (single attempt) |
+| `InitialDelay` | `100ms`             | `100ms`                                | used as given  |
+| `MaxDelay`     | `5s`                | `5s`                                   | used as given  |
+| `MaxElapsed`   | none                | none (only `ctx` bounds `Do`)          | none           |
 
 **Total time.** Every attempt and every wait spends the same budget: the `ctx` deadline and, when set, `MaxElapsed`. Without either, one `Do` can take up to `MaxRetries` × the client's per-attempt timeout (`http.Client.Timeout`, 60 s by default) plus the waits, so give `ctx` a deadline or set `MaxElapsed`. A wait that would outlast the budget ends the retries early (see `Do`).
 
-When `MaxRetries` is zero in a `RetryConfig` passed to `NewHTTPRequestWithRetry`, the client performs exactly one attempt.
+`MaxRetries` is the total number of attempts. Zero means the default (5), not "no retries"; for a single attempt set `MaxRetries: 1`. `Do` always sends at least one request.
 
-There are no environment variables read by this package directly. The surrounding `internal/platform` builder selects which constructor to call.
+This package reads no environment variables.
 
 ---
 
@@ -129,17 +132,17 @@ The single-method interface used throughout the codebase. Accept this interface 
 func New(client *http.Client) HTTPRequester
 ```
 
-Returns an `*HTTPRequest` with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`. Used by `internal/platform` when wiring the default HTTP client for service-to-service calls.
+Returns an `HTTPRequester` (an `*HTTPRequest` wrapped with tracing through the global OTel tracer) with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
 
 ---
 
 ### `NewHTTPRequestWithRetry`
 
 ```go
-func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) *HTTPRequest
+func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) HTTPRequester
 ```
 
-Returns `*HTTPRequest` (concrete type, not the interface) so callers that need to inspect or swap retry settings can do so. Used by `internal/platform` when building the LLM client with `MaxRetries: 1`.
+Returns an `HTTPRequester` wrapped with tracing, like `New`, with `retryConfig` normalized (zero fields take the defaults, a negative `MaxRetries` becomes 1). For explicit options without tracing, use `NewWithOptions(client, WithRetryConfig(rc), …)`.
 
 ---
 
@@ -224,23 +227,24 @@ A `POST` or `PATCH` that gets a 5xx, a 429 or a timeout is therefore sent once a
 
 ## Real-World Usage
 
-### Platform Builder (internal/platform)
+### Service bootstrap
 
-The `internal/platform` builder constructs and exposes `HTTPRequester` in the shared `Container`. Two variants appear in practice:
+Build the requesters once at startup and share them. Two variants appear in practice:
 
 ```go
-// Default client for service-to-service HTTP calls (5 retries)
-httpClient := httpclient.NewDefaultClient()
-httpRequest := httprequest.New(httpClient)
-container.HTTPRequest = httpRequest
+// Default client for service-to-service HTTP calls (up to 5 attempts).
+httpRequest := httprequest.New(httpclient.NewDefaultClient())
 
-// LLM client — single attempt with a tuned http.Client
-httpClient := httpclient.NewClient(httpclient.SetupForLLM())
-httpRequest := httprequest.NewHTTPRequestWithRetry(httpClient, httprequest.RetryConfig{
-    MaxRetries: 1,
-})
-llm := llmclient.New(httpRequest, llmclient.ClientConfig{ ... })
-container.LLM = llm
+// LLM client: a single attempt over a client tuned for slow first bytes.
+llmRequest := httprequest.NewHTTPRequestWithRetry(
+    httpclient.NewClient(httpclient.SetupForLLM()),
+    httprequest.RetryConfig{MaxRetries: 1},
+)
+cfg, err := llmclient.ConfigFromEnv() // LLM_API_KEY, LLM_ENDPOINT
+if err != nil {
+    return err
+}
+llm := llmclient.New(llmRequest, cfg)
 ```
 
 ### Constructor injection
@@ -324,4 +328,8 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 | `encoding/json`                                                    | JSON decoding of structured responses                   |
 | `go.opentelemetry.io/otel/trace`                                   | Span event recording per retry attempt                  |
 | `go.opentelemetry.io/otel/attribute`                               | OTEL attribute types for span events                    |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error construction and retryability metadata |
+| `go.opentelemetry.io/otel/propagation`                             | W3C trace-context injection into outbound headers (needs a global propagator set by the service) |
+| `github.com/trypanic/go-sdk/errorkit`                              | Structured error construction and retryability metadata |
+| `github.com/trypanic/go-sdk/httpclient`                            | External-service error codes (`ERR_EXTERNAL_*`)         |
+| `github.com/trypanic/go-sdk/logger`                                | Opt-in audit log line (`WithAuditLog`) only             |
+| `github.com/trypanic/go-sdk/telemetry`                             | Tracing wrapper (`New`, `NewWithInstrumenter`)          |
