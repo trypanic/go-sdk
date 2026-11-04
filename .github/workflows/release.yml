@@ -11,17 +11,23 @@
 #    provenance attestation for every asset listed in checksums.txt
 #    (verify: gh attestation verify <asset> --repo trypanic/go-sdk).
 #
-# The gate is ci.yml, not this workflow: it runs on the release PR branch and
-# must be green (required status checks on main) before the PR is merged. By
-# the time the assets job runs the tag is public and cannot be moved, so its
-# checks are a smoke test; a failure there means `retract` plus a new patch.
+# The gate is ci.yml, not this workflow. release-please below uses
+# GITHUB_TOKEN, so its pushes and its PR trigger no workflow: before merging
+# the release PR the maintainer runs
+#   gh workflow run ci.yml --ref <release-please branch>
+# (or "Run workflow" in the Actions UI) and merges only when it is green.
+# Recommended hardening (owner action, not implemented): pass release-please
+# a GitHub App or fine-grained PAT token (contents + pull-requests write on
+# this repository only) via `token:` so CI triggers on the release PR by
+# itself and can be made a required check. By the time the assets job runs
+# the tag is public and cannot be moved, so its checks are a smoke test; a
+# failure there means `retract` plus a new patch.
 #
 # workflow_dispatch re-runs the assets job for an existing tag (e.g. after a
 # failed upload) without touching release-please.
 #
-# Repository settings required: Settings → Actions → General → "Allow GitHub
-# Actions to create and approve pull requests"; branch protection on main with
-# the ci.yml jobs as required status checks.
+# Repository setting required: Settings → Actions → General → "Allow GitHub
+# Actions to create and approve pull requests".
 name: release
 
 on:
@@ -93,7 +99,7 @@ jobs:
           go-version: "1.27.x"
           check-latest: true
 
-      # Smoke check only: the gate ran in ci.yml before the release PR merged.
+      # Smoke check only: the gate is the ci.yml run on the release PR branch.
       - name: Smoke-check tagged tree
         run: |
           go mod verify

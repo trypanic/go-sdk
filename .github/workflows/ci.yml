@@ -5,17 +5,25 @@
 # tidy:check, release:check). Tool versions are pinned here and in
 # Taskfile.yml; keep them in sync.
 #
-# release-please opens its PR with GITHUB_TOKEN, which does not trigger
-# `pull_request` workflows, so pushes to its branches run CI as well. Make the
-# jobs below required status checks on `main` (branch protection).
+# The release PR: release-please (release.yml) runs with GITHUB_TOKEN, and
+# events created with GITHUB_TOKEN (its pushes to `release-please--**` and its
+# pull request) trigger no workflow. Before merging the release PR the
+# maintainer starts this workflow on the release branch with
+# `gh workflow run ci.yml --ref <release-please branch>` (or "Run workflow" in
+# the Actions UI); the results attach to the branch head commit, and the PR is
+# merged only when they are green. Recommended hardening (owner action, not
+# implemented): give release-please a GitHub App or fine-grained PAT token
+# (contents + pull-requests write on this repository only) so CI runs on the
+# release PR automatically and these jobs can become required checks.
 name: ci
 
 on:
   push:
     branches:
       - main
-      - "release-please--**"
   pull_request:
+  # Manual run on any branch, notably the release-please branch (see above).
+  workflow_dispatch:
   schedule:
     # Weekly vulnerability scan: new advisories appear without code changes.
     - cron: "0 6 * * 1"
@@ -141,7 +149,7 @@ jobs:
 
   gorelease:
     name: gorelease (informational)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # Reports API changes against the last tag; breaking changes are allowed
     # when approved, so this job never blocks.

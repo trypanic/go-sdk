@@ -228,8 +228,9 @@ Promote a rule from `WARNING` → `ERROR` only when the codebase is clean of it.
 ## CI gate (`.github/workflows/ci.yml`)
 
 The `staticanalysis` job runs `QG_FULL=1 bash scripts/staticanalysis.sh` on
-every push to `main` and to release-please branches and on every pull
-request, with the pinned `staticcheck` and the digest-pinned semgrep Docker
+every push to `main`, on every pull request and on manual runs
+(`workflow_dispatch`; the release PR is checked this way, see the
+[README](./README.md#releases)), with the pinned `staticcheck` and the digest-pinned semgrep Docker
 image, and uploads `.staticanalysis/` as the `staticanalysis-reports`
 artifact (14-day retention). It fails on the same exit codes as the local
 run (`1` for an `ERROR` finding, `2` for a tool failure); there is no

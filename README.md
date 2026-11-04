@@ -253,9 +253,20 @@ from [Conventional Commits](https://www.conventionalcommits.org) (enforced by a
 1. Each push to `main` updates an open **release PR** that bumps the version
    (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE:` → major) and
    prepends the new entry to [`CHANGELOG.md`](./CHANGELOG.md).
-2. The release PR is merged only when [`ci`](./.github/workflows/ci.yml) is
-   green on it: build, vet, race tests, static analysis, govulncheck and
-   module checks gate the release, before any tag exists.
+2. release-please runs with `GITHUB_TOKEN`, so its release PR does **not**
+   trigger [`ci`](./.github/workflows/ci.yml) by itself. Before merging, the
+   maintainer runs it on the release branch and merges only when it is green
+   (build, vet, race tests, static analysis, govulncheck, module checks),
+   before any tag exists:
+
+   ```bash
+   gh workflow run ci.yml --ref <release-please branch>   # or "Run workflow" in the Actions UI
+   ```
+
+   Recommended hardening (owner action, not implemented): give release-please
+   a GitHub App or fine-grained PAT token (contents + pull-requests write on
+   this repository only) so CI runs on the release PR automatically and can
+   be a required check.
 3. Merging the release PR creates the tag and the GitHub Release.
 4. The [`release`](./.github/workflows/release.yml) workflow then smoke-checks
    the tagged tree (`go mod verify`, `go mod tidy -diff`, build, vet, tests),
