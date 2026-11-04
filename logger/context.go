@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rs/zerolog"
+	"github.com/trypanic/go-sdk/internal/logctx"
 )
 
 // Ctx extracts the logger from the context.
@@ -26,11 +27,7 @@ func Ctx(ctx context.Context) *zerolog.Logger {
 //
 //	logger.CtxOrGlobal(ctx).Info().Msg("message")
 func CtxOrGlobal(ctx context.Context) *zerolog.Logger {
-	l := zerolog.Ctx(ctx)
-	if l.GetLevel() == zerolog.Disabled {
-		return globalLogger()
-	}
-	return l
+	return logctx.CtxOrGlobal(ctx)
 }
 
 // WithLogger stores a logger in the context.

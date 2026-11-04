@@ -101,9 +101,9 @@ func TestCustomRedactorAlwaysRuns(t *testing.T) {
 }
 
 func TestFallbackLoggerIsCached(t *testing.T) {
-	previous := global
-	t.Cleanup(func() { global = previous })
-	global = nil
+	previous := global.Load()
+	t.Cleanup(func() { global.Store(previous) })
+	global.Store(nil)
 
 	first, second := globalLogger(), globalLogger()
 	if first != second {

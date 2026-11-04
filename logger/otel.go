@@ -7,6 +7,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/internal/logctx"
 )
 
 // WithTrace enriches a zerolog.Event with trace_id and span_id from
@@ -16,14 +17,7 @@ import (
 //
 //	logger.WithTrace(ctx, logger.Info()).Msg("message")
 func WithTrace(ctx context.Context, event *zerolog.Event) *zerolog.Event {
-	sc := trace.SpanFromContext(ctx).SpanContext()
-	if sc.HasTraceID() {
-		event = event.Str("trace_id", sc.TraceID().String())
-	}
-	if sc.HasSpanID() {
-		event = event.Str("span_id", sc.SpanID().String())
-	}
-	return event
+	return logctx.WithTrace(ctx, event)
 }
 
 // LogInfoWithTrace logs an Info message enriched with OTel trace context.

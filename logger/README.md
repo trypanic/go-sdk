@@ -493,7 +493,7 @@ The core `logger` package has **no web framework dependency**. Per-request middl
 ```go
 import "github.com/trypanic/go-sdk/httpserver"
 
-engine.Use(httpserver.RequestLoggerMiddleware(nil)) // nil = use global logger as base
+engine.Use(hertz.RequestLogger(nil)) // nil = use global logger as base
 ```
 
 In your own project you can write a similar middleware in three lines: build a child `zerolog.Logger` with `request_id` / `method` / `path` / `remote_addr` and call `l.WithContext(ctx)`. Downstream handlers retrieve the enriched logger via `logger.Ctx(ctx)` or `logger.CtxOrGlobal(ctx)`.
@@ -696,4 +696,13 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 | `google.golang.org/grpc`                                           | gRPC transport and TLS credentials for the OTLP export                      |
 | `github.com/trypanic/go-sdk/errorkit` | Structured error type consumed by `WithErrorKit`, `Error`, `ErrorCtx`, etc. |
 
-The core `logger` package has **no web-framework dependency**. Per-request middleware for specific frameworks lives in the corresponding adapter package (e.g. `httpserver.RequestLoggerMiddleware` for Hertz). Consumers that do not use those frameworks never pull them in.
+The core `logger` package has **no web-framework dependency**. Per-request middleware for specific frameworks lives in the corresponding adapter package (e.g. `hertz.RequestLogger` for Hertz). Consumers that do not use those frameworks never pull them in.
+
+The OTLP/gRPC dependency can register `x/net/trace` handlers on
+`http.DefaultServeMux`. Services must use a dedicated mux for public HTTP
+listeners rather than expose the process default mux.
+
+SDK global logger publication is atomic. Concurrent `Init` calls are serialized,
+and SDK logging can run during replacement. Direct use of zerolog process globals
+(including `log.Logger` and `TimeFieldFormat`) still requires startup-only `Init`
+or synchronization by the application.

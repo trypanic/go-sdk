@@ -16,11 +16,11 @@ import (
 // duration of the test.
 func useGlobalBuffer(t *testing.T) *bytes.Buffer {
 	t.Helper()
-	previous := global
-	t.Cleanup(func() { global = previous })
+	previous := global.Load()
+	t.Cleanup(func() { global.Store(previous) })
 	var buf bytes.Buffer
 	l := newLoggerWithWriter(&buf, Prod)
-	global = &l
+	global.Store(&l)
 	return &buf
 }
 

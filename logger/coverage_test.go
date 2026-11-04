@@ -212,10 +212,11 @@ func TestLoggerInstanceWarnAndInfoCtx(t *testing.T) {
 // zerolog globals: Init installs the package global and zerolog's
 // log.Logger, sets the global level for the environment and the time format.
 func TestInitConfiguresGlobals(t *testing.T) {
-	previousGlobal, previousZlog := global, zlog.Logger
+	previousGlobal, previousZlog := global.Load(), zlog.Logger
 	previousLevel, previousFormat := zerolog.GlobalLevel(), zerolog.TimeFieldFormat
 	t.Cleanup(func() {
-		global, zlog.Logger = previousGlobal, previousZlog
+		global.Store(previousGlobal)
+		zlog.Logger = previousZlog
 		zerolog.SetGlobalLevel(previousLevel)
 		zerolog.TimeFieldFormat = previousFormat
 	})
@@ -225,17 +226,18 @@ func TestInitConfiguresGlobals(t *testing.T) {
 
 	require.NotNil(t, l)
 	require.NoError(t, closer.Close())
-	assert.Same(t, l, global)
+	assert.Same(t, l, global.Load())
 	assert.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
 	assert.Equal(t, time.RFC3339Nano, zerolog.TimeFieldFormat)
 	assert.Equal(t, zerolog.InfoLevel, zlog.Logger.GetLevel())
 }
 
 func TestInitWithOTLPWriterFansOut(t *testing.T) {
-	previousGlobal, previousZlog := global, zlog.Logger
+	previousGlobal, previousZlog := global.Load(), zlog.Logger
 	previousLevel, previousFormat := zerolog.GlobalLevel(), zerolog.TimeFieldFormat
 	t.Cleanup(func() {
-		global, zlog.Logger = previousGlobal, previousZlog
+		global.Store(previousGlobal)
+		zlog.Logger = previousZlog
 		zerolog.SetGlobalLevel(previousLevel)
 		zerolog.TimeFieldFormat = previousFormat
 	})

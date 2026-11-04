@@ -2,29 +2,18 @@ package logger
 
 import (
 	"io"
-	"os"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/trypanic/go-sdk/internal/logctx"
 )
 
-// global holds the application logger instance
-var global *zerolog.Logger
+// global is the shared atomic SDK logger slot.
+var global = &logctx.Global
+var initMu sync.Mutex
 
-func globalLogger() *zerolog.Logger {
-	if global != nil {
-		return global
-	}
-	return fallbackLogger()
-}
-
-// fallbackLogger is the logger used before Init: plain JSON to stderr,
-// built once and reused.
-var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
-	l := zerolog.New(os.Stderr).With().Timestamp().Logger()
-	return &l
-})
+func globalLogger() *zerolog.Logger { return logctx.GlobalLogger() }
 
 // Init creates and configures the logger for the environment DetectEnv
 // returns. It sets the package-level global, zerolog's global log.Logger,
@@ -51,6 +40,8 @@ var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
 //	l, cleanup := logger.Init("my-service", "1.0.0", logger.NewOTLPWriter("my-service"))
 //	defer cleanup.Close()
 func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, io.Closer) {
+	initMu.Lock()
+	defer initMu.Unlock()
 	env := DetectEnv()
 	applyGlobalSettings(env)
 
@@ -67,7 +58,7 @@ func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, 
 		l = newLogger(env, appName, version)
 	}
 
-	global = &l
+	global.Store(&l)
 	log.Logger = l
-	return global, io.NopCloser(nil)
+	return &l, io.NopCloser(nil)
 }

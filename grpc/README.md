@@ -443,3 +443,7 @@ This package previously wrapped CloudWeGo Kitex. It now wraps
 | `ClientConfig{Hosts, RPCTimeout, ConnectTimeout}`          | `ClientConfig{Target, Keepalive, Creds, MaxRecvMsgSize, MaxSendMsgSize}`; `RPCTimeout` → `WithClientDefaultTimeout(d)` or a deadline on each call's `ctx`; `ConnectTimeout` → the call deadline (connections are lazy) |
 | Plaintext unless TLS was configured                        | `Creds` required, or explicit `WithServerInsecure()` / `WithClientInsecure()`                                                                                                                                          |
 | Stubs from the `kitex` CLI                                 | Stubs from `protoc-gen-go` + `protoc-gen-go-grpc` (or `buf`)                                                                                                                                                           |
+
+The OTLP/gRPC dependency can register `x/net/trace` handlers on
+`http.DefaultServeMux`. Services must use a dedicated mux for public HTTP
+listeners rather than expose the process default mux.

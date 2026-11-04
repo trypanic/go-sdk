@@ -14,9 +14,9 @@ import (
 )
 
 func TestNewDoesNotMutateGlobal(t *testing.T) {
-	previous := global
-	t.Cleanup(func() { global = previous })
-	global = nil
+	previous := global.Load()
+	t.Cleanup(func() { global.Store(previous) })
+	global.Store(nil)
 
 	levelBefore := zerolog.GlobalLevel()
 	timeFormatBefore := zerolog.TimeFieldFormat
@@ -26,7 +26,7 @@ func TestNewDoesNotMutateGlobal(t *testing.T) {
 	l.Info("instance only")
 	_ = New(Config{Env: Dev, Writer: io.Discard})
 
-	if global != nil {
+	if global.Load() != nil {
 		t.Fatalf("logger.New must not set the package-level global")
 	}
 	if got := zerolog.GlobalLevel(); got != levelBefore {

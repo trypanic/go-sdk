@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/trypanic/go-sdk/internal/logctx"
 	"github.com/trypanic/go-sdk/internal/redact"
-	"github.com/trypanic/go-sdk/logger"
 )
 
 // sanitizeHTTPHeaders returns a log-safe copy of h: values of credential
@@ -31,8 +31,8 @@ func (h *HTTPRequest) logHTTPAudit(
 	reqHeadersJSON, _ := json.Marshal(sanitizeHTTPHeaders(reqHeaders))
 	respHeadersJSON, _ := json.Marshal(sanitizeHTTPHeaders(respHeaders))
 
-	logger.
-		WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
+	logctx.
+		WithTrace(ctx, logctx.CtxOrGlobal(ctx).Info()).
 		Str("event", "http.audit.outbound").
 		Str("method", config.Method).
 		Str("url", redact.URL(config.URL)).
