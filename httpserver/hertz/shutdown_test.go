@@ -74,7 +74,7 @@ func TestShutdownWaitsForInFlightRequests(t *testing.T) {
 	status := inflight(base + "/slow")
 	time.Sleep(100 * time.Millisecond) // let the request reach the handler
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	require.NoError(t, srv.Shutdown(ctx))
 	require.Equal(t, http.StatusOK, <-status, "the in-flight request completes before Shutdown returns")
@@ -90,7 +90,7 @@ func TestShutdownReportsTimeoutWhileRequestsAreInFlight(t *testing.T) {
 	_ = inflight(base + "/slow")
 	time.Sleep(100 * time.Millisecond)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
 	defer cancel()
 	err := srv.Shutdown(ctx)
 
@@ -104,7 +104,7 @@ func TestShutdownDoesNotWaitForIdleKeepAliveConnections(t *testing.T) {
 
 	srv, base, done := startServer(t, 0, nil)
 	// http.Get above left an idle keep-alive connection open.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	start := time.Now()
 	require.NoError(t, srv.Shutdown(ctx))
@@ -123,7 +123,7 @@ func TestShutdownDrainsRequestLongerThanFiveSeconds(t *testing.T) {
 	status := inflight(base + "/slow")
 	time.Sleep(100 * time.Millisecond)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	start := time.Now()
 	require.NoError(t, srv.Shutdown(ctx))

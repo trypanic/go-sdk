@@ -1,7 +1,6 @@
 package llmclient
 
 import (
-	"context"
 	"testing"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -35,7 +34,7 @@ func TestExecuteValidatesKeyAndEndpoint(t *testing.T) {
 			t.Parallel()
 
 			stub := &captureRequester{}
-			_, err := NewClient(stub, tt.cfg).Execute(context.Background(), LLMRequestConfig{Model: "m"})
+			_, err := NewClient(stub, tt.cfg).Execute(t.Context(), LLMRequestConfig{Model: "m"})
 
 			if !tt.wantErr {
 				if err != nil {

@@ -32,7 +32,7 @@ func TestDoDoesNotMutateRetryConfig(t *testing.T) {
 	before := r.retryConfig
 
 	// Drive Do once with a guaranteed unreachable URL so it returns quickly.
-	_ = r.Do(context.Background(), RequestConfig{
+	_ = r.Do(t.Context(), RequestConfig{
 		Method: http.MethodGet,
 		URL:    "http://127.0.0.1:1/bogus",
 	}, nil)
@@ -56,7 +56,7 @@ func TestDoIsConcurrentSafe(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 			defer cancel()
 			_ = r.Do(ctx, RequestConfig{
 				Method: http.MethodGet,

@@ -2,7 +2,6 @@ package httprequest
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"runtime"
@@ -50,7 +49,7 @@ func TestDecodedResponseIsNotBufferedTwice(t *testing.T) {
 
 	var discard bytes.Buffer
 	zl := zerolog.New(&discard)
-	ctx := logger.WithLogger(context.Background(), &zl)
+	ctx := logger.WithLogger(t.Context(), &zl)
 
 	h := &HTTPRequest{maxResponseBytes: DefaultMaxResponseBytes}
 	baseline := allocPerOp(4, func() {
@@ -97,7 +96,7 @@ func TestAuditLogStillSeesBodyForContentRedactors(t *testing.T) {
 			t.Parallel()
 			var logBuf bytes.Buffer
 			zl := zerolog.New(&logBuf)
-			ctx := logger.WithLogger(context.Background(), &zl)
+			ctx := logger.WithLogger(t.Context(), &zl)
 
 			var out map[string]any
 			require.NoError(t, NewWithOptions(client, tc.opts...).Do(ctx, cfg, &out))
@@ -115,7 +114,7 @@ func BenchmarkDoDecodeAuditOff(b *testing.B) {
 	b.SetBytes(int64(len(body)))
 	for b.Loop() {
 		var out []byte
-		if err := r.Do(context.Background(), cfg, &out); err != nil {
+		if err := r.Do(b.Context(), cfg, &out); err != nil {
 			b.Fatal(err)
 		}
 	}

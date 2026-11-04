@@ -37,7 +37,7 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 	if _, ok := provider.(*tracingLLMProvider); !ok {
 		t.Fatalf("NewWithInstrumenter must wrap with tracing, got %T", provider)
 	}
-	if _, err := provider.Execute(context.Background(), LLMRequestConfig{Model: "gpt-x"}); err != nil {
+	if _, err := provider.Execute(t.Context(), LLMRequestConfig{Model: "gpt-x"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -59,7 +59,7 @@ func TestTracingConstructorsOpenModelSpans(t *testing.T) {
 		if _, ok := p.(*tracingLLMProvider); !ok {
 			t.Fatalf("%s must wrap with tracing, got %T", name, p)
 		}
-		if _, err := p.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
+		if _, err := p.Execute(t.Context(), LLMRequestConfig{Model: "m"}); err != nil {
 			t.Fatalf("%s: unexpected error: %v", name, err)
 		}
 	}
