@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"cmp"
 	"context"
 	"sync/atomic"
 
@@ -75,18 +76,13 @@ type InstrumenterConfig struct {
 // NewInstrumenter creates an explicit span factory. If no provider is supplied,
 // it uses the currently configured global OpenTelemetry provider.
 func NewInstrumenter(config InstrumenterConfig) *Instrumenter {
-	scopeName := config.ScopeName
-	if scopeName == "" {
-		scopeName = "app"
-	}
-
 	provider := config.TracerProvider
 	if provider == nil {
 		provider = otel.GetTracerProvider()
 	}
 
 	return &Instrumenter{
-		tracer: provider.Tracer(scopeName),
+		tracer: provider.Tracer(cmp.Or(config.ScopeName, "app")),
 	}
 }
 
