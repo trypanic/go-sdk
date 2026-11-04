@@ -1504,9 +1504,9 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
 | R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | IN_REVIEW | `bf73dcc` |
 | R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | IN_REVIEW | `f9cca24` |
-| R-088 | auto | X (post-merge) | Hertz functional options | — | TODO | |
+| R-088 | auto | X (post-merge) | Hertz functional options | — | IN_REVIEW | `b454142` |
 | R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | IN_REVIEW | `2ecddb7` |
-| R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | TODO | |
+| R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | IN_REVIEW | `9c5f525` |
 | R-091 | approval | X (post-merge) | Published test doubles | APPROVED | TODO | |
 | R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | IN_REVIEW | `0eb616c` |
 | R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
@@ -1521,8 +1521,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-104 | approval | C6 | `envs` API | APPROVED | DONE | `4102bfe` |
 | R-105 | approval | C5 | Implicit `RABBITMQ_TOPOLOGY_FILE` read | APPROVED | DONE | `328b36b` |
 | R-106 | approval | C5 | Messaging span conventions | APPROVED | DONE | `717d0d3` |
-| R-112 | auto | X (post-merge) | Tracing wrappers record failures (auto part) | — | TODO | |
-| R-113 | approval | X (post-merge) | Bounded span names (approval part) | APPROVED | TODO | |
+| R-112 | auto | X (post-merge) | Tracing wrappers record failures (auto part) | — | IN_REVIEW | `719de34` |
+| R-113 | approval | X (post-merge) | Bounded span names (approval part) | APPROVED | IN_REVIEW | `3c7d7a1` |
 | R-114 | auto | C3 | gRPC public-endpoint tracing option | — | DONE | `81db1c2` |
 | R-115 | auto | C3 | gRPC recovery `ErrorInfo` and domain option | — | DONE | `b0f8eb8` |
 | R-120 | auto | C1 | `errorkit`/`logger`/`telemetry` tests | — | DONE | `8f7b2e8` |
