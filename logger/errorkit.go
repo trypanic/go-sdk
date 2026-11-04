@@ -1,9 +1,11 @@
 package logger
 
 import (
-	"github.com/trypanic/go-sdk/errorkit"
+	"errors"
 
 	"github.com/rs/zerolog"
+
+	"github.com/trypanic/go-sdk/errorkit"
 )
 
 // WithErrorKit enriches a zerolog.Event with all ErrorKit error fields.
@@ -18,7 +20,14 @@ import (
 //
 //	event := logger.WithTrace(ctx, log.Error())
 //	logger.WithErrorKit(event, appErr).Msg("Database connection failed")
+//
+// A nil appErr does not panic: the event gets error_code=ERR_UNKNOWN and no
+// other error fields.
 func WithErrorKit(event *zerolog.Event, appErr *errorkit.AppError) *zerolog.Event {
+	if appErr == nil {
+		return event.Str("error_code", string(errorkit.ERR_UNKNOWN))
+	}
+
 	// Always-present fields
 	event = event.
 		Str("error_code", string(appErr.Code())).
@@ -64,4 +73,24 @@ func WithErrorKit(event *zerolog.Event, appErr *errorkit.AppError) *zerolog.Even
 	}
 
 	return event
+}
+
+// withError enriches event with the errorkit fields of err.
+//
+// When err's chain contains an *errorkit.AppError (also below fmt.Errorf
+// %w wrappers), that error's code and metadata are logged; if it is not err
+// itself, err's full message is attached as the "error" field for context.
+// A plain error is wrapped once in ERR_INTERNAL; a nil error is logged as
+// ERR_UNKNOWN.
+func withError(event *zerolog.Event, err error) *zerolog.Event {
+	if err == nil {
+		return WithErrorKit(event, nil)
+	}
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
+		if error(appErr) != err {
+			event = event.Err(err)
+		}
+		return WithErrorKit(event, appErr)
+	}
+	return WithErrorKit(event, errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err)))
 }

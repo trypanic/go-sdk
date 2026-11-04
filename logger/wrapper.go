@@ -9,6 +9,10 @@ import (
 
 // Error logs an ErrorKit error at Error level using the global logger.
 //
+// The first *errorkit.AppError found in appErr's chain (errors.As semantics)
+// is logged with its own code; any other error is wrapped once in
+// ERR_INTERNAL. A nil error is logged as ERR_UNKNOWN.
+//
 // The msg parameter should describe WHAT HAPPENED, not repeat the error details.
 //
 // Good:
@@ -30,15 +34,7 @@ func Error(appErr error, msg ...string) error {
 		errorMsg = msg[0]
 	}
 
-	if errkit, ok := appErr.(*errorkit.AppError); ok {
-		// FIX: was .Msg("") — the msg argument was silently dropped for *AppError.
-		WithErrorKit(globalLogger().Error(), errkit).Msg(errorMsg)
-	} else {
-		WithErrorKit(
-			globalLogger().Error(),
-			errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(appErr)),
-		).Msg(errorMsg)
-	}
+	withError(globalLogger().Error(), appErr).Msg(errorMsg)
 	return appErr
 }
 

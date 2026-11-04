@@ -28,7 +28,11 @@ func WithSpanKind(kind trace.SpanKind) trace.SpanStartOption {
 
 // RecordError marks the span as failed with both RecordError and SetStatus.
 // Always call this instead of setting them separately to ensure consistency.
+// A nil err is a no-op: the span status is left unchanged.
 func RecordError(span Span, err error, msg string) {
+	if err == nil {
+		return
+	}
 	span.RecordError(err)
 	span.SetStatus(codes.Error, msg)
 }

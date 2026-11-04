@@ -73,20 +73,15 @@ func (l *Logger) Warn(msg string, args ...any) {
 }
 
 // Error logs an errorkit.AppError or wraps a plain error before logging.
-// Returns the original error unchanged for chaining.
+// An *errorkit.AppError anywhere in appErr's chain keeps its own code; a nil
+// error is logged as ERR_UNKNOWN. Returns the original error unchanged for
+// chaining.
 func (l *Logger) Error(appErr error, msg ...string) error {
 	errorMsg := ""
 	if len(msg) > 0 {
 		errorMsg = msg[0]
 	}
-	if errkit, ok := appErr.(*errorkit.AppError); ok {
-		WithErrorKit(l.zl.Error(), errkit).Msg(errorMsg)
-	} else {
-		WithErrorKit(
-			l.zl.Error(),
-			errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(appErr)),
-		).Msg(errorMsg)
-	}
+	withError(l.zl.Error(), appErr).Msg(errorMsg)
 	return appErr
 }
 
