@@ -2,7 +2,7 @@
 
 > Opinionated Go SDK for distributed systems. Bundles structured logging, classified errors, OpenTelemetry tracing, retrying HTTP client, RabbitMQ messaging, and Postgres/Mongo/storage primitives behind a small, explicit API surface.
 
-Module path: `github.com/trypanic/go-sdk` · Go `1.26.1`. Every public function that can fail returns `*errorkit.AppError` with a documented `ErrorCode`. Tracing and logging are opt-in but uniformly wired: pass a `*telemetry.Instrumenter` at construction.
+Module path: `github.com/trypanic/go-sdk`; language floor Go `1.26.1`, with supported patched toolchains documented in README. The audit's later dependency phase applies `/v2`. SDK-classified operations return AppError values; upstream APIs, callbacks and documented lifecycle methods can return other errors. Default HTTP/LLM/Mongo constructors trace; explicit instrumenters or no-tracing constructors control this. User interaction is Spanish; technical artifacts are English.
 
 ## Docs
 
@@ -15,30 +15,38 @@ Module path: `github.com/trypanic/go-sdk` · Go `1.26.1`. Every public function 
 
 ## Packages
 
-- [errorkit](https://github.com/trypanic/go-sdk/blob/main/errorkit/README.md): typed `AppError` with stack trace, ULID, HTTP status, retriability, registry of `ErrorCode` constants
-- [logger](https://github.com/trypanic/go-sdk/blob/main/logger/README.md): zerolog wrapper, OTLP log provider, trace correlation, `ErrorCtx` / `LogInfoWithTrace` helpers
+- [errorkit](https://github.com/trypanic/go-sdk/blob/main/errorkit/README.md): classified errors with identity, metadata, safe PublicJSON, chain helpers and optional stackless creation
+- [logger](https://github.com/trypanic/go-sdk/blob/main/logger/README.md): zerolog wrapper, redaction and trace correlation, `ErrorCtx` / `LogInfoWithTrace` helpers
 - [telemetry](https://github.com/trypanic/go-sdk/blob/main/telemetry/README.md): OTel span factory with consistent naming (`Job`, `Batch`, `External`, `Messaging`, `DB`); `Instrumenter` is the standard tracing handle
 - [httpclient](https://github.com/trypanic/go-sdk/blob/main/httpclient/README.md): production-tuned `*http.Client` factory with shared pool, redirect policy, opt-in transport wrappers (e.g. `otelhttp`)
 - [httprequest](https://github.com/trypanic/go-sdk/blob/main/httprequest/README.md): retrying outbound HTTP with exponential backoff, status→errorkit mapping, body redaction, audit log
 - [httpserver](https://github.com/trypanic/go-sdk/blob/main/httpserver/README.md): framework-agnostic server contracts; only Hertz adapter shipped under `httpserver/hertz/`
-- [grpc](https://github.com/trypanic/go-sdk/blob/main/grpc/README.md): gRPC server + client factories (CloudWeGo Kitex-backed), OTel tracing + panic recovery; independent of `httpserver/hertz`, codegen-bound (pass generated `*serviceinfo.ServiceInfo`)
-- [postgres](https://github.com/trypanic/go-sdk/blob/main/postgres/README.md) (package `database`): pgx pool, generic `StoredProcedure[T]` helper with explicit instrumenter wrapping
-- [mongo](https://github.com/trypanic/go-sdk/blob/main/mongo/README.md) (package `mongodb`): mongo-driver wrapper with the standard tracing constructor triplet
+- [grpc](https://github.com/trypanic/go-sdk/blob/main/grpc/README.md): google.golang.org/grpc server + client factories, four call modes, OTel tracing, recovery, ToStatus/FromStatus; register standard generated services
+- [postgres](https://github.com/trypanic/go-sdk/blob/main/postgres/README.md): pgx pool, generic `StoredProcedure[T]` helper with explicit instrumenter wrapping
+- [mongo](https://github.com/trypanic/go-sdk/blob/main/mongo/README.md): mongo-driver wrapper with the standard tracing constructor triplet
 - [messaging](https://github.com/trypanic/go-sdk/blob/main/messaging/README.md): RabbitMQ pub/sub, declarative topology loader (`RABBITMQ_TOPOLOGY_FILE`), reconnection backoff
 - [storage](https://github.com/trypanic/go-sdk/blob/main/storage/README.md): KV + append-only log generic store with file and in-memory backends
 - [llmclient](https://github.com/trypanic/go-sdk/blob/main/llmclient/README.md): OpenAI-compatible chat client, non-streaming, built on top of `httprequest`
 - [envs](https://github.com/trypanic/go-sdk/blob/main/envs/README.md): typed env loader, thin wrapper around `caarlos0/env`
-- [marshal](https://github.com/trypanic/go-sdk/blob/main/marshal/README.md): JSON encode/decode helpers
+- [marshal](https://github.com/trypanic/go-sdk/blob/main/marshal/README.md): JSON encoding helpers
 - [stringutils](https://github.com/trypanic/go-sdk/blob/main/stringutils/README.md): string normalization and markdown stripping
 - [urlkit](https://github.com/trypanic/go-sdk/blob/main/urlkit/README.md): URL build and path join helpers
-- [validators](https://github.com/trypanic/go-sdk/blob/main/validators/README.md): input validators (email, ULID, etc.)
-- [slices](https://github.com/trypanic/go-sdk/blob/main/slices/README.md): generic slice helpers (chunks, dedupe)
+- [validators](https://github.com/trypanic/go-sdk/blob/main/validators/README.md): date, alphanumeric string and integer-range validators; expected failures omit stacks
+- [batch](https://github.com/trypanic/go-sdk/blob/main/batch/README.md): bounded chunks and stable deduplication
 - [algorithms](https://github.com/trypanic/go-sdk/blob/main/algorithms/README.md): exponential backoff factory for custom retry loops
+
+- [logger/otlp](https://github.com/trypanic/go-sdk/blob/main/logger/otlp/README.md): explicit Writer and TLS Provider lifecycle; base logger does not import gRPC
+- [httpservertest](https://github.com/trypanic/go-sdk/blob/main/httpserver/httpservertest/README.md): handler recorder with response and Err inspection
+- [mongotest](https://github.com/trypanic/go-sdk/blob/main/mongo/mongotest/README.md): callback-based client, collection, cursor and result fakes
+- [messagingtest](https://github.com/trypanic/go-sdk/blob/main/messaging/messagingtest/README.md): callback-based Broker fake
+- [ioutils](https://github.com/trypanic/go-sdk/blob/main/ioutils/README.md): dev-only JSON dumps; excluded from production paths
+- [v2 API migration](https://github.com/trypanic/go-sdk/blob/main/docs/v2-api-migration.md): exact package, type, constructor and span-name changes
 
 ## Conventions
 
-- [Tracing constructor triplet](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#22-tracing): `New`, `NewWithoutTracing`, `NewWithInstrumenter`. Exceptions: `postgres` traces at `StoredProcedure` layer; `messaging` takes a plain `trace.Tracer`.
+- [Tracing constructor triplet](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#22-tracing): `New`, `NewWithoutTracing`, `NewWithInstrumenter`. Exceptions: `postgres` traces at `StoredProcedure` layer; `messaging` and gRPC accept instrumenters or existing tracer/provider options; Hertz uses the global provider.
 - [Error wrapping rules](https://github.com/trypanic/go-sdk/blob/main/AGENTS.md#4-idiomatic-error-handling): wrap once at boundaries, preserve original `ErrorCode`, never double-wrap an `*AppError` with `ERR_INTERNAL`.
+- Retry metadata is combined with HTTP idempotency rules; plain POST/PATCH requests are not replayed after uncertain delivery. Context constructors bound setup without taking lifecycle ownership. Borrowed Mongo drivers remain caller-owned.
 - [Body redaction](https://github.com/trypanic/go-sdk/blob/main/httprequest/README.md): bodies redacted by default in error payloads and audit logs; `WithRawBodies()` is dev-only.
 - [Built-in error codes](https://github.com/trypanic/go-sdk/blob/main/errorkit/README.md#built-in-error-codes-reference): full reference table with HTTP status and retriability per code.
 

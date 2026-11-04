@@ -3,7 +3,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/trypanic/go-sdk.svg)](https://pkg.go.dev/github.com/trypanic/go-sdk)
 
 Opinionated Go SDK for distributed systems — bundles logging, errors, tracing,
-metrics, HTTP, messaging, and storage primitives behind a small, explicit
+HTTP, messaging, and storage primitives behind a small, explicit
 API surface.
 
 Module path: `github.com/trypanic/go-sdk` (language floor `go 1.26.1`; see
@@ -40,7 +40,7 @@ func main() {
 	ctx := context.Background()
 	if err := fetchOrder(ctx); err != nil {
 		// Wrap once at the boundary; keep an existing *errorkit.AppError as is.
-		appErr, ok := err.(*errorkit.AppError)
+		appErr, ok := errorkit.As(err)
 		if !ok {
 			appErr = errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
 		}
@@ -59,27 +59,29 @@ logging, tracing, outbound HTTP, Postgres and RabbitMQ together.
 
 ## Package map
 
-Import the directory; refer to symbols by the package identifier. Two
-directories declare a different identifier.
+Public package identifiers match their directories. See the
+[v2 API migration](./docs/v2-api-migration.md) for approved renames and removals.
+The `/v2` module-path change is applied in the audit's subsequent dependency phase.
 
 | Directory (import path suffix) | Package identifier | Purpose |
 |--------------------------------|--------------------|---------|
 | [`algorithms`](./algorithms)   | `algorithms`       | exponential backoff factory |
 | [`envs`](./envs)               | `envs`             | caarlos0/env wrapper |
 | [`errorkit`](./errorkit)       | `errorkit`         | typed AppError + registry |
-| [`grpc`](./grpc)               | `grpc`             | gRPC server + client factories (Kitex-backed); alias it (e.g. `sdkgrpc`) next to `google.golang.org/grpc` |
+| [`grpc`](./grpc)               | `grpc`             | gRPC server + client factories on google.golang.org/grpc; alias it (e.g. `sdkgrpc`) next to `google.golang.org/grpc` |
 | [`httpclient`](./httpclient)   | `httpclient`       | net/http.Client factory |
 | [`httprequest`](./httprequest) | `httprequest`      | retrying HTTP requester |
-| [`httpserver`](./httpserver)   | `httpserver`       | framework-agnostic HTTPServer contracts |
-| [`httpserver/hertz`](./httpserver/hertz) | `hertz`  | Hertz adapter (only nested package) |
+| [`httpserver`](./httpserver)   | `httpserver`       | framework-agnostic Server/Context contracts |
+| [`httpserver/hertz`](./httpserver/hertz) | `hertz`  | Hertz adapter and Engine escape hatch |
 | [`ioutils`](./ioutils)         | `ioutils`          | dev-only JSON dump helpers |
 | [`llmclient`](./llmclient)     | `llmclient`        | OpenAI-compatible chat client (non-streaming) |
-| [`logger`](./logger)           | `logger`           | zerolog wrapper + OTLP log provider |
+| [`logger/otlp`](./logger/otlp) | `otlp`             | explicit OTLP export and provider lifecycle |
+| [`logger`](./logger)           | `logger`           | zerolog wrapper and trace correlation |
 | [`marshal`](./marshal)         | `marshal`          | JSON encoding helpers |
 | [`messaging`](./messaging)     | `messaging`        | RabbitMQ pub/sub + topology loader |
-| [`mongo`](./mongo)             | **`mongodb`**      | mongo-driver wrapper + tracing |
-| [`postgres`](./postgres)       | **`database`**     | pgx pool + StoredProcedure[T] helper |
-| [`slices`](./slices)           | `slices`           | generic slice helpers |
+| [`mongo`](./mongo)             | `mongo`      | mongo-driver wrapper + tracing |
+| [`postgres`](./postgres)       | `postgres`     | pgx pool + StoredProcedure[T] helper |
+| [`batch`](./batch)             | `batch`            | bounded chunks and stable deduplication |
 | [`storage`](./storage)         | `storage`          | KV + append-log generic store |
 | [`stringutils`](./stringutils) | `stringutils`      | normalize + markdown strip |
 | [`telemetry`](./telemetry)     | `telemetry`        | OTel tracer wrapper + Instrumenter |
@@ -87,9 +89,9 @@ directories declare a different identifier.
 | [`validators`](./validators)   | `validators`       | input validators |
 
 ```go
-import "github.com/trypanic/go-sdk/postgres" // package database
+import "github.com/trypanic/go-sdk/postgres"
 
-pool, err := database.NewPostgresClientFromEnv(database.Config{})
+pool, err := postgres.NewFromEnv(postgres.Config{})
 ```
 
 ## Package status
@@ -97,35 +99,55 @@ pool, err := database.NewPostgresClientFromEnv(database.Config{})
 | Package                                          | Status                                |
 |--------------------------------------------------|---------------------------------------|
 | `errorkit`                                       | Stable                                |
-| `telemetry`, `logger`                            | Stable; opt-in tracing/logging        |
-| `httpclient`, `httprequest`                      | Stable; concurrent-safe; opt-in tracing |
+| `telemetry`, `logger`                            | Stable; explicit logging/provider configuration        |
+| `httpclient`, `httprequest`                      | Stable; concurrent-safe; requester tracing enabled by default |
 | `httpserver`                                     | Contracts stable; only Hertz adapter shipped |
 | `httpserver/hertz`                               | Adapter; pulls Hertz transitively     |
-| `grpc`                                           | Stable; gRPC server + client (Kitex-backed); pulls Kitex transitively |
+| `grpc`                                           | Stable; wraps google.golang.org/grpc; tracing and recovery on by default |
 | `postgres`, `mongo`, `storage`                   | Stable                                |
 | `messaging`                                      | Stable; topology + transport flat     |
 | `envs`                                           | Stable                                |
 | `marshal`, `stringutils`, `urlkit`, `validators` | Stable                                |
 | `algorithms`                                     | Stable                                |
 | `llmclient`                                      | Stable; non-streaming only            |
-| `slices`                                         | Stable                                |
+| `batch`                                         | Stable                                |
 | `ioutils`                                        | **Dev-only** — do not use in production paths |
 
 ## Cross-cutting concern policy
 
-- **Tracing.** Every package that produces spans accepts a
-  `*telemetry.Instrumenter` at construction. Default constructors install a
-  wrapper that uses the global OTel tracer for source compatibility;
-  `*WithoutTracing` and `*WithInstrumenter` variants are explicit.
-- **Logging.** No package mutates the global logger. Adapters that need a
-  per-request logger accept an explicit `*logger.Logger`.
-- **Errors.** Every package that returns an error returns
-  `*errorkit.AppError` with a documented `ErrorCode`.
-- **Configuration.** No package reads environment variables silently. Where
-  an env var is conventional (`POSTGRES_DSN`, `RABBITMQ_TOPOLOGY_FILE`,
-  `LLM_API_KEY`), a sibling `*FromEnv` constructor reads it explicitly.
-- **Body capture.** HTTP request and inbound audit middleware redact bodies
-  by default; raw capture is an explicit opt-in.
+- **Tracing.** HTTP, LLM and Mongo default constructors integrate client spans;
+  explicit instrumenter and no-tracing constructors are available. PostgreSQL
+  traces at the stored-procedure layer. Messaging and gRPC accept an instrumenter
+  or their existing tracer/provider options. Hertz middleware uses the global
+  provider. Failed client spans record sanitized classification and status.
+- **Logging.** `logger.Init` configures the global logger; explicit `logger.New`
+  instances avoid global mutation. Context loggers provide trace correlation.
+  `logger/otlp` owns optional export; base logger/request packages do not link
+  gRPC through logging. `DetectEnv` defaults to production JSON output.
+- **Errors.** SDK-classified operations return `*errorkit.AppError` through `error`.
+  Upstream clients/escape hatches, generated gRPC clients, callbacks and documented
+  lifecycle methods can return other errors. Inspect chains with `errorkit.As` /
+  `HasCode`; use `PublicJSON` or `httpserver.ReplyError` for responses, not diagnostic
+  `PrettyJSON`. Expected validator failures omit stacks; configuration errors retain them.
+- **Configuration.** Explicit environment APIs are `postgres.NewFromEnv`,
+  `messaging.NewPubSubFromEnv`, `llmclient.ConfigFromEnv`, and `envs.Load[T]` /
+  `LoadInto`. Context variants bound initial PostgreSQL/messaging setup without
+  owning the resulting client's lifetime. Logger environment selection is documented.
+- **Retries.** Retriable metadata alone does not authorize replay of side effects.
+  HTTP also requires an idempotent request/key or a safe initial dial failure,
+  unless explicitly opted into non-idempotent retries. HTTP/messaging share
+  bounded full jitter; Retry-After and context bounds remain authoritative.
+- **Body capture.** HTTP bodies are omitted or redacted by default; raw capture is
+  a development-only opt-in. HTTP paths/models are span attributes, not operation names.
+- **Ownership.** Share clients and close owned resources at process scope.
+  `mongo.NewFromClient` borrows its driver client. `Engine`, `Database` and
+  `Unwrap` expose documented low-level access without transferring ownership.
+
+Consumer fakes are provided by
+[`httpserver/httpservertest`](./httpserver/httpservertest/README.md),
+[`mongo/mongotest`](./mongo/mongotest/README.md), and
+[`messaging/messagingtest`](./messaging/messagingtest/README.md).
+The SDK provides no public metrics API; applications configure metrics separately.
 
 ## Compatibility
 
