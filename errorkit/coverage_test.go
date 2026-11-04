@@ -19,6 +19,8 @@ func TestInitFromEnvSetsStackDepth(t *testing.T) {
 		{name: "clamped low", value: "0", want: 1},
 		{name: "unset keeps the current depth", value: "", want: defaultMaxStackDepth},
 		{name: "not a number keeps the current depth", value: "deep", want: defaultMaxStackDepth},
+		{name: "trailing garbage keeps the current depth", value: "12abc", want: defaultMaxStackDepth},
+		{name: "surrounding spaces are ignored", value: " 20 ", want: 20},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

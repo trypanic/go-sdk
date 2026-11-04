@@ -1,8 +1,9 @@
 package errorkit
 
 import (
-	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -48,16 +49,18 @@ func clampStackDepth(depth int) int {
 // Environment Detection
 // ==============================
 
-// InitFromEnv initializes configuration from environment variables
+// InitFromEnv initializes configuration from environment variables.
 // Supported variables:
-// - ERROR_KIT_MAX_STACK: integer for max stack depth
+//   - ERROR_KIT_MAX_STACK: integer for max stack depth (clamped like
+//     SetMaxStackDepth). A value that is not an integer, including one with
+//     trailing characters such as "12abc", is ignored.
 func InitFromEnv() {
-	// Check max stack depth
-	if maxStackEnv := os.Getenv("ERROR_KIT_MAX_STACK"); maxStackEnv != "" {
-		var depth int
-		if _, err := fmt.Sscanf(maxStackEnv, "%d", &depth); err == nil {
-			SetMaxStackDepth(depth)
-		}
+	maxStackEnv := strings.TrimSpace(os.Getenv("ERROR_KIT_MAX_STACK"))
+	if maxStackEnv == "" {
+		return
+	}
+	if depth, err := strconv.Atoi(maxStackEnv); err == nil {
+		SetMaxStackDepth(depth)
 	}
 }
 
