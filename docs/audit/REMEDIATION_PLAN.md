@@ -1501,7 +1501,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | DONE | `ac8ab8e` |
 | R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | DONE | `6f02409` |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | DONE | `ef0d848` |
-| R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
+| R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | DONE | `2671c79`, `6a390d4` |
 | R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | DONE | `bf73dcc` |
 | R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | DONE | `f9cca24` |
 | R-088 | auto | X (post-merge) | Hertz functional options | — | DONE | `b454142` |

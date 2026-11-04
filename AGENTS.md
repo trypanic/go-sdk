@@ -1,13 +1,5 @@
 # AGENTS.md
 
-> **Ongoing work (any AI agent: GPT, Kimi, Claude, …).** An audit and v2.0.0
-> remediation is in progress on branch `audit/2026-11`. Before doing anything
-> in this repository, read [`docs/audit/HANDOFF.md`](./docs/audit/HANDOFF.md),
-> then the work order and ledger in [`docs/audit/audit.md`](./docs/audit/audit.md)
-> (§0 resume protocol, §8.3 models, §9 ledger). Step-by-step instructions for
-> an orchestrator with subagents: [`tasks/continue-audit.md`](./tasks/continue-audit.md).
-> Remove this notice when the ledger task P5 is `DONE`.
-
 ## Global language rule
 
 Interact in Spanish; write and build in English. User-visible chat, explanations,

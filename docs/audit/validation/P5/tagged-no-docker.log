@@ -1,0 +1,31 @@
+ok      github.com/trypanic/go-sdk/v2/algorithms    0.011s
+ok      github.com/trypanic/go-sdk/v2/batch 0.012s
+ok      github.com/trypanic/go-sdk/v2/envs  0.012s
+ok      github.com/trypanic/go-sdk/v2/errorkit  0.016s
+ok      github.com/trypanic/go-sdk/v2/grpc  0.355s
+?       github.com/trypanic/go-sdk/v2/grpc/internal/testsvc [no test files]
+ok      github.com/trypanic/go-sdk/v2/httpclient    0.007s
+ok      github.com/trypanic/go-sdk/v2/httprequest   0.174s
+ok      github.com/trypanic/go-sdk/v2/httpserver    0.005s
+ok      github.com/trypanic/go-sdk/v2/httpserver/hertz  0.339s
+ok      github.com/trypanic/go-sdk/v2/httpserver/httpservertest 0.005s
+ok      github.com/trypanic/go-sdk/v2/internal/apicontract  0.009s
+ok      github.com/trypanic/go-sdk/v2/internal/backoff  0.006s
+ok      github.com/trypanic/go-sdk/v2/internal/integrationtest  0.055s
+?       github.com/trypanic/go-sdk/v2/internal/logctx   [no test files]
+ok      github.com/trypanic/go-sdk/v2/internal/redact   0.006s
+ok      github.com/trypanic/go-sdk/v2/ioutils   0.013s
+ok      github.com/trypanic/go-sdk/v2/llmclient 0.009s
+ok      github.com/trypanic/go-sdk/v2/logger    0.129s
+ok      github.com/trypanic/go-sdk/v2/logger/otlp   0.538s
+ok      github.com/trypanic/go-sdk/v2/marshal   0.004s
+ok      github.com/trypanic/go-sdk/v2/messaging 0.140s
+ok      github.com/trypanic/go-sdk/v2/messaging/messagingtest   0.004s
+ok      github.com/trypanic/go-sdk/v2/mongo 0.031s
+ok      github.com/trypanic/go-sdk/v2/mongo/mongotest   0.004s
+ok      github.com/trypanic/go-sdk/v2/postgres  0.034s
+ok      github.com/trypanic/go-sdk/v2/storage   0.011s
+ok      github.com/trypanic/go-sdk/v2/stringutils   0.003s
+ok      github.com/trypanic/go-sdk/v2/telemetry 0.007s
+ok      github.com/trypanic/go-sdk/v2/urlkit    0.005s
+ok      github.com/trypanic/go-sdk/v2/validators    0.005s

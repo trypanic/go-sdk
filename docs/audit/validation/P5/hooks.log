@@ -1,0 +1,30 @@
+task: [precommit:run] pre-commit run --all-files
+trim trailing whitespace.........................................................Passed
+fix end of files.................................................................Passed
+check yaml.......................................................................Passed
+check for merge conflicts........................................................Passed
+check for added large files......................................................Passed
+detect private key...............................................................Passed
+gofmt............................................................................Passed
+goimports........................................................................Passed
+go test (short)..................................................................Passed
+staticanalysis (vet + staticcheck + semgrep, staged files).......................Passed
+- hook id: staticanalysis
+- duration: 0.02s
+
+staticanalysis: no staged .go files, skipping.
+
+task: [precommit:run] pre-commit run --all-files --hook-stage manual staticanalysis-full
+staticanalysis (vet + staticcheck + semgrep, whole repo).......................Passed
+- hook id: staticanalysis-full
+- duration: 3.65s
+
+staticanalysis: mode=full pkgs=1 files=1 → .staticanalysis
+[1/3] go-vet       running
+[1/3] go-vet ✓ (0 findings, 0 errors, rc=0)
+[2/3] staticcheck  running
+[2/3] staticcheck ✓ (0 findings, 0 errors, rc=0)
+[3/3] semgrep      running
+[3/3] semgrep ✓ (12 findings, 0 errors, rc=0) via docker semgrep/semgrep:1.95.0@sha256:30e6afa99ebd8e7b4115d4904898108eb4bf77025819e9263f09cf14e6f6e549 (.semgrep.yml p/golang p/gosec p/secrets)
+
+staticanalysis: 12 findings, 0 errors. OK.
