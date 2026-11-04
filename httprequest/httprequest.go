@@ -344,7 +344,7 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 			reader = io.TeeReader(body, respBuf)
 		}
 		err := h.processResponse(reader, out)
-		if err != nil && body.overLimit() {
+		if body.overLimit() {
 			err = buildBodyTooLargeError(redact.URL(config.URL), h.maxResponseBytes)
 		}
 		if h.auditLog {

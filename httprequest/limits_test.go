@@ -64,6 +64,42 @@ func TestSuccessBodyAtLimitIsAccepted(t *testing.T) {
 	require.Len(t, s, 1024)
 }
 
+func TestJSONSuccessBodyLimitIncludesTrailingData(t *testing.T) {
+	t.Parallel()
+
+	const limit = int64(len(`{"ok":true}`) + 5)
+	tests := []struct {
+		name          string
+		body          string
+		wantOverLimit bool
+	}{
+		{name: "valid", body: `{"ok":true}`},
+		{name: "at limit with trailing whitespace", body: `{"ok":true}` + strings.Repeat(" ", 5)},
+		{name: "over limit trailing whitespace", body: `{"ok":true}` + strings.Repeat(" ", 4096), wantOverLimit: true},
+		{name: "over limit second JSON value", body: `{"ok":true} {"ok":false}`, wantOverLimit: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, hits := bodyServer(t, http.StatusOK, []byte(tt.body))
+			r := NewWithOptions(srv.Client(), WithMaxResponseBytes(limit))
+			var out map[string]any
+
+			err := r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, &out)
+
+			if !tt.wantOverLimit {
+				require.NoError(t, err)
+				require.Equal(t, map[string]any{"ok": true}, out)
+				return
+			}
+			appErr, ok := err.(*errorkit.AppError)
+			require.True(t, ok, "want *errorkit.AppError, got %T (%v)", err, err)
+			require.Equal(t, httpclient.ERR_EXTERNAL_INVALID_RESPONSE, appErr.Code())
+			require.False(t, appErr.Metadata.Retriable)
+			require.Equal(t, int32(1), hits.Load(), "an oversized body is not retried")
+		})
+	}
+}
+
 func TestDefaultMaxResponseBytes(t *testing.T) {
 	t.Parallel()
 
