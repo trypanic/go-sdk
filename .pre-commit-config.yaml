@@ -43,7 +43,7 @@ repos:
 
       - id: staticanalysis
         name: staticanalysis (vet + staticcheck + semgrep)
-        entry: bash .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+        entry: bash scripts/staticanalysis.sh
         language: system
         pass_filenames: false
         types: [go]

@@ -12,7 +12,7 @@
 version: "3"
 
 vars:
-  STATICANALYSIS_SCRIPT: .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+  STATICANALYSIS_SCRIPT: scripts/staticanalysis.sh
   # Top-level SDK packages (first path segment of every package in the module).
   ALL_PACKAGES:
     sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
@@ -70,9 +70,6 @@ tasks:
 
   staticanalysis:
     desc: Run vet + staticcheck + semgrep on the whole repo (was moon staticanalysis)
-    preconditions:
-      - sh: test -f {{.STATICANALYSIS_SCRIPT}}
-        msg: "{{.STATICANALYSIS_SCRIPT}} not found; run `task skills:install`"
     env:
       QG_FULL: "1"
     cmds:

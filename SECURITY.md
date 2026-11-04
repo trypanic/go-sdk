@@ -1,7 +1,8 @@
 # Security & static analysis
 
 This SDK runs three Go static-analysis tools — `go vet`, `staticcheck`, and
-`semgrep` — through a single shell script. The script is wired into both
+`semgrep` — through a single shell script committed in this repository,
+[`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh). It is wired into both
 `pre-commit` (staged-files mode) and `task` (full-repo mode), and the same
 tools run again in CI.
 
@@ -11,7 +12,7 @@ tools run again in CI.
 task staticanalysis
 ```
 
-This invokes [`staticanalysis.sh`](./staticanalysis.sh) with `QG_FULL=1`
+This invokes [`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh) with `QG_FULL=1`
 (scans `./...`). It writes per-tool reports and grouped fix-plans under
 `.staticanalysis/`. Exit code is `1` if any tool produces an `ERROR`-severity
 finding, `0` otherwise.
@@ -107,7 +108,7 @@ Order matters — earlier failures abort the commit (see `.pre-commit-config.yam
 2. `gofmt -w` and `goimports -w` (auto-fix; re-stage if the hook rewrites a
    file).
 3. `go test -short ./...`.
-4. `bash staticanalysis.sh` — `go vet` + `staticcheck` + `semgrep` against
+4. `bash scripts/staticanalysis.sh` — `go vet` + `staticcheck` + `semgrep` against
    staged `.go` files.
 
 If any step exits non-zero (including an `ERROR`-severity finding from any
@@ -151,7 +152,7 @@ pre-commit fires
    │
    ├── auto-fixers (gofmt, goimports)
    ├── go test -short
-   └── staticanalysis.sh
+   └── scripts/staticanalysis.sh
         ├── go vet           → .staticanalysis/plan.go-vet.md
         ├── staticcheck      → .staticanalysis/plan.staticcheck.md
         └── semgrep          → .staticanalysis/plan.semgrep.md
@@ -167,8 +168,8 @@ Re-generate the plan files manually at any time:
 
 ```bash
 task staticanalysis            # whole repo
-bash staticanalysis.sh                  # staged files only
-QG_VERBOSE=1 bash staticanalysis.sh     # stream tool stderr live
+bash scripts/staticanalysis.sh               # staged files only
+QG_VERBOSE=1 bash scripts/staticanalysis.sh  # stream tool stderr live
 ```
 
 ## Bypassing hooks (don't)

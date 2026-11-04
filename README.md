@@ -99,7 +99,7 @@ task precommit:install
 ## Quality gates
 
 The full vet + staticcheck + semgrep stack runs through a single script,
-`staticanalysis.sh`, wired into both pre-commit (staged-files mode) and
+[`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh), wired into both pre-commit (staged-files mode) and
 [Task](https://taskfile.dev) (full-repo mode). Run `task --list` to see every
 task defined in [`Taskfile.yml`](./Taskfile.yml).
 
