@@ -19,10 +19,11 @@ import (
 // (or after) the attempt.
 type Publisher struct {
 	mu        sync.Mutex
-	conn      *amqp.Connection
-	channel   *amqp.Channel
+	conn      amqpConnection
+	channel   amqpChannel
 	exchanges []Exchange // declared on every (re)connect
 	amqpURL   string
+	dial      dialFunc // nil means dialAMQP
 }
 
 // NewPublisher creates a Publisher and declares all provided exchanges on the broker.
@@ -38,9 +39,7 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 }
 
 func (p *Publisher) connect() error {
-	conn, err := amqp.DialConfig(p.amqpURL, amqp.Config{
-		Heartbeat: DefaultHeartbeat,
-	})
+	conn, err := p.dial.open(p.amqpURL)
 	if err != nil {
 		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
 			errorkit.WithReason("failed to connect"),
@@ -194,14 +193,15 @@ func (p *Publisher) Close() error {
 // the full connection + channel + bindings so the caller only needs to call
 // Consume again after a successful Reconnect.
 type Subscriber struct {
-	conn        *amqp.Connection
-	channel     *amqp.Channel
+	conn        amqpConnection
+	channel     amqpChannel
 	exchange    Exchange
 	queue       QueueTopology
 	consumer    string
 	queueArgs   amqp.Table
 	routingKeys []string
 	amqpURL     string
+	dial        dialFunc // nil means dialAMQP
 }
 
 // NewSubscriber dials the broker, declares the exchange and queue, binds the
@@ -229,9 +229,7 @@ func NewSubscriber(
 }
 
 func (s *Subscriber) connect() error {
-	conn, err := amqp.DialConfig(s.amqpURL, amqp.Config{
-		Heartbeat: DefaultHeartbeat,
-	})
+	conn, err := s.dial.open(s.amqpURL)
 	if err != nil {
 		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
 			errorkit.WithReason("failed to connect"),
