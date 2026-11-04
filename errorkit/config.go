@@ -3,6 +3,7 @@ package errorkit
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 	"time"
 )
 
@@ -10,18 +11,33 @@ import (
 // Configuration Variables
 // ==============================
 
-// MaxStackDepth controls the maximum number of stack frames to capture
-// Can be modified at runtime: errorkit.MaxStackDepth = 50
-var MaxStackDepth = 32
+// defaultMaxStackDepth is the stack depth used until SetMaxStackDepth is
+// called.
+const defaultMaxStackDepth = 32
+
+// maxStackDepth is the maximum number of stack frames NewError captures.
+// It is read on every NewError and written by SetMaxStackDepth, so it is
+// atomic.
+var maxStackDepth atomic.Int32
+
+func init() {
+	maxStackDepth.Store(defaultMaxStackDepth)
+}
 
 // ==============================
 // Configuration Functions
 // ==============================
 
-// SetMaxStackDepth configures the maximum stack depth to capture
-// Default is 32 frames
+// SetMaxStackDepth configures the maximum stack depth to capture, clamped to
+// [1, 100]. Default is 32 frames. It is safe to call concurrently with
+// NewError.
 func SetMaxStackDepth(depth int) {
-	MaxStackDepth = clampStackDepth(depth)
+	maxStackDepth.Store(int32(clampStackDepth(depth)))
+}
+
+// currentMaxStackDepth returns the configured global stack depth.
+func currentMaxStackDepth() int {
+	return int(maxStackDepth.Load())
 }
 
 func clampStackDepth(depth int) int {

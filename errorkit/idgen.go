@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,9 +31,10 @@ const (
 )
 
 var (
-	// GenerateID is the function used to generate error IDs
-	// Can be replaced with custom implementation if needed
-	GenerateID = generateULID
+	// idGenerator holds a custom ID generator installed by SetIDGenerator;
+	// nil means the default ULID generator. Atomic because NewError reads it
+	// concurrently with SetIDGenerator.
+	idGenerator atomic.Pointer[func() string]
 
 	// monotonic state for same-millisecond IDs
 	lastTimestamp  uint64
@@ -155,14 +157,23 @@ func generateFallbackRandomness(randomness *[randomSize]byte) {
 // Custom ID Generator Support
 // ==============================
 
-// SetIDGenerator allows replacing the default ULID generator
+// SetIDGenerator allows replacing the default ULID generator. Passing nil
+// restores the default. Safe to call concurrently with NewError.
 // Example: errorkit.SetIDGenerator(func() string { return uuid.New().String() })
 func SetIDGenerator(generator func() string) {
 	if generator == nil {
-		GenerateID = generateULID
+		idGenerator.Store(nil)
 		return
 	}
-	GenerateID = generator
+	idGenerator.Store(&generator)
+}
+
+// generateID returns a new error ID from the configured generator.
+func generateID() string {
+	if generator := idGenerator.Load(); generator != nil {
+		return (*generator)()
+	}
+	return generateULID()
 }
 
 // ==============================

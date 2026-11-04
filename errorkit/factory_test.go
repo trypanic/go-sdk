@@ -6,9 +6,9 @@ import (
 )
 
 func TestFactoryUsesConfigWithoutMutatingGlobals(t *testing.T) {
-	oldMaxStackDepth := MaxStackDepth
+	oldMaxStackDepth := currentMaxStackDepth()
 	t.Cleanup(func() {
-		MaxStackDepth = oldMaxStackDepth
+		SetMaxStackDepth(oldMaxStackDepth)
 	})
 
 	factory := NewFactory(Config{
@@ -20,18 +20,18 @@ func TestFactoryUsesConfigWithoutMutatingGlobals(t *testing.T) {
 	if len(err.Trace) > 2 {
 		t.Fatalf("factory trace length = %d, want <= 2", len(err.Trace))
 	}
-	if MaxStackDepth != oldMaxStackDepth {
-		t.Fatalf("factory mutated global MaxStackDepth: got %d, want %d", MaxStackDepth, oldMaxStackDepth)
+	if got := currentMaxStackDepth(); got != oldMaxStackDepth {
+		t.Fatalf("factory mutated global stack depth: got %d, want %d", got, oldMaxStackDepth)
 	}
 }
 
 func TestStackFormatterConfigDoesNotMutateGlobalColors(t *testing.T) {
-	oldColorsEnabled := ColorsEnabled
+	oldColorsDisabled := colorsDisabled.Load()
 	t.Cleanup(func() {
-		ColorsEnabled = oldColorsEnabled
+		colorsDisabled.Store(oldColorsDisabled)
 	})
 
-	ColorsEnabled = true
+	EnableColors()
 	err := NewError(ERR_INTERNAL)
 	formatter := NewStackFormatterWithConfig(FormatterConfig{ColorsEnabled: false})
 
@@ -39,7 +39,7 @@ func TestStackFormatterConfigDoesNotMutateGlobalColors(t *testing.T) {
 	if strings.Contains(output, "\033[") {
 		t.Fatalf("configured plain formatter emitted ANSI output: %q", output)
 	}
-	if !ColorsEnabled {
-		t.Fatal("configured formatter mutated global ColorsEnabled")
+	if colorsDisabled.Load() {
+		t.Fatal("configured formatter mutated global color setting")
 	}
 }

@@ -62,14 +62,14 @@ func NewError(code ErrorCode) *AppError {
 }
 
 func newAppError(code ErrorCode, meta Metadata) *AppError {
-	return newAppErrorWithStackDepth(code, meta, MaxStackDepth)
+	return newAppErrorWithStackDepth(code, meta, currentMaxStackDepth())
 }
 
 func newAppErrorWithStackDepth(code ErrorCode, meta Metadata, maxStackDepth int) *AppError {
 	e := &AppError{
 		ErrCode:   code,
 		Metadata:  meta,
-		ID:        GenerateID(),
+		ID:        generateID(),
 		TraceID:   "", // Empty for now, will be populated in distributed systems
 		Timestamp: nowISO8601(),
 	}

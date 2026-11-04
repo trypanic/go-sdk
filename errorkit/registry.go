@@ -4,8 +4,10 @@ import "sync"
 
 var (
 	errorRegistryMu sync.RWMutex
-	// ErrorRegistry is the complete registry of error metadata
-	ErrorRegistry = map[ErrorCode]Metadata{
+	// errorRegistry is the package-global registry of error metadata. It is
+	// guarded by errorRegistryMu; use GetMetadata, RegisterMany,
+	// OverrideMetadata or an isolated Registry to access it.
+	errorRegistry = map[ErrorCode]Metadata{
 		// ==============================
 		// General Errors
 		// ==============================
@@ -183,9 +185,9 @@ func NewDefaultRegistry() *Registry {
 	defer errorRegistryMu.RUnlock()
 
 	registry := &Registry{
-		metadata: make(map[ErrorCode]Metadata, len(ErrorRegistry)),
+		metadata: make(map[ErrorCode]Metadata, len(errorRegistry)),
 	}
-	for code, meta := range ErrorRegistry {
+	for code, meta := range errorRegistry {
 		registry.metadata[code] = meta
 	}
 	return registry
@@ -196,7 +198,7 @@ func GetMetadata(code ErrorCode) (Metadata, bool) {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	meta, exists := ErrorRegistry[code]
+	meta, exists := errorRegistry[code]
 	return meta, exists
 }
 
@@ -218,8 +220,8 @@ func GetAllCodes() []ErrorCode {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	codes := make([]ErrorCode, 0, len(ErrorRegistry))
-	for code := range ErrorRegistry {
+	codes := make([]ErrorCode, 0, len(errorRegistry))
+	for code := range errorRegistry {
 		codes = append(codes, code)
 	}
 	return codes
@@ -247,7 +249,7 @@ func GetCodesByGroup(group ErrorGroup) []ErrorCode {
 	defer errorRegistryMu.RUnlock()
 
 	codes := make([]ErrorCode, 0)
-	for code, meta := range ErrorRegistry {
+	for code, meta := range errorRegistry {
 		if meta.Group == group {
 			codes = append(codes, code)
 		}
@@ -279,7 +281,7 @@ func GetCodesByType(errType ErrorType) []ErrorCode {
 	defer errorRegistryMu.RUnlock()
 
 	codes := make([]ErrorCode, 0)
-	for code, meta := range ErrorRegistry {
+	for code, meta := range errorRegistry {
 		if meta.Type == errType {
 			codes = append(codes, code)
 		}

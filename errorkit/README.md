@@ -249,6 +249,8 @@ errorkit.DisableColors() // disable ANSI globally
 errorkit.EnableColors()  // re-enable ANSI globally
 ```
 
+The global color setting is unexported; these helpers are the only way to change it and are safe for concurrent use.
+
 SDK-safe formatter config:
 
 ```go
@@ -263,7 +265,7 @@ output := formatter.Format(err)
 
 ## Registry API
 
-The package exposes global registry helpers. They are safe for concurrent use, but they mutate process-global state.
+The package exposes global registry helpers. They are safe for concurrent use, but they mutate process-global state. The global registry map itself is unexported: read and write it only through these helpers.
 
 ```go
 // Look up metadata for a code
@@ -341,7 +343,7 @@ err := factory.NewError(errorkit.ERR_INTERNAL)
 | `MaxStackDepth`  | Stack depth for this factory only. Clamped to [1, 100].                                              |
 | `StrictMetadata` | When true, errors created from unregistered codes get `Reason = StrictMetadataReason` automatically. |
 
-The factory does not mutate `ErrorRegistry`, `MaxStackDepth`, or color globals.
+The factory does not mutate the global registry, the global stack depth, or the global color setting.
 
 ---
 
@@ -362,7 +364,7 @@ errorkit.SetMaxStackDepth(16)
 errorkit.InitFromEnv()
 ```
 
-For per-instance control without globals, use `Factory` (see above).
+`SetMaxStackDepth` and `SetIDGenerator` are safe to call concurrently with `NewError`; the underlying settings are unexported. For per-instance control without globals, use `Factory` (see above).
 
 ### Custom ID generator
 
@@ -422,10 +424,10 @@ const (
 
 ### Step 2 — Register metadata in `registry.go`
 
-Add entries to the `ErrorRegistry` map inside the `var` block. Match the group to an existing `ErrorGroup` constant (or define a new one — see next section).
+Add entries to the unexported `errorRegistry` map inside the `var` block. Match the group to an existing `ErrorGroup` constant (or define a new one — see next section).
 
 ```go
-// registry.go — inside ErrorRegistry = map[ErrorCode]Metadata{ ... }
+// registry.go — inside errorRegistry = map[ErrorCode]Metadata{ ... }
 
 ERR_PAYMENT_DECLINED: {
     Code:        ERR_PAYMENT_DECLINED,

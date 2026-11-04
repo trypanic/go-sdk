@@ -58,13 +58,13 @@ func RegisterMany(metadata ...Metadata) error {
 		if err := ValidateMetadata(meta); err != nil {
 			return err
 		}
-		if existing, ok := ErrorRegistry[meta.Code]; ok {
+		if existing, ok := errorRegistry[meta.Code]; ok {
 			if existing == meta {
 				continue
 			}
 			return fmt.Errorf("%w: %s", ErrMetadataConflict, meta.Code)
 		}
-		ErrorRegistry[meta.Code] = meta
+		errorRegistry[meta.Code] = meta
 	}
 	return nil
 }
@@ -176,7 +176,7 @@ func (r *Registry) Merge(other *Registry) error {
 // OverrideMetadata only for tests or runtime overrides where conflict
 // detection must be bypassed deliberately.
 func OverrideMetadata(code ErrorCode, updater func(*Metadata)) bool {
-	return overrideMetadata(&errorRegistryMu, ErrorRegistry, code, updater)
+	return overrideMetadata(&errorRegistryMu, errorRegistry, code, updater)
 }
 
 // OverrideMetadata replaces metadata for an existing code in this registry.
