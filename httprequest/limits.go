@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
 )
 
 // DefaultMaxResponseBytes is the default cap on a successful response body,
@@ -29,7 +28,7 @@ var errBodyTooLarge = errors.New("response body exceeds the configured limit")
 
 // WithMaxResponseBytes caps the size of a successful response body (after
 // transparent gzip decompression). A body larger than n is rejected with a
-// non-retriable httpclient.ERR_EXTERNAL_INVALID_RESPONSE. A non-positive n
+// non-retriable errorkit.ERR_EXTERNAL_INVALID_RESPONSE. A non-positive n
 // restores DefaultMaxResponseBytes.
 func WithMaxResponseBytes(n int64) Option {
 	return func(h *HTTPRequest) { h.maxResponseBytes = normalizeMaxResponseBytes(n) }
@@ -86,7 +85,7 @@ func drainAndClose(body io.ReadCloser) {
 
 // buildBodyTooLargeError reports a response body over the configured limit.
 func buildBodyTooLargeError(requestURL string, limit int64) error {
-	appErr := errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).
+	appErr := errorkit.NewError(errorkit.ERR_EXTERNAL_INVALID_RESPONSE).
 		With(
 			errorkit.WithReason("Response body exceeds the limit of %d bytes", limit),
 			errorkit.WithWrapped(errBodyTooLarge),

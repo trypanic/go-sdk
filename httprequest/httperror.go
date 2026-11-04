@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/internal/redact"
 )
 
@@ -48,7 +47,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	if isTLSVerificationError(err) {
-		return errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).
+		return errorkit.NewError(errorkit.ERR_EXTERNAL_INVALID_RESPONSE).
 			With(
 				errorkit.WithReason("TLS certificate verification failed"),
 				errorkit.WithWrapped(err),
@@ -168,13 +167,13 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	switch {
 	// 5xx Server Errors
 	case statusCode == http.StatusServiceUnavailable: // 503
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_UNAVAILABLE
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_UNAVAILABLE
 		reason = fmt.Sprintf("External service unavailable (%d)", statusCode)
 	case statusCode == http.StatusGatewayTimeout: // 504
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_TIMEOUT
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_TIMEOUT
 		reason = fmt.Sprintf("External service timeout (%d)", statusCode)
 	case statusCode >= 500 && statusCode <= 599:
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_ERROR
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_ERROR
 		reason = fmt.Sprintf("External service error (%d)", statusCode)
 
 	// 4xx Client Errors
@@ -198,7 +197,7 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 		errCode = ERR_AUTH_UNAUTHORIZED
 		reason = fmt.Sprintf("Access forbidden (%d)", statusCode)
 	case statusCode >= 400 && statusCode <= 499:
-		errCode = httpclient.ERR_EXTERNAL_INVALID_RESPONSE
+		errCode = errorkit.ERR_EXTERNAL_INVALID_RESPONSE
 		reason = fmt.Sprintf("Invalid request or response (%d)", statusCode)
 
 	// Unexpected status codes

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/httprequest"
 	"github.com/trypanic/go-sdk/marshal"
 	"github.com/trypanic/go-sdk/telemetry"
@@ -192,7 +191,7 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 	}
 
 	if len(response.Choices) == 0 {
-		return "", errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).With(
+		return "", errorkit.NewError(errorkit.ERR_EXTERNAL_INVALID_RESPONSE).With(
 			errorkit.WithReason("LLM response has no choices"),
 		)
 	}
