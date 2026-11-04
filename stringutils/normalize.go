@@ -1,24 +1,36 @@
 package stringutils
 
 import (
-	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // NormalizeText converts text to lowercase, replaces spaces with underscores,
-// and strips any characters that are not alphanumeric or underscores.
+// and strips any characters that are not ASCII letters, digits or underscores.
+//
+// The result is lossy and not injective: different inputs can produce the
+// same output ("a-b" and "ab" both give "ab"), and input without ASCII
+// letters or digits gives "". Lowercasing runs before the filter, so the few
+// non-ASCII letters whose lowercase form is ASCII are kept (the Kelvin sign
+// U+212A gives "k", "İ" gives "i").
 func NormalizeText(input string) string {
-	// Convert to lowercase
-	text := strings.ToLower(input)
-
-	// Replace spaces with underscores
-	text = strings.ReplaceAll(text, " ", "_")
-
-	// Keep only letters, digits and underscores
-	reg := regexp.MustCompile(`[^a-z0-9_]`)
-	text = reg.ReplaceAllString(text, "")
-
-	return text
+	var b strings.Builder
+	b.Grow(len(input))
+	for _, r := range input {
+		if r >= utf8.RuneSelf {
+			r = unicode.ToLower(r)
+		} else if 'A' <= r && r <= 'Z' {
+			r += 'a' - 'A'
+		}
+		switch {
+		case r == ' ':
+			b.WriteByte('_')
+		case r == '_', 'a' <= r && r <= 'z', '0' <= r && r <= '9':
+			b.WriteByte(byte(r))
+		}
+	}
+	return b.String()
 }
 
 // RemoveMarkdownCodeBlock returns the content of input when the whole input

@@ -44,10 +44,10 @@ func NormalizeText(input string) string
 
 Transforms `input` into a lowercase, underscore-delimited token suitable for use as an identifier or map key.
 
-**Steps applied in order:**
-1. Convert all characters to lowercase with `strings.ToLower`.
-2. Replace every space character (`U+0020`) with an underscore (`_`).
-3. Strip every character that is not an ASCII letter (`a-z`), ASCII digit (`0-9`), or underscore (`_`).
+**Steps applied to each character, in a single pass (no regular expression):**
+1. Convert it to lowercase (`unicode.ToLower`, the same mapping as `strings.ToLower`).
+2. Replace a space character (`U+0020`) with an underscore (`_`).
+3. Drop it unless it is an ASCII letter (`a-z`), ASCII digit (`0-9`), or underscore (`_`).
 
 **Edge cases:**
 - Characters outside the ASCII range (e.g., accented letters, CJK) are removed entirely.
@@ -109,7 +109,7 @@ if err := json.Unmarshal([]byte(raw), &partial); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-Both functions are pure and stateless and are safe for concurrent use without additional synchronisation. `RemoveMarkdownCodeBlock` parses the input line by line without regular expressions.
+Both functions are pure and stateless and are safe for concurrent use without additional synchronisation. Neither function uses regular expressions: `NormalizeText` is a single pass over the input that allocates only the result, and `RemoveMarkdownCodeBlock` parses the input line by line.
 
 ---
 
@@ -117,5 +117,5 @@ Both functions are pure and stateless and are safe for concurrent use without ad
 
 | Package | Role |
 |---|---|
-| `regexp` | Character filter in `NormalizeText` |
-| `strings` | Lowercasing, space replacement, and trimming |
+| `unicode`, `unicode/utf8` | Lowercasing non-ASCII characters in `NormalizeText` |
+| `strings` | Result building, fence parsing, and trimming |
