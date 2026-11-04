@@ -75,7 +75,7 @@ and say so in your final message.
 | CI | Only `.github/workflows/release.yml` (release-please + SBOM). `SECURITY.md` describes semgrep CI jobs that are **not present** — verify and report |
 | Tests | No `//go:build integration` tags and no `testing.Short()` gates; connection paths of postgres/mongo/messaging are untested (fakes only for postgres `Querier`, mongo `ClientPort`/`Collection`, llmclient requester, gRPC bufconn, `httptest`) |
 | Project skills | `.skillshare/skills/{go-code-quality-check,go-design-principles,go-testing-strategy}` (gitignored; install with `task skills:install`) |
-| Known pre-existing | See `baseline.md`: staticcheck SA1019 ×4 in `logger`, stdlib vulns on go ≤ 1.26.2, 25 golangci-lint issues. (The previously listed semgrep `defer-rows-close` at `postgres/stored_procedure_test.go:47` does not reproduce: semgrep skips `*_test.go` by default.) |
+| Known pre-existing | See `baseline.md`: staticcheck SA1019 ×4 in `logger`, stdlib vulns on go ≤ 1.26.2, 25 golangci-lint issues. (The semgrep `defer-rows-close` hits at `postgres/stored_procedure_test.go:47` appear only when test files are passed explicitly, as the staged pre-commit mode does; full mode skips `*_test.go` — see X2-006.) |
 | Gotcha | `task release:check` refuses a dirty tree (Taskfile precondition), including the untracked `.moon/` leftover from `main`; run it from a clean worktree |
 
 ---
@@ -454,7 +454,7 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | P2.C5 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C5.md` | | orchestrator | | messaging |
 | P2.C6 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C6.md` | | orchestrator | | utility packages |
 | P2.X1 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X1.md` | | orchestrator | | architecture + public API |
-| P2.X2 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X2.md` | | orchestrator | | maintainability, CI, docs |
+| P2.X2 | Audit | P1 | DONE | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T03:10Z | `findings/P2.X2.md` | | orchestrator | orchestrator claude-opus-5-5 | 19 findings (H3/M8/L8). Re-verified X2-001/002/003 (HIGH) and X2-007/009/011; format OK. Side effect noted by author: pre-commit fetched remote hook repos in a scratch clone. |
 | P2.X3 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X3.md` | | orchestrator | | dependencies, govulncheck |
 | P2.Z | Audit | all P2.* | TODO | | | `AUDIT_REPORT.md` | | go-reviewer | | |
 | P3 | Plan | P2.Z | TODO | | | `REMEDIATION_PLAN.md` | | go-reviewer | | |
