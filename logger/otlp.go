@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
-	otelglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -38,7 +38,7 @@ type OTLPWriter struct {
 //	l, cleanup := logger.Init("my-service", version, logger.NewOTLPWriter("my-service"))
 func NewOTLPWriter(serviceName string) *OTLPWriter {
 	return &OTLPWriter{
-		logger: otelglobal.GetLoggerProvider().Logger(serviceName),
+		logger: otel.GetLoggerProvider().Logger(serviceName),
 	}
 }
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	otelglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
@@ -85,7 +85,7 @@ func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string)
 	)
 
 	// Register as the global provider so NewOTLPWriter() can resolve it.
-	otelglobal.SetLoggerProvider(provider)
+	otel.SetLoggerProvider(provider)
 
 	return &LogProviderHandle{provider: provider}
 }
