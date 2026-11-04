@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
@@ -54,9 +56,9 @@ type tracingHTTPRequester struct {
 	instrumenter *telemetry.Instrumenter
 }
 
-func (t *tracingHTTPRequester) Do(ctx context.Context, config RequestConfig, out any) error {
-	ctx, span := t.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL))
-	defer span.End()
+func (t *tracingHTTPRequester) Do(ctx context.Context, config RequestConfig, out any) (err error) {
+	ctx, span := t.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL), telemetry.WithSpanKind(trace.SpanKindClient))
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.Do(ctx, config, out)
 }
 

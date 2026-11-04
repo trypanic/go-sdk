@@ -102,3 +102,11 @@ inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
 still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
 exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
 client intentionally creates another span, so wrap a tracing-disabled client.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.

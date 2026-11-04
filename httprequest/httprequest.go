@@ -235,11 +235,11 @@ func NewWithOptions(client *http.Client, opts ...Option) *HTTPRequest {
 
 // Do execute the request with retry logic and processes the response into 'out'.
 // Do is safe for concurrent use after construction: it never mutates h.
-func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) error {
+func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) (err error) {
 	if h.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = h.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL))
-		defer span.End()
+		ctx, span = h.instrumenter.Start(ctx, httpSpanName(config.Method, config.URL), telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
 	}
 
 	var lastErr error

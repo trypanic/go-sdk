@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -105,11 +107,11 @@ func (c *Client) Collection(name string) Collection {
 }
 
 // Ping allows readiness/liveness checks.
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) Ping(ctx context.Context) (err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, "mongo.ping")
-		defer span.End()
+		ctx, span = c.instrumenter.Start(ctx, "mongo.ping", telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
 	}
 	if err := c.client.Ping(ctx, readpref.Primary()); err != nil {
 		return WrapOperationError(err, "ping")
@@ -118,11 +120,11 @@ func (c *Client) Ping(ctx context.Context) error {
 }
 
 // Close gracefully disconnects the Mongo client.
-func (c *Client) Close(ctx context.Context) error {
+func (c *Client) Close(ctx context.Context) (err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, "mongo.close")
-		defer span.End()
+		ctx, span = c.instrumenter.Start(ctx, "mongo.close", telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
 	}
 	if c.borrowed {
 		return nil

@@ -3,6 +3,8 @@ package llmclient
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
@@ -35,9 +37,9 @@ type tracingLLMProvider struct {
 	instrumenter *telemetry.Instrumenter
 }
 
-func (t *tracingLLMProvider) Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error) {
-	ctx, span := t.instrumenter.Start(ctx, llmSpanName(reqConfig.Model))
-	defer span.End()
+func (t *tracingLLMProvider) Execute(ctx context.Context, reqConfig LLMRequestConfig) (result string, err error) {
+	ctx, span := t.instrumenter.Start(ctx, llmSpanName(reqConfig.Model), telemetry.WithSpanKind(trace.SpanKindClient))
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.Execute(ctx, reqConfig)
 }
 

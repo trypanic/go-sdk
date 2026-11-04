@@ -348,3 +348,11 @@ client intentionally creates another span, so wrap a tracing-disabled client.
 Transport backoff growth and full jitter are shared with messaging through
 `internal/backoff`; growth saturates before duration overflow. Public retry
 configuration units, idempotency rules and `Retry-After` precedence are unchanged.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.

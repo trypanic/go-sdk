@@ -383,3 +383,13 @@ client intentionally creates another span, so wrap a tracing-disabled client.
 
 `NewStoredProcedure` returns `*TracedProcedure[T]`; its `Unwrap()` returns the
 underlying `StoredProcedurer[T]`. It does not own or close the supplied pool.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+PostgreSQL operation spans carry `db.system=postgresql`.

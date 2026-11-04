@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httprequest"
 	"github.com/trypanic/go-sdk/marshal"
@@ -148,11 +150,11 @@ func (c *Client) timeout() time.Duration {
 }
 
 // Execute performs a non-streaming LLM request.
-func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error) {
+func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (result string, err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = c.instrumenter.Start(ctx, llmSpanName(reqConfig.Model))
-		defer span.End()
+		ctx, span = c.instrumenter.Start(ctx, llmSpanName(reqConfig.Model), telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
 	}
 
 	if reqConfig.Model == "" {

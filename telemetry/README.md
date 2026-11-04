@@ -109,3 +109,11 @@ Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
 `messaging.WithInstrumenter`; each keeps its component scope and uses
 `instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
 Hertz tracing remains an exception: its adapter uses the global provider.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.

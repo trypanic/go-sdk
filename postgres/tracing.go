@@ -4,6 +4,8 @@ import (
 	"context"
 	"regexp"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
@@ -51,32 +53,32 @@ type TracedProcedure[T any] struct {
 	instrumenter *telemetry.Instrumenter
 }
 
-func (t *TracedProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (T, error) {
+func (t *TracedProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (result T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
-	defer span.End()
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.QueryRow(ctx, query, args...)
 }
 
-func (t *TracedProcedure[T]) Query(ctx context.Context, query string, args ...any) ([]T, error) {
+func (t *TracedProcedure[T]) Query(ctx context.Context, query string, args ...any) (result []T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
-	defer span.End()
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.Query(ctx, query, args...)
 }
 
-func (t *TracedProcedure[T]) QueryRowJSON(ctx context.Context, query string, jsonArg any, args ...any) (T, error) {
+func (t *TracedProcedure[T]) QueryRowJSON(ctx context.Context, query string, jsonArg any, args ...any) (result T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
-	defer span.End()
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.QueryRowJSON(ctx, query, jsonArg, args...)
 }
 
-func (t *TracedProcedure[T]) QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) ([]T, error) {
+func (t *TracedProcedure[T]) QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) (result []T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
-	defer span.End()
+	defer func() { telemetry.End(span, err) }()
 	return t.inner.QueryJSON(ctx, query, jsonArg, args...)
 }
 
 func (t *TracedProcedure[T]) pgSpan(ctx context.Context, sql string) (context.Context, telemetry.Span) {
-	return t.instrumenter.Start(ctx, procSpanName(sql))
+	return t.instrumenter.Start(ctx, procSpanName(sql), telemetry.WithSpanKind(trace.SpanKindClient), telemetry.WithString("db.system", "postgresql"))
 }
 
 func procSpanName(sql string) string {

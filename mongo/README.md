@@ -367,3 +367,15 @@ client intentionally creates another span, so wrap a tracing-disabled client.
 Configure these options before construction. `NewFromClient(driver, database, instr)`
 performs no I/O and borrows the driver: its `Close` is a no-op; the original owner
 must call `Disconnect`. Clients opened by the SDK own and disconnect their driver.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+`FindOne` reports deferred operation/decode failures in a child
+`mongo.<collection>.findOne.decode` span when `Decode` is called. The initial
+find span always ends when FindOne returns, even if the result is never decoded.
