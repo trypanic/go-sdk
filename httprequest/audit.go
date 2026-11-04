@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/logger"
 )
 
@@ -51,7 +52,7 @@ func (h *HTTPRequest) logHTTPAudit(
 		WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
 		Str("event", "http.audit.outbound").
 		Str("method", config.Method).
-		Str("url", config.URL).
+		Str("url", redact.URL(config.URL)).
 		Int("status_code", statusCode).
 		RawJSON("request.headers", reqHeadersJSON).
 		Str("request.body", h.redactBody(config.Body)).

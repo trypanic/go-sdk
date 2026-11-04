@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -202,7 +203,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 			span.AddEvent("http.attempt", trace.WithAttributes(
 				attribute.Int("retry.attempt", attempt+1),
 				attribute.Int("retry.max", rc.MaxRetries),
-				attribute.String("http.url", config.URL),
+				attribute.String("http.url", redact.URL(config.URL)),
 			))
 		}
 
@@ -298,7 +299,7 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 			With(
 				errorkit.WithReason("Failed to create HTTP request"),
-				errorkit.WithWrapped(err),
+				errorkit.WithWrapped(redact.URLError(err)),
 			)
 	}
 

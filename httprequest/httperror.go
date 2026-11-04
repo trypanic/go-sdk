@@ -11,6 +11,7 @@ import (
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpclient"
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/logger"
 )
 
@@ -26,9 +27,12 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 
 // buildNetworkError creates a structured network error. Request body is only
 // included when WithBodyCapture is enabled, and even then it is redacted.
+// The URL, in the payload and inside a wrapped *url.Error, is sanitized by
+// redact.URL so credentials never reach logs or error payloads.
 func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+	err = redact.URLError(err)
 	payload := map[string]any{
-		"url":            requestURL,
+		"url":            redact.URL(requestURL),
 		"original_error": err.Error(),
 	}
 	if h.captureBodies {
@@ -77,7 +81,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 // buildHTTPError maps HTTP status codes to structured errors.
 func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
 	statusCode := res.StatusCode
-	requestURL := res.Request.URL.String()
+	requestURL := redact.URL(res.Request.URL.String())
 	providerErr := parseProviderError(bodyBytes)
 
 	payload := map[string]any{
@@ -94,8 +98,10 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	if providerErr.Type != "" {
 		payload["provider_error_type"] = providerErr.Type
 	}
-	if providerErr.Message != "" {
-		payload["provider_error_message"] = providerErr.Message
+	// Providers often echo input or partial credentials in the message, so
+	// it follows the same opt-in and redaction policy as the bodies.
+	if h.captureBodies && providerErr.Message != "" {
+		payload["provider_error_message"] = h.redactBody([]byte(providerErr.Message))
 	}
 
 	var errCode errorkit.ErrorCode
