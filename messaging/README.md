@@ -43,7 +43,12 @@ is called it:
 2. Declares **every exchange** listed in the file on the broker (idempotent).
 
 Queues and bindings are declared lazily: each call to `Subscribe` declares the
-target queue and binds it before it starts consuming.
+target queue and binds it before it starts consuming.  Pass
+`WithDeclareTopology()` to have `NewPubSub` also declare **every queue and
+binding** (dead-letter queues included), again on every publisher reconnect.
+Without it, a message published to a queue that no subscriber has declared yet
+has no route and `Publish` returns `ERR_MQ_PUBLISH_FAILED` (see
+[Delivery Guarantee](#delivery-guarantee)).
 
 The topology source is selected via constructor options, in priority order:
 
@@ -96,6 +101,25 @@ Connection drops are handled transparently at both ends:
 
 Both sides open their connections with an AMQP heartbeat interval
 (`DefaultHeartbeat`, 60 s) so dead TCP links are detected quickly.
+
+### Delivery Guarantee
+
+The publisher channel runs in **publisher-confirm mode** and every message is
+published as **mandatory**.  `Publish` returns `nil` only after the broker has
+confirmed every routing key of the event:
+
+* A broker **nack** → `ERR_MQ_PUBLISH_FAILED`.
+* An **unroutable** message (no queue bound for the routing key; the broker
+  sends `basic.return`) → `ERR_MQ_PUBLISH_FAILED` with the broker's reply text
+  (e.g. `NO_ROUTE`).
+* No confirm before `ctx` ends → the error wraps `ctx.Err()`
+  (`ERR_MQ_TIMEOUT` for a deadline).  The broker may still have stored the
+  message.
+
+Delivery is therefore **at-least-once**: a retry after a lost confirm, or a
+redelivery after a consumer crash, can deliver the same event twice.
+Consumers must deduplicate on `event_id`.  Confirms add one broker round trip
+to every publish.
 
 ### Retry with Exponential Backoff
 
@@ -251,7 +275,8 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | `ERR_MQ_EXCHANGE_ERROR` | Declaring an exchange fails | yes |
 | `ERR_MQ_QUEUE_ERROR` | Declaring or binding a queue fails | yes |
 | `ERR_MQ_CONSUME_FAILED` | Starting a consumer fails | yes |
-| `ERR_MQ_PUBLISH_FAILED` | Publishing a message fails | yes |
+| `ERR_MQ_PUBLISH_FAILED` | Publishing a message fails, the broker nacks it, or returns it as unroutable | yes |
+| `ERR_MQ_TIMEOUT` | The caller's `ctx` deadline ends a `Publish` (waiting, dialing or waiting for the confirm) | yes |
 | `ERR_SYSTEM_CONFIG_INVALID` | A queue, binding or exchange is missing from the topology | no |
 
 ## Error Handling Summary
@@ -259,6 +284,7 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | Scenario | What happens |
 |----------|--------------|
 | `Publish` fails after all retries | Error returned to the caller |
+| Broker nacks a message or cannot route it | `ERR_MQ_PUBLISH_FAILED` (retried per queue config) |
 | Handler returns an error | Message retried per queue config; after exhaustion it is Nacked → DLQ |
 | Handler panics | The panic is recovered and recorded (with its stack) on the process span; the message is not retried and is Nacked without requeue → DLQ |
 | Connection drops during `Subscribe` | Automatic reconnect with exponential backoff |

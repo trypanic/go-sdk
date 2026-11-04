@@ -24,8 +24,20 @@ type amqpChannel interface {
 	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
 	Qos(prefetchCount, prefetchSize int, global bool) error
 	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
-	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+	Confirm(noWait bool) error
+	NotifyReturn(c chan amqp.Return) chan amqp.Return
+	// PublishDeferred publishes msg on a channel in confirm mode and returns
+	// the broker's pending confirmation.
+	PublishDeferred(ctx context.Context, exchange, key string, mandatory bool, msg amqp.Publishing) (publishConfirmation, error)
 	Close() error
+}
+
+// publishConfirmation is the broker's pending answer (ack or nack) to one
+// publish on a channel in confirm mode.
+type publishConfirmation interface {
+	// WaitContext reports whether the broker acked the message, or ctx.Err()
+	// when ctx ends first.
+	WaitContext(ctx context.Context) (bool, error)
 }
 
 // dialFunc opens an AMQP connection. nil means dialAMQP.
@@ -93,8 +105,31 @@ func (c realConnection) Channel() (amqpChannel, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ch, nil
+	return realChannel{Channel: ch}, nil
 }
+
+// realChannel adapts *amqp.Channel to amqpChannel.
+type realChannel struct {
+	*amqp.Channel
+}
+
+func (c realChannel) PublishDeferred(ctx context.Context, exchange, key string, mandatory bool, msg amqp.Publishing) (publishConfirmation, error) {
+	dc, err := c.PublishWithDeferredConfirmWithContext(ctx, exchange, key, mandatory, false, msg)
+	if err != nil {
+		return nil, err
+	}
+	if dc == nil {
+		// The channel is not in confirm mode: the frame was written and no
+		// broker answer will follow.
+		return ackedConfirmation{}, nil
+	}
+	return dc, nil
+}
+
+// ackedConfirmation is an already positive confirmation.
+type ackedConfirmation struct{}
+
+func (ackedConfirmation) WaitContext(context.Context) (bool, error) { return true, nil }
 
 func (c realConnection) IsClosed() bool { return c.conn.IsClosed() }
 

@@ -20,6 +20,11 @@ import (
 // If the underlying connection drops, Publish reconnects transparently before
 // (or after) the attempt.
 //
+// The publishing channel runs in confirm mode and every message is published
+// as mandatory: Publish returns only once the broker has confirmed the
+// message, and reports a nack or an unroutable message (basic.return) as
+// ERR_MQ_PUBLISH_FAILED.
+//
 // Publishes on the shared channel run one at a time. Waiting for that turn,
 // reconnecting and publishing all honour the caller's ctx, and the dial never
 // runs under the mutex that guards the connection, so Close and callers with
@@ -30,12 +35,22 @@ type Publisher struct {
 	turnOnce sync.Once
 	turn     chan struct{}
 
-	mu        sync.Mutex // guards conn and channel; never held across a dial
+	mu        sync.Mutex // guards conn, channel, returns and broken; never held across a dial
 	conn      amqpConnection
 	channel   amqpChannel
-	exchanges []Exchange // declared on every (re)connect
+	returns   chan amqp.Return // basic.return notifications of channel
+	broken    bool             // channel must not be reused (abandoned confirm)
+	exchanges []Exchange       // declared on every (re)connect
+	declare   *Topology        // when non-nil, its queues and bindings are declared on every (re)connect
 	amqpURL   string
 	dial      dialFunc // nil means dialAMQP
+}
+
+// publisherLink is one open connection with its publishing channel.
+type publisherLink struct {
+	conn    amqpConnection
+	channel amqpChannel
+	returns chan amqp.Return
 }
 
 // NewPublisher creates a Publisher and declares all provided exchanges on the broker.
@@ -51,29 +66,43 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 }
 
 func (p *Publisher) connect() error {
-	conn, ch, err := p.open(context.Background())
+	l, err := p.open(context.Background())
 	if err != nil {
 		return err
 	}
-	p.mu.Lock()
-	p.conn, p.channel = conn, ch
-	p.mu.Unlock()
+	p.swap(l)
 	return nil
 }
 
-// open dials a new connection, opens a channel and declares the exchanges.
-// It does not touch the publisher state.
-func (p *Publisher) open(ctx context.Context) (amqpConnection, amqpChannel, error) {
+// swap installs l as the current link.
+func (p *Publisher) swap(l publisherLink) {
+	p.mu.Lock()
+	p.conn, p.channel, p.returns, p.broken = l.conn, l.channel, l.returns, false
+	p.mu.Unlock()
+}
+
+// open dials a new connection, opens a channel in confirm mode and declares
+// the exchanges (and, with declare, the queues and bindings). It does not
+// touch the publisher state.
+func (p *Publisher) open(ctx context.Context) (publisherLink, error) {
 	conn, err := p.dial.open(ctx, p.amqpURL)
 	if err != nil {
-		return nil, nil, mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
+		return publisherLink{}, mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return nil, nil, mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
+		return publisherLink{}, mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
+
+	if err := ch.Confirm(false); err != nil {
+		conn.Close()
+		return publisherLink{}, mqError(ERR_MQ_CHANNEL_ERROR, "failed to enable publisher confirms", err)
+	}
+	// Publishes run one at a time and each one drains this channel, so one
+	// slot is enough; amqp091-go fills it before it delivers the ack.
+	returns := ch.NotifyReturn(make(chan amqp.Return, 1))
 
 	for _, ex := range p.exchanges {
 		if err := ch.ExchangeDeclare(
@@ -83,10 +112,34 @@ func (p *Publisher) open(ctx context.Context) (amqpConnection, amqpChannel, erro
 			nil,
 		); err != nil {
 			conn.Close()
-			return nil, nil, mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
+			return publisherLink{}, mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 		}
 	}
-	return conn, ch, nil
+	if p.declare != nil {
+		if err := declareQueues(ch, p.declare); err != nil {
+			conn.Close()
+			return publisherLink{}, err
+		}
+	}
+	return publisherLink{conn: conn, channel: ch, returns: returns}, nil
+}
+
+// declareQueues declares every queue of topo, with the same arguments
+// Subscribe uses, and every binding.
+func declareQueues(ch amqpChannel, topo *Topology) error {
+	for _, q := range topo.Queues {
+		if _, err := ch.QueueDeclare(q.Name, q.Durable, q.AutoDelete, false, false, buildQueueArgs(q)); err != nil {
+			return mqError(ERR_MQ_QUEUE_ERROR, "failed to declare queue", err)
+		}
+	}
+	for _, b := range topo.Bindings {
+		for _, rk := range b.RoutingKeys {
+			if err := ch.QueueBind(b.Queue, rk, b.Exchange, false, nil); err != nil {
+				return mqError(ERR_MQ_QUEUE_ERROR, "failed to bind queue", err)
+			}
+		}
+	}
+	return nil
 }
 
 // acquire waits for the publishing turn or for ctx to end.
@@ -105,14 +158,15 @@ func (p *Publisher) acquire(ctx context.Context) error {
 
 func (p *Publisher) release() { <-p.turn }
 
-// currentChannel returns the open channel, reconnecting first when the
-// connection is missing or closed. The caller holds the publishing turn.
-func (p *Publisher) currentChannel(ctx context.Context) (amqpChannel, error) {
+// currentLink returns the open link, reconnecting first when the connection
+// is missing or closed or the channel is broken. The caller holds the
+// publishing turn.
+func (p *Publisher) currentLink(ctx context.Context) (publisherLink, error) {
 	p.mu.Lock()
-	if p.conn != nil && !p.conn.IsClosed() {
-		ch := p.channel
+	if p.conn != nil && !p.conn.IsClosed() && !p.broken {
+		l := publisherLink{conn: p.conn, channel: p.channel, returns: p.returns}
 		p.mu.Unlock()
-		return ch, nil
+		return l, nil
 	}
 	p.mu.Unlock()
 
@@ -123,9 +177,9 @@ func (p *Publisher) currentChannel(ctx context.Context) (amqpChannel, error) {
 // reconnect replaces the connection. The caller holds the publishing turn,
 // so reconnects are single-flight; mu is held only to swap the state, never
 // across the dial.
-func (p *Publisher) reconnect(ctx context.Context) (amqpChannel, error) {
+func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, publishCtxError(err)
+		return publisherLink{}, publishCtxError(err)
 	}
 
 	p.mu.Lock()
@@ -135,18 +189,16 @@ func (p *Publisher) reconnect(ctx context.Context) (amqpChannel, error) {
 		old.Close()
 	}
 
-	conn, ch, err := p.open(ctx)
+	l, err := p.open(ctx)
 	if err != nil {
 		if ctxErr := ctxEnded(ctx); ctxErr != nil {
-			return nil, publishCtxError(ctxErr)
+			return publisherLink{}, publishCtxError(ctxErr)
 		}
-		return nil, err
+		return publisherLink{}, err
 	}
 
-	p.mu.Lock()
-	p.conn, p.channel = conn, ch
-	p.mu.Unlock()
-	return ch, nil
+	p.swap(l)
+	return l, nil
 }
 
 // Publish sends body to the given exchange with the specified routing key.
@@ -163,10 +215,12 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 }
 
 // PublishWithContext sends body with the given AMQP headers to exchange
-// using routingKey, as a persistent application/json message. It reconnects
-// first when the connection is closed and, when the publish itself fails,
-// reconnects once more and retries. ctx bounds the wait for the publishing
-// turn, the reconnect and the publish; when it ends the returned error
+// using routingKey, as a persistent, mandatory application/json message, and
+// waits for the broker's confirm. It reconnects first when the connection is
+// closed and, when the publish itself fails, reconnects once more and
+// retries. A nack or an unroutable message (basic.return) is reported as
+// ERR_MQ_PUBLISH_FAILED. ctx bounds the wait for the publishing turn, the
+// reconnect, the publish and the confirm; when it ends the returned error
 // wraps ctx.Err() (ERR_MQ_TIMEOUT for a deadline).
 func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey string, body []byte, headers amqp.Table) error {
 	if err := p.acquire(ctx); err != nil {
@@ -181,30 +235,79 @@ func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey
 		Headers:      headers,
 	}
 
-	ch, err := p.currentChannel(ctx)
+	l, err := p.currentLink(ctx)
 	if err != nil {
 		return err
 	}
 
-	if err := ch.PublishWithContext(ctx, exchange, routingKey, false, false, pub); err != nil {
+	drainReturns(l.returns)
+	conf, err := l.channel.PublishDeferred(ctx, exchange, routingKey, true, pub)
+	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return publishCtxError(ctxErr)
 		}
 		// Channel may have died between the connection check and Publish.
 		// Reconnect once and retry.
 		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
-		ch, err = p.reconnect(ctx)
+		l, err = p.reconnect(ctx)
 		if err != nil {
 			return err
 		}
-		if err := ch.PublishWithContext(ctx, exchange, routingKey, false, false, pub); err != nil {
+		conf, err = l.channel.PublishDeferred(ctx, exchange, routingKey, true, pub)
+		if err != nil {
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return publishCtxError(ctxErr)
 			}
 			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
 		}
 	}
-	return nil
+	return p.awaitConfirm(ctx, conf, l.returns)
+}
+
+// errNotConfirmed is wrapped when the broker nacks a message or the channel
+// closes before confirming it.
+var errNotConfirmed = errors.New("broker did not confirm the message (nack or channel closed)")
+
+// awaitConfirm waits for the broker's answer to one publish. RabbitMQ sends
+// basic.return before the ack of an unroutable mandatory message, so a
+// return present once the ack has arrived belongs to this publish.
+func (p *Publisher) awaitConfirm(ctx context.Context, conf publishConfirmation, returns <-chan amqp.Return) error {
+	acked, err := conf.WaitContext(ctx)
+	if err != nil {
+		// The answer may still arrive: do not let the next publish read it.
+		p.mu.Lock()
+		p.broken = true
+		p.mu.Unlock()
+		return publishCtxError(err)
+	}
+	if !acked {
+		return mqError(ERR_MQ_PUBLISH_FAILED, "message not confirmed", errNotConfirmed)
+	}
+	select {
+	case r, ok := <-returns:
+		if !ok { // channel closed after the ack: nothing was returned
+			return nil
+		}
+		return mqError(ERR_MQ_PUBLISH_FAILED, "message returned by the broker: "+r.ReplyText,
+			fmt.Errorf("unroutable message: %d %s (exchange %q, routing key %q)", r.ReplyCode, r.ReplyText, r.Exchange, r.RoutingKey))
+	default:
+		return nil
+	}
+}
+
+// drainReturns discards returns left over from earlier publishes (a return
+// followed by a nack), so they are not attributed to the next one.
+func drainReturns(returns <-chan amqp.Return) {
+	for {
+		select {
+		case _, ok := <-returns:
+			if !ok {
+				return
+			}
+		default:
+			return
+		}
+	}
 }
 
 // ctxEnded returns ctx.Err(), or context.DeadlineExceeded once the ctx

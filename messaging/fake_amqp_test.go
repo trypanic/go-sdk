@@ -36,11 +36,20 @@ type fakeBroker struct {
 
 	// publishErr, when set, decides the outcome of each publish attempt.
 	publishErr func(attempt int, exchange, key string) error
+	// nack, when set, makes the broker negatively confirm an attempt.
+	nack func(attempt int) bool
+	// unroutable, when set, makes the broker return an attempt (basic.return)
+	// before confirming it, as RabbitMQ does for an unroutable mandatory
+	// message.
+	unroutable func(attempt int) bool
+	// holdConfirms makes every confirmation wait until the caller's ctx ends.
+	holdConfirms bool
 
 	exchanges  []string
 	queues     []string
 	bindings   []string
 	qos        []int
+	confirms   int // channels put in confirm mode
 	published  []fakePublish
 	attempts   int
 	conns      []*fakeConn
@@ -114,8 +123,37 @@ func (c *fakeConn) Close() error {
 }
 
 type fakeChannel struct {
-	b    *fakeBroker
-	conn *fakeConn
+	b       *fakeBroker
+	conn    *fakeConn
+	returns []chan amqp.Return // guarded by b.mu
+}
+
+// fakeConfirmation is the broker's answer to one publish.
+type fakeConfirmation struct {
+	ack  bool
+	hold bool // never answers; WaitContext returns when ctx ends
+}
+
+func (c fakeConfirmation) WaitContext(ctx context.Context) (bool, error) {
+	if c.hold {
+		<-ctx.Done()
+		return false, ctx.Err()
+	}
+	return c.ack, nil
+}
+
+func (ch *fakeChannel) Confirm(_ bool) error {
+	ch.b.mu.Lock()
+	defer ch.b.mu.Unlock()
+	ch.b.confirms++
+	return nil
+}
+
+func (ch *fakeChannel) NotifyReturn(c chan amqp.Return) chan amqp.Return {
+	ch.b.mu.Lock()
+	defer ch.b.mu.Unlock()
+	ch.returns = append(ch.returns, c)
+	return c
 }
 
 func (ch *fakeChannel) ExchangeDeclare(name, _ string, _, _, _, _ bool, _ amqp.Table) error {
@@ -167,23 +205,33 @@ func (ch *fakeChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp.Table) (<-ch
 	return ch.b.deliveries, nil
 }
 
-func (ch *fakeChannel) PublishWithContext(ctx context.Context, exchange, key string, mandatory, _ bool, msg amqp.Publishing) error {
+func (ch *fakeChannel) PublishDeferred(ctx context.Context, exchange, key string, mandatory bool, msg amqp.Publishing) (publishConfirmation, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return nil, err
 	}
 	ch.b.mu.Lock()
 	defer ch.b.mu.Unlock()
 	ch.b.attempts++
 	if ch.conn.closed {
-		return amqp.ErrClosed
+		return nil, amqp.ErrClosed
 	}
 	if ch.b.publishErr != nil {
 		if err := ch.b.publishErr(ch.b.attempts, exchange, key); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	ch.b.published = append(ch.b.published, fakePublish{Exchange: exchange, RoutingKey: key, Mandatory: mandatory, Msg: msg})
-	return nil
+	if ch.b.holdConfirms {
+		return fakeConfirmation{hold: true}, nil
+	}
+	if mandatory && ch.b.unroutable != nil && ch.b.unroutable(ch.b.attempts) {
+		// RabbitMQ sends basic.return before the basic.ack of the message.
+		for _, c := range ch.returns {
+			c <- amqp.Return{ReplyCode: amqp.NoRoute, ReplyText: "NO_ROUTE", Exchange: exchange, RoutingKey: key}
+		}
+	}
+	ack := ch.b.nack == nil || !ch.b.nack(ch.b.attempts)
+	return fakeConfirmation{ack: ack}, nil
 }
 
 func (ch *fakeChannel) Close() error { return nil }

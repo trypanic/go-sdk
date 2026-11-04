@@ -44,6 +44,7 @@ type pubSubBuild struct {
 	topology     *Topology
 	topologyPath string
 	log          *logger.Logger
+	declareTopo  bool
 }
 
 // WithTracer overrides the OpenTelemetry tracer used for publish/consume spans.
@@ -77,6 +78,16 @@ func WithLogger(l *logger.Logger) PubSubOption {
 	return func(p *pubSubBuild) { p.log = l }
 }
 
+// WithDeclareTopology makes NewPubSub declare every queue and binding of the
+// topology (including dead-letter queues), not only the exchanges, and
+// declare them again on every publisher reconnect. Without it queues are
+// declared lazily by Subscribe, and a message published to a queue that no
+// subscriber has declared yet is unroutable: Publish returns
+// ERR_MQ_PUBLISH_FAILED for it.
+func WithDeclareTopology() PubSubOption {
+	return func(p *pubSubBuild) { p.declareTopo = true }
+}
+
 // NewPubSub builds a Messager. The topology source is selected in order:
 //
 //  1. WithTopology — the supplied *Topology is used as-is.
@@ -87,6 +98,16 @@ func WithLogger(l *logger.Logger) PubSubOption {
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
 func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
+	ps, err := newPubSub(amqpURL, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return ps, nil
+}
+
+// newPubSub is NewPubSub with the publisher dialing through dial (nil means
+// dialAMQP).
+func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
 	build := &pubSubBuild{}
 	for _, opt := range opts {
 		opt(build)
@@ -97,8 +118,11 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 		return nil, err
 	}
 
-	pub, err := NewPublisher(amqpURL, topo.Exchanges)
-	if err != nil {
+	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial}
+	if build.declareTopo {
+		pub.declare = topo
+	}
+	if err := pub.connect(); err != nil {
 		return nil, err
 	}
 
