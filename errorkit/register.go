@@ -3,6 +3,8 @@ package errorkit
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 )
 
@@ -48,23 +50,41 @@ func ValidateMetadata(meta Metadata) error {
 
 // RegisterMany validates and registers metadata into the package-global
 // registry. Identical duplicate metadata is a no-op. Conflicting metadata for
-// the same code returns ErrMetadataConflict. Invalid metadata returns
-// ErrInvalidMetadata. Stops at the first error.
+// the same code (already registered or earlier in the batch) returns
+// ErrMetadataConflict. Invalid metadata returns ErrInvalidMetadata.
+//
+// The batch is all-or-nothing: the whole batch is checked first and nothing
+// is registered when any entry is rejected; the first error is returned.
 func RegisterMany(metadata ...Metadata) error {
 	errorRegistryMu.Lock()
 	defer errorRegistryMu.Unlock()
 
-	for _, meta := range metadata {
+	return registerAll(errorRegistry, metadata)
+}
+
+// registerAll checks every entry of batch against m and against the earlier
+// entries of batch, and stores the batch only if all of them pass. The
+// caller holds the lock guarding m.
+func registerAll(m map[ErrorCode]Metadata, batch []Metadata) error {
+	for i, meta := range batch {
 		if err := ValidateMetadata(meta); err != nil {
 			return err
 		}
-		if existing, ok := errorRegistry[meta.Code]; ok {
-			if existing == meta {
-				continue
+		existing, ok := m[meta.Code]
+		if !ok {
+			for _, earlier := range batch[:i] {
+				if earlier.Code == meta.Code {
+					existing, ok = earlier, true
+					break
+				}
 			}
+		}
+		if ok && existing != meta {
 			return fmt.Errorf("%w: %s", ErrMetadataConflict, meta.Code)
 		}
-		errorRegistry[meta.Code] = meta
+	}
+	for _, meta := range batch {
+		m[meta.Code] = meta
 	}
 	return nil
 }
@@ -90,10 +110,8 @@ func MustRegister(metadata ...Metadata) {
 // Bulk Registration (Registry)
 // ==============================
 
-// RegisterMany validates and registers metadata into this registry. Identical
-// duplicate metadata is a no-op. Conflicting metadata for the same code returns
-// ErrMetadataConflict. Invalid metadata returns ErrInvalidMetadata. Stops at
-// the first error.
+// RegisterMany validates and registers metadata into this registry, with the
+// same all-or-nothing semantics as the package-level RegisterMany.
 func (r *Registry) RegisterMany(metadata ...Metadata) error {
 	if r == nil {
 		return errors.New("errorkit: nil registry")
@@ -102,19 +120,7 @@ func (r *Registry) RegisterMany(metadata ...Metadata) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, meta := range metadata {
-		if err := ValidateMetadata(meta); err != nil {
-			return err
-		}
-		if existing, ok := r.metadata[meta.Code]; ok {
-			if existing == meta {
-				continue
-			}
-			return fmt.Errorf("%w: %s", ErrMetadataConflict, meta.Code)
-		}
-		r.metadata[meta.Code] = meta
-	}
-	return nil
+	return registerAll(r.metadata, metadata)
 }
 
 // MustRegister calls Registry.RegisterMany and panics on failure.
@@ -139,8 +145,9 @@ func (r *Registry) MustRegister(metadata ...Metadata) {
 // Merge
 // ==============================
 
-// Merge copies metadata from other into r using RegisterMany semantics.
-// Returns the first conflict or validation error encountered.
+// Merge copies metadata from other into r using RegisterMany semantics: when
+// any entry is invalid or conflicts with r, nothing is copied and the first
+// error (in code order) is returned.
 func (r *Registry) Merge(other *Registry) error {
 	if r == nil {
 		return errors.New("errorkit: nil registry")
@@ -151,8 +158,8 @@ func (r *Registry) Merge(other *Registry) error {
 
 	other.mu.RLock()
 	snapshot := make([]Metadata, 0, len(other.metadata))
-	for _, meta := range other.metadata {
-		snapshot = append(snapshot, meta)
+	for _, code := range slices.Sorted(maps.Keys(other.metadata)) {
+		snapshot = append(snapshot, other.metadata[code])
 	}
 	other.mu.RUnlock()
 

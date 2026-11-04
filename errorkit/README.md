@@ -239,7 +239,7 @@ output := err.PrettyJSON()
 // Client-safe JSON — use this for HTTP/RPC response bodies
 output := err.PublicJSON()
 
-// Write directly to any io.Writer
+// Write directly to any io.Writer (colored only when the writer itself is a terminal)
 err.WriteTo(os.Stderr)
 err.WriteTo(logFile)
 ```
@@ -356,7 +356,9 @@ dataCodes := errorkit.GetCodesByGroup(errorkit.GroupData)
 externalCodes := errorkit.GetCodesByType(errorkit.ErrorTypeExternal)
 ```
 
-`RegisterMany` and `MustRegister` validate required fields (`Code`, `Type`, `Group`, `Category`, `Description`, `HTTPStatus` in [100, 599]) and reject duplicate codes whose metadata differs from what is already registered. Identical duplicate metadata is a no-op.
+`RegisterMany` and `MustRegister` validate required fields (`Code`, `Type`, `Group`, `Category`, `Description`, `HTTPStatus` in [100, 599]) and reject duplicate codes whose metadata differs from what is already registered (or from an earlier entry of the same batch). Identical duplicate metadata is a no-op. A batch is all-or-nothing: when any entry is rejected, none is registered.
+
+`GetAllCodes`, `GetCodesByGroup` and `GetCodesByType` return codes sorted in ascending order.
 
 `OverrideMetadata` returns `false` (and leaves the entry unchanged) when the code is not registered, when the updated metadata fails the same validation, or when the updater changes `Code`. The updater runs on a copy without holding the registry lock, so it may call errorkit (for example `GetMetadata`); if the entry changes concurrently, the updater runs again on the new value.
 
@@ -379,7 +381,7 @@ if err := registry.RegisterMany(errorkit.Metadata{
 err := registry.NewError("ERR_SDK_CUSTOM")
 ```
 
-`NewRegistry(...)` creates an empty isolated registry seeded only with the metadata you pass. `NewDefaultRegistry()` creates an isolated copy of the built-in registry. `Registry.Merge(other)` copies metadata from another registry with the same conflict semantics. `Registry` exposes `GetMetadata`, `GetAllCodes`, `GetCodesByGroup`, `GetCodesByType`, `RegisterMany`, `MustRegister`, `OverrideMetadata`, `Merge`, and `NewError` — mirroring the global API but scoped to the instance.
+`NewRegistry(...)` creates an empty isolated registry seeded only with the metadata you pass; the seed is stored as given, without validation or conflict checks (call `NewRegistry()` and then `RegisterMany` to validate it). `NewDefaultRegistry()` creates an isolated copy of the built-in registry. `Registry.Merge(other)` copies metadata from another registry with the same all-or-nothing conflict semantics. `Registry` exposes `GetMetadata`, `GetAllCodes`, `GetCodesByGroup`, `GetCodesByType`, `RegisterMany`, `MustRegister`, `OverrideMetadata`, `Merge`, and `NewError` — mirroring the global API but scoped to the instance.
 
 ---
 
@@ -454,7 +456,9 @@ minID := errorkit.MinULID(startTime)
 maxID := errorkit.MaxULID(endTime)
 ```
 
-`ValidateULID` rejects timestamps before 2000 and more than 1 year in the future.
+`ParseULID` and `ValidateULID` accept upper- and lower-case IDs; generated IDs are upper case. `ValidateULID` rejects timestamps before 2000 and more than 1 year in the future.
+
+Generated ULIDs are strictly increasing in generation order, also within one millisecond, under concurrent use and when the system clock steps backwards (the last timestamp is kept and the random part incremented).
 
 ---
 

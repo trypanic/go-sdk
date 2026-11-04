@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 )
 
 // ==============================
@@ -57,8 +56,7 @@ func (f *StackFormatter) FormatColored(e *AppError) string {
 		return ""
 	}
 
-	builder := getBuilder()
-	defer putBuilder(builder)
+	builder := &strings.Builder{}
 
 	// Header
 	builder.WriteString("\n")
@@ -140,8 +138,7 @@ func (f *StackFormatter) FormatPlain(e *AppError) string {
 		return ""
 	}
 
-	builder := getBuilder()
-	defer putBuilder(builder)
+	builder := &strings.Builder{}
 
 	// Header
 	builder.WriteString("\n")
@@ -237,30 +234,30 @@ func (f *JSONFormatter) Format(e *AppError) string {
 
 	b, err := json.MarshalIndent(model, "", "  ")
 	if err != nil {
-		// Return basic fallback JSON (no console output)
-		return fmt.Sprintf(`{"error":"marshal_failed","id":"%s","code":"%s"}`, e.ID, e.ErrCode)
+		return marshalFailedJSON(e, err)
 	}
 
 	return string(b)
 }
 
-// ==============================
-// Helper: Builder Pool
-// ==============================
-
-var builderPool = sync.Pool{
-	New: func() any {
-		return new(strings.Builder)
-	},
-}
-
-func getBuilder() *strings.Builder {
-	return builderPool.Get().(*strings.Builder)
-}
-
-func putBuilder(b *strings.Builder) {
-	b.Reset()
-	builderPool.Put(b)
+// marshalFailedJSON is the fallback document when the full model cannot be
+// encoded (for example a payload holding a channel or a func). It is built
+// with encoding/json so free-form codes cannot break the JSON.
+func marshalFailedJSON(e *AppError, cause error) string {
+	fallback := struct {
+		Error  string    `json:"error"`
+		ID     string    `json:"id"`
+		Code   ErrorCode `json:"code"`
+		Detail string    `json:"detail"`
+	}{
+		Error:  "marshal_failed",
+		ID:     e.ID,
+		Code:   e.ErrCode,
+		Detail: cause.Error(),
+	}
+	// Only strings: marshalling cannot fail.
+	b, _ := json.Marshal(fallback)
+	return string(b)
 }
 
 // ==============================

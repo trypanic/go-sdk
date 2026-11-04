@@ -3,6 +3,7 @@ package errorkit
 import (
 	"fmt"
 	"io"
+	"os"
 )
 
 // ==============================
@@ -175,8 +176,9 @@ func WithTraceID(traceID string) ErrorOption {
 // - HTTP responses: w.Write([]byte(err.PublicJSON())) (see public.go)
 // - Logger integration: logger.WithErrorKit()
 
-// Pretty returns a human-readable formatted string.
-// Use for manual debugging or console tools.
+// Pretty returns a human-readable formatted string, with ANSI colors when
+// stdout is a terminal. Use for manual debugging or console tools; use
+// WriteTo to pick colors from the destination instead.
 // This method DOES NOT print - it only returns a string.
 func (e *AppError) Pretty() string {
 	if e == nil {
@@ -198,15 +200,22 @@ func (e *AppError) PrettyJSON() string {
 	return NewJSONFormatter().Format(e)
 }
 
-// WriteTo writes the formatted error to the given writer
-// Useful for direct logging to files or streams
+// WriteTo writes the formatted error to the given writer.
+// Useful for direct logging to files or streams.
+//
+// ANSI colors are used only when w itself is a terminal (an *os.File for a
+// character device) and colors are not disabled; files, sockets and buffers
+// get plain text whatever the state of stdout.
 func (e *AppError) WriteTo(w io.Writer) (int64, error) {
 	if e == nil {
 		return 0, nil
 	}
 
-	output := e.Pretty()
+	file, isFile := w.(*os.File)
+	formatter := NewStackFormatterWithConfig(FormatterConfig{
+		ColorsEnabled: isFile && isTerminal(file),
+	})
 
-	n, err := w.Write([]byte(output))
+	n, err := io.WriteString(w, formatter.Format(e))
 	return int64(n), err
 }
