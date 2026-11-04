@@ -43,8 +43,14 @@ func NewFileStorage[T any](baseDir string) (*FileStorage[T], error) {
 }
 
 // Append adds item to the list at key, creating the file if necessary.
-// Returns the full list after the append.
+// Returns the full list after the append. A nil item is rejected with an
+// error, as in MemoryStorage.
 func (fs *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
+	if item == nil {
+		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
+			errorkit.WithReason("Append: item must not be nil"),
+		)
+	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
