@@ -54,6 +54,12 @@ type ServerConfig struct {
 	// MaxSendMsgSize overrides the max sent message size in bytes.
 	// 0 = gRPC default (math.MaxInt32).
 	MaxSendMsgSize int
+	// MaxConcurrentStreams caps the concurrent streams (RPCs) a single client
+	// connection may have open; further streams wait for a free slot. Each
+	// open stream holds a handler goroutine and flow-control state, so set it
+	// on any server reachable by untrusted clients (100–1000 is a common
+	// range). 0 = gRPC default (unlimited, math.MaxUint32).
+	MaxConcurrentStreams uint32
 	// Creds is the server transport security, e.g.
 	// credentials.NewServerTLSFromCert or credentials.NewTLS with a
 	// tls.Config that requires client certificates (mTLS). Required unless

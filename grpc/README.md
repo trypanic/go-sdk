@@ -136,6 +136,7 @@ status passes through; a plain error becomes `codes.Unknown`).
 | Tracing                                  | on                 | `otelgrpc` stats handler; instruments **all four** call modes.                                                                                |
 | Recovery                                 | on                 | Unary **and** streaming handlers; a panic becomes `codes.Internal`, server stays up.                                                          |
 | Transport security                       | **required**       | Set `ServerConfig.Creds` / `ClientConfig.Creds`, or opt into plaintext with `With*Insecure()`; see [Transport security](#transport-security). |
+| `MaxConcurrentStreams`                   | unlimited          | Streams per connection; each holds a goroutine. **Set it (e.g. 100–1000) on servers reachable by untrusted clients.**                         |
 | Keepalive                                | gRPC defaults      | Zero-valued keepalive fields preserve stock gRPC behavior.                                                                                    |
 | `MaxConnectionAge` / `MaxConnectionIdle` | **infinity (off)** | Opt-in. Setting them terminates healthy long-lived streams — leave unset unless you want connections recycled.                                |
 
@@ -191,6 +192,7 @@ import (
 srv, err := sdkgrpc.New(sdkgrpc.ServerConfig{
     Address: "0.0.0.0:8888",
     Creds:   serverCreds, // see "Transport security"
+    MaxConcurrentStreams: 256, // cap streams per connection
     Keepalive: sdkgrpc.ServerKeepalive{
         Time:                30 * time.Second, // ping idle clients
         Timeout:             10 * time.Second, // ack deadline
@@ -248,14 +250,14 @@ for { msg, err := bs.Recv(); if err == io.EOF { break }; _ = msg }
 This package previously wrapped CloudWeGo Kitex. It now wraps
 `google.golang.org/grpc`. The import path is unchanged; the API changed:
 
-| Before (Kitex)                                             | After (`google.golang.org/grpc`)                                              |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `New(cfg, svcInfo, handler)`                               | `New(cfg, opts...)` + `pb.RegisterXxxServer(srv.Registrar(), impl)`           |
-| `NewWithOptions(..., ServerOptions{...})`                  | `New(cfg, sdkgrpc.WithServerTracing(false), ...)`                             |
-| `(*Server).Run()`                                          | `(*Server).Serve(lis)`                                                        |
-| `(*Server).Stop() error`                                   | `(*Server).Shutdown(ctx) error` (graceful) / `(*Server).Stop()` (hard)        |
-| `ServerConfig{Host, Port, ReadWriteTimeout, ExitWaitTime}` | `ServerConfig{Address, Keepalive, MaxRecvMsgSize, MaxSendMsgSize, Creds}`     |
-| `DialOptions(cfg, opts)` / `NewClient(svcInfo, cfg)`       | `Dial(cfg, opts...)` returning `*grpc.ClientConn` + `pb.NewXxxClient(cc)`     |
-| `ClientConfig{Hosts, RPCTimeout, ConnectTimeout}`          | `ClientConfig{Target, Keepalive, Creds, MaxRecvMsgSize, MaxSendMsgSize}`      |
-| Plaintext unless TLS was configured                        | `Creds` required, or explicit `WithServerInsecure()` / `WithClientInsecure()` |
-| Stubs from the `kitex` CLI                                 | Stubs from `protoc-gen-go` + `protoc-gen-go-grpc` (or `buf`)                  |
+| Before (Kitex)                                             | After (`google.golang.org/grpc`)                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `New(cfg, svcInfo, handler)`                               | `New(cfg, opts...)` + `pb.RegisterXxxServer(srv.Registrar(), impl)`                             |
+| `NewWithOptions(..., ServerOptions{...})`                  | `New(cfg, sdkgrpc.WithServerTracing(false), ...)`                                               |
+| `(*Server).Run()`                                          | `(*Server).Serve(lis)`                                                                          |
+| `(*Server).Stop() error`                                   | `(*Server).Shutdown(ctx) error` (graceful) / `(*Server).Stop()` (hard)                          |
+| `ServerConfig{Host, Port, ReadWriteTimeout, ExitWaitTime}` | `ServerConfig{Address, Keepalive, MaxRecvMsgSize, MaxSendMsgSize, MaxConcurrentStreams, Creds}` |
+| `DialOptions(cfg, opts)` / `NewClient(svcInfo, cfg)`       | `Dial(cfg, opts...)` returning `*grpc.ClientConn` + `pb.NewXxxClient(cc)`                       |
+| `ClientConfig{Hosts, RPCTimeout, ConnectTimeout}`          | `ClientConfig{Target, Keepalive, Creds, MaxRecvMsgSize, MaxSendMsgSize}`                        |
+| Plaintext unless TLS was configured                        | `Creds` required, or explicit `WithServerInsecure()` / `WithClientInsecure()`                   |
+| Stubs from the `kitex` CLI                                 | Stubs from `protoc-gen-go` + `protoc-gen-go-grpc` (or `buf`)                                    |

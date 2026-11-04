@@ -64,6 +64,9 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	if cfg.MaxSendMsgSize > 0 {
 		so = append(so, grpc.MaxSendMsgSize(cfg.MaxSendMsgSize))
 	}
+	if cfg.MaxConcurrentStreams > 0 {
+		so = append(so, grpc.MaxConcurrentStreams(cfg.MaxConcurrentStreams))
+	}
 
 	// Interceptor chains: recovery runs outermost (so it also catches panics
 	// from user interceptors), then the user-supplied interceptors in order.
