@@ -35,6 +35,7 @@ func TestRedactionSensitiveKeys(t *testing.T) {
 		"private_key",
 		"dsn", "postgres_dsn",
 		"credentials",
+		"secret_key", "SecretKey", "aws_secret_access_key", "access_key", "signing_key", "jwt-signing-key",
 	}
 	for _, key := range keys {
 		t.Run(key, func(t *testing.T) {
@@ -68,6 +69,9 @@ func TestRedactionMasksURLUserinfoInValues(t *testing.T) {
 		{name: "url in free text", value: "dial amqp://guest:guest@mq:5672/ failed", want: "dial amqp://guest:*****@mq:5672/ failed"},
 		{name: "no password", value: "https://user@example.com/x", want: "https://user@example.com/x"},
 		{name: "no userinfo", value: "https://example.com/a@b", want: "https://example.com/a@b"},
+		{name: "at sign in password", value: "postgres://u:p@ss@h/db", want: "postgres://u:*****@h/db"},
+		{name: "slash in password", value: "amqp://u:ab/cd@h", want: "amqp://u:*****@h"},
+		{name: "slash and at sign in password", value: "dial redis://u:a/b@c@cache:6379 now", want: "dial redis://u:*****@cache:6379 now"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

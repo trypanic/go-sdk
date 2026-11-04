@@ -299,8 +299,12 @@ func looksLikeJSONContainer(s string) bool {
 }
 
 // urlUserinfoPassword matches "scheme://user:password@" so the password can
-// be masked wherever a URL appears inside a string value.
-var urlUserinfoPassword = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.\-]*://[^\s/?#@:]*):[^\s/?#@]*@`)
+// be masked wherever a URL appears inside a string value. The password runs
+// to the LAST '@' before the next whitespace, so an unencoded '@' or '/' in
+// it ("postgres://u:p@ss@h", "amqp://u:ab/cd@h") is masked entirely. This
+// errs towards masking: in "https://h:443/a@b" the port and path up to the
+// '@' are masked too.
+var urlUserinfoPassword = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.\-]*://[^\s/?#@:]*):\S*@`)
 
 // maskURLUserinfo replaces the password of every URL userinfo in s with
 // the mask, keeping the scheme, user and host.
@@ -326,7 +330,7 @@ var sensitiveKeySuffixes = []string{
 	"authorization",
 	"cookie",
 	"apikey",
-	"privatekey",
+	"privatekey", "secretkey", "accesskey", "signingkey",
 	"credential", "credentials",
 	"dsn",
 }

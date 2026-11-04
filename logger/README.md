@@ -139,9 +139,9 @@ Every logger built by `Init` or `New` passes each JSON log line through a redact
 
 | Rule | Applies to | Result |
 | ---- | ---------- | ------ |
-| Sensitive key | Any field (at any nesting level, including inside JSON strings) whose key, lower-cased with non-alphanumerics removed, ends with `password`, `passwd`, `pwd`, `secret`, `token`, `authorization`, `cookie`, `apikey`, `privatekey`, `credential`, `credentials` or `dsn` (so `access_token`, `Proxy-Authorization`, `Set-Cookie`, `X-Api-Key`, `postgres_dsn` all match) | Whole value replaced by `*****` |
+| Sensitive key | Any field (at any nesting level, including inside JSON strings) whose key, lower-cased with non-alphanumerics removed, ends with `password`, `passwd`, `pwd`, `secret`, `token`, `authorization`, `cookie`, `apikey`, `privatekey`, `secretkey`, `accesskey`, `signingkey`, `credential`, `credentials` or `dsn` (so `access_token`, `Proxy-Authorization`, `Set-Cookie`, `X-Api-Key`, `secret_key`, `aws_secret_access_key`, `signing_key`, `postgres_dsn` all match) | Whole value replaced by `*****` |
 | Email key | Keys ending with `email` | Domain masked: `jane@*****` |
-| URL userinfo | Every other string value, including the message and `wrapped_error` | `scheme://user:password@host` becomes `scheme://user:*****@host` |
+| URL userinfo | Every other string value, including the message and `wrapped_error` | `scheme://user:password@host` becomes `scheme://user:*****@host`; the password runs to the last `@` before the next whitespace, so unencoded `@` or `/` in it are masked too (this can also mask a port and path up to an `@`, e.g. in `https://h:443/a@b`) |
 | JSON in a string | String values holding one JSON document (for example a captured request body) | Compacted and redacted recursively |
 
 Keys that merely contain these words (`max_tokens`, `author`) are not masked. The fallback logger used before `Init` does not redact.
