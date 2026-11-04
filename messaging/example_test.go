@@ -36,7 +36,7 @@ func ExampleNewPubSub() {
 	ctx := context.Background()
 	event := messaging.Event{CorrelationID: "req-123", ServiceName: "order-service"}
 	if err := pubsub.Publish(ctx, "order.created.processor", event); err != nil {
-		logger.Error(err, "publish failed")
+		_ = logger.Error(err, "publish failed") // returns err for chaining
 	}
 }
 
