@@ -154,8 +154,14 @@ single `go get` call (concurrent `go get` runs would race on `go.mod`), runs
 parallel.
 
 Per-tool reports and grouped fix-plans land in `.staticanalysis/`. See
-[`SECURITY.md`](./SECURITY.md) for the full runner contract, env knobs, CI
-workflow, and rule-promotion process.
+[`SECURITY.md`](./SECURITY.md#static-analysis-contributors) for the full
+runner contract, env knobs, CI job, and rule-promotion process.
+
+## Security
+
+Report vulnerabilities privately through GitHub private vulnerability
+reporting, never in a public issue. [`SECURITY.md`](./SECURITY.md) has the
+reporting steps, the supported versions and the triage of known advisories.
 
 ## Releases
 

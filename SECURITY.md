@@ -1,10 +1,38 @@
-# Security & static analysis
+# Security policy
 
-This SDK runs three Go static-analysis tools — `go vet`, `staticcheck`, and
-`semgrep` — through a single shell script committed in this repository,
-[`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh). It is wired into both
-`pre-commit` (staged-files mode) and `task` (full-repo mode), and the same
-tools run again in CI.
+## Reporting a vulnerability
+
+**Do not open a public issue, discussion or pull request for a security
+problem.** Report it privately through GitHub private vulnerability
+reporting: open the repository's **Security** tab and choose **Report a
+vulnerability**, or go directly to
+<https://github.com/trypanic/go-sdk/security/advisories/new>.
+
+Include the affected package(s) and version (tag or commit), a description
+of the impact, and a reproduction or proof of concept if you have one.
+
+What happens next:
+
+1. The report is acknowledged in the private advisory and triaged.
+2. A fix is developed in a private fork of the advisory, released as a new
+   patch (or minor) version of the supported line below, and the advisory is
+   published with credit to the reporter unless they ask otherwise. GitHub
+   can request a CVE for it, and the Go vulnerability database picks up
+   published GitHub advisories for Go modules.
+
+## Supported versions
+
+The SDK is a single Go module; every package shares the module's version.
+
+| Version                          | Security fixes                         |
+|----------------------------------|----------------------------------------|
+| Latest release of the latest major (today `v1.0.0`) | Yes                     |
+| Older minor/patch releases of that major | No — upgrade to the latest release |
+| Earlier majors                   | No                                     |
+
+Fixes are released only on the latest major version. When `v2.0.0` is
+published (module path `github.com/trypanic/go-sdk/v2`), `v1` stops receiving
+fixes.
 
 ## Supported toolchains
 
@@ -13,6 +41,30 @@ Older 1.26 patch releases have standard-library vulnerabilities that SDK code
 paths reach (govulncheck, see [README](./README.md#supported-toolchains));
 CI runs govulncheck on the latest patch of both lines, on every change and
 weekly.
+
+## Known advisories: triage
+
+Advisories that scanners report against this module but that do not affect
+it. Module-level scanners (Dependabot alerts, Trivy, OSV-Scanner) match
+`go.mod` versions, not the packages a program links, so they flag these;
+`govulncheck` does not.
+
+| Advisory | Module | Status | Reason |
+|----------|--------|--------|--------|
+| [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) | `golang.org/x/crypto` v0.58.0 (indirect) | **Not affected** | The vulnerable package `golang.org/x/crypto/openpgp` is not imported by any SDK package or test. The only linked `x/crypto` packages are `pbkdf2`, `scrypt` and `ocsp` (`go list -deps -test ./...`), reached through the MongoDB driver. govulncheck v1.9.0 lists it under "Module Results" only. The fix exists only in an untagged pseudo-version; the requirement is raised once a tagged `x/crypto` release contains it. |
+
+Consumers can suppress GO-2026-5932 for this module on the same grounds,
+after checking that their own code does not import `openpgp`.
+
+# Static analysis (contributors)
+
+This SDK runs three Go static-analysis tools — `go vet`, `staticcheck`, and
+`semgrep` — through a single shell script committed in this repository,
+[`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh). It is wired into
+`pre-commit` (staged-files mode), `task` (full-repo mode) and the
+`staticanalysis` job of the [`ci`](./.github/workflows/ci.yml) workflow
+(full-repo mode). `task check` runs the same commands as CI; see the
+[README](./README.md#quality-gates).
 
 ## Canonical entry point
 
@@ -127,6 +179,8 @@ Use **semgrep** for org policy. Use **staticcheck** for type-correct Go bugs.
 proto trust .prototools
 proto install                    # go, python, task, staticcheck, skillshare
 task tools:install               # pinned goimports, pre-commit, semgrep, git-cliff
+# Also needed: jq (required by the runner); Docker (optional, preferred
+# semgrep path).
 
 # 2. Install git hooks
 task precommit:install
@@ -138,11 +192,13 @@ task precommit:run
 ```
 
 Docker is optional but recommended — without it the script falls back to the
-host `semgrep` binary with the project rule pack only.
+host `semgrep` CLI (same version and rules, see above).
 
 ## What runs on every `git commit`
 
-Order matters — earlier failures abort the commit (see `.pre-commit-config.yaml`):
+Hooks run in this order (see `.pre-commit-config.yaml`). `fail_fast: false`:
+every hook runs even after an earlier one fails, and the commit is blocked if
+any failed.
 
 1. `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`,
    `check-merge-conflict`, `check-added-large-files` (max 512 KB),
@@ -152,6 +208,8 @@ Order matters — earlier failures abort the commit (see `.pre-commit-config.yam
 3. `go test -short ./...`.
 4. `bash scripts/staticanalysis.sh` — `go vet` + `staticcheck` + `semgrep` against
    staged `.go` files.
+5. `conventional-pre-commit` (commit-msg stage) — the message must be a
+   Conventional Commit.
 
 If any step exits non-zero (including an `ERROR`-severity finding from any
 tool), the commit is blocked. Warnings are reported but do not block — fix
@@ -167,21 +225,17 @@ them in the same PR if related.
 
 Promote a rule from `WARNING` → `ERROR` only when the codebase is clean of it.
 
-## CI gate (`.github/workflows/semgrep.yml`)
+## CI gate (`.github/workflows/ci.yml`)
 
-The `code-quality` workflow runs two jobs:
-
-- **`staticcheck`** — installs `staticcheck` and runs `staticcheck ./...` on
-  every push/PR to `main` / `develop`.
-- **`semgrep`** —
-  - **Pull requests**: `semgrep ci` runs in baseline-diff mode → only new
-    findings on changed lines block the PR.
-  - **Push to `main` / `develop`**: full-repo scan with `--error`.
-  - **Weekly cron** (Mon 06:00 UTC): full sweep; results uploaded as SARIF to
-    the GitHub Security tab and as a JSON artifact (30-day retention).
-
-`go vet` is not a separate CI job — it runs as part of the staged pre-commit
-hook and as step 1 of the local `task staticanalysis` task.
+The `staticanalysis` job runs `QG_FULL=1 bash scripts/staticanalysis.sh` on
+every push to `main` and to release-please branches and on every pull
+request, with the pinned `staticcheck` and the digest-pinned semgrep Docker
+image, and uploads `.staticanalysis/` as the `staticanalysis-reports`
+artifact (14-day retention). It fails on the same exit codes as the local
+run (`1` for an `ERROR` finding, `2` for a tool failure); there is no
+baseline-diff mode and no SARIF upload. The other `ci` jobs (build, vet,
+race tests, govulncheck, `go mod tidy -diff` / `go mod verify`) are listed in
+the [README](./README.md#releases).
 
 ## "Plan before commit" workflow
 
