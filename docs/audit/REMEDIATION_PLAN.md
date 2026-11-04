@@ -1440,7 +1440,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | DONE | `94bf3e5` |
 | R-018 | approval | C4 | Postgres error classifier | APPROVED | DONE | `422f509` |
 | R-019 | approval | C3 | gRPC code fallback from errorkit metadata | APPROVED | DONE | `207ec87` |
-| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | IN_REVIEW | `ef2308a` |
+| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | DONE | `ef2308a` |
 | R-021 | approval | C3 | `ToStatus` maps context errors | APPROVED | DONE | `2a52d56` |
 | R-022 | approval | C5 | Reliable publishing | APPROVED | DONE | `4a15433` |
 | R-023 | auto | C5 | Shutdown requeues in-flight messages | — | DONE | `745bd0a` |
@@ -1490,27 +1490,27 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-064 | auto | C5 | `Publish` honors ctx; no dial under the mutex | — | DONE | `9676d59` |
 | R-065 | approval | C5 | Terminal `Close` | APPROVED | DONE | `29e6a03` |
 | R-066 | approval | C5 | Per-key publish retry, single retry layer | APPROVED | DONE | `210cba7` |
-| R-067 | approval | X (post-merge) | Cancellable network constructors | APPROVED | IN_REVIEW | `d14d52c` |
+| R-067 | approval | X (post-merge) | Cancellable network constructors | APPROVED | DONE | `d14d52c` |
 | R-068 | approval | C4 | Mongo option precedence | APPROVED | DONE | `29c54ea` |
 | R-069 | auto | C4 | Mongo cursor spans and ping budget | — | DONE | `3752993` |
 | R-070 | auto | C5 | AMQP connection options | — | DONE | `d6601d6` |
 | R-071 | auto | C5 | Checked `Close` errors in messaging | — | DONE | `f7508c2` |
 | R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | DONE | `f50efe1` |
-| R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | IN_REVIEW | `39f7e07` |
-| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | IN_REVIEW | `4504ec6` |
+| R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | DONE | `39f7e07` |
+| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | DONE | `4504ec6` |
 | R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | TODO | |
-| R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | IN_REVIEW | `6f02409` |
+| R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | DONE | `6f02409` |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | DONE | `ef0d848` |
 | R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
-| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | IN_REVIEW | `bf73dcc` |
-| R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | IN_REVIEW | `f9cca24` |
-| R-088 | auto | X (post-merge) | Hertz functional options | — | IN_REVIEW | `b454142` |
-| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | IN_REVIEW | `2ecddb7` |
-| R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | IN_REVIEW | `9c5f525` |
-| R-091 | approval | X (post-merge) | Published test doubles | APPROVED | IN_REVIEW | `f9ca2e7` |
-| R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | IN_REVIEW | `0eb616c` |
-| R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | IN_REVIEW | `ce3ebe4` |
-| R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | IN_REVIEW | `0a43004` |
+| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | DONE | `bf73dcc` |
+| R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | DONE | `f9cca24` |
+| R-088 | auto | X (post-merge) | Hertz functional options | — | DONE | `b454142` |
+| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | DONE | `2ecddb7` |
+| R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | DONE | `9c5f525` |
+| R-091 | approval | X (post-merge) | Published test doubles | APPROVED | DONE | `f9ca2e7` |
+| R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | DONE | `0eb616c` |
+| R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | DONE | `ce3ebe4` |
+| R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | DONE | `0a43004` |
 | R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | DONE | `eda540b` |
 | R-096 | auto | C3 | gRPC `ListenAndServe` | — | DONE | `f6c5e5f` |
 | R-097 | approval | C4 | Mongo result API | APPROVED | DONE | `0fad067` |
@@ -1521,8 +1521,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-104 | approval | C6 | `envs` API | APPROVED | DONE | `4102bfe` |
 | R-105 | approval | C5 | Implicit `RABBITMQ_TOPOLOGY_FILE` read | APPROVED | DONE | `328b36b` |
 | R-106 | approval | C5 | Messaging span conventions | APPROVED | DONE | `717d0d3` |
-| R-112 | auto | X (post-merge) | Tracing wrappers record failures (auto part) | — | IN_REVIEW | `719de34` |
-| R-113 | approval | X (post-merge) | Bounded span names (approval part) | APPROVED | IN_REVIEW | `3c7d7a1` |
+| R-112 | auto | X (post-merge) | Tracing wrappers record failures (auto part) | — | DONE | `719de34` |
+| R-113 | approval | X (post-merge) | Bounded span names (approval part) | APPROVED | DONE | `3c7d7a1` |
 | R-114 | auto | C3 | gRPC public-endpoint tracing option | — | DONE | `81db1c2` |
 | R-115 | auto | C3 | gRPC recovery `ErrorInfo` and domain option | — | DONE | `b0f8eb8` |
 | R-120 | auto | C1 | `errorkit`/`logger`/`telemetry` tests | — | DONE | `8f7b2e8` |
@@ -1535,7 +1535,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-127 | auto | C6 | Utility package tests | — | DONE | `6b94faf` |
 | R-130 | auto | C1 | Cheap redaction path | — | DONE | `330963c` |
 | R-131 | auto | C1 | Stack capture with `runtime.Callers` | — | DONE | `d449128` |
-| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | IN_REVIEW | `0d99d79` |
+| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | DONE | `0d99d79` |
 | R-133 | auto | C2 | No double buffering of decoded responses | — | DONE | `7b5e562` |
 | R-134 | approval | C4 | `FileStorage` append cost | APPROVED | DONE | `b07f5ae` |
 | R-135 | auto | C6 | `NormalizeText` without per-call regexp | — | DONE | `e5bd2c6` |
@@ -1552,9 +1552,9 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-150 | approval | X | Local gates match CI | APPROVED | DONE | `662d189` |
 | R-151 | approval | X | SECURITY.md accuracy and reporting policy | APPROVED | DONE | `94beeda` |
 | R-152 | approval | X | LICENSE | APPROVED (MIT) | DONE | `dc33129` |
-| R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | IN_REVIEW | `6a390d4` |
+| R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | DONE | `6a390d4` |
 | R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | DONE | C1: `5213861`, C2: `c7977c5`, C3: `f58b77b`, C4: `e7465c1`, C5: `1179adf`, C6: `5d5c63d` |
-| R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | IN_REVIEW | `9be7035` |
+| R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | DONE | `9be7035` |
 | R-156 | approval | X | Release notes wording and consumer README | APPROVED | DONE | `e14d5e7` |
 | R-157 | approval | X | Release provenance and tidy checks | APPROVED | DONE | `1aa63f3` |
 | R-158 | auto | X | `deps:outdated` sees all requirements | — | DONE | `278819b` |
