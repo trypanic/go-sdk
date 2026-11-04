@@ -37,6 +37,9 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		// The caller's context bounds Shutdown; Hertz's own cap (5 s by
 		// default) would cut the drain short and still report success.
 		server.WithExitWaitTime(shutdownWaitCeiling),
+		// Without it Hertz answers an unknown method with the NoRoute
+		// response and never calls the NoMethod handler.
+		server.WithHandleMethodNotAllowed(srvOpts.EnableNoMethod),
 	}
 	if cfg.ReadTimeout > 0 {
 		opts = append(opts, server.WithReadTimeout(cfg.ReadTimeout))
