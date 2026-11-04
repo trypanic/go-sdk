@@ -15,10 +15,10 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
-    - [NewProvider](#newlogprovider)
-    - [InitProvider](#initlogprovider)
-    - [NewWriter](#newotlpwriter)
-    - [Provider.Close / Shutdown](#logproviderhandleclose--shutdown)
+    - [NewProvider](./otlp/README.md#newprovider)
+    - [InitProvider](./otlp/README.md#initprovider)
+    - [NewWriter](./otlp/README.md#newwriter)
+    - [Provider.Close / Shutdown](./otlp/README.md#providerclose--shutdown)
     - [Error](#error)
     - [LogAndReturn](#logandreturn)
     - [Panic](#panic)
@@ -166,7 +166,7 @@ l := logger.New(logger.Config{
 
 - `Init` (global logger) is controlled by the `ENVIRONMENT` environment variable (see the table above) and its optional `io.Writer` argument.
 - `New` (instance logger) takes a `Config` struct: `AppName`, `Version`, `Env` (empty means `DetectEnv()`), `Writer` (overrides the environment's writer), `OTLPWriter` and `Redactor`. See [Instance API](#instance-api).
-- The OTLP export is configured by `Config` (see [NewProvider](#newlogprovider)).
+- The OTLP export is configured by `otlp.Config` (see [NewProvider](./otlp/README.md#newprovider)).
 
 ---
 

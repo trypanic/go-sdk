@@ -242,7 +242,7 @@ turn it off.
 | Symbol | Purpose |
 |---|---|
 | `New(cfg)` | Hertz `Server` with `DefaultServerOptions()` |
-| `NewWithOptions(cfg, opts)` | Hertz `Server` with explicit options; zero fields backfilled from defaults |
+| `NewWithOptions(cfg, opts)` | Hertz `Server` with explicit options; only zero non-boolean fields backfilled from defaults; zero booleans remain disabled |
 | `RecoveryHandler` | Panic-recovery handler installed by `EnableRecovery` |
 | `RequestLogger(base *logger.Logger)` | Per-request logger as an `httpserver.MiddlewareFunc` (install with `srv.Use`); reuses and echoes `X-Request-ID` |
 | `RequestLoggerMiddleware(base *logger.Logger)` | Same middleware as a Hertz `app.HandlerFunc` |
@@ -273,8 +273,8 @@ surfaced verbatim.
 ## Acceptance criteria (Phase 12)
 
 - Core httpserver package has zero web-framework imports.
-- All built-in middleware (tracing, recovery, audit, health, NoRoute,
-  NoMethod) is opt-in via `ServerOptions`.
+- `New` and `NewServer` enable the default middleware profile.
+  `NewWithOptions` uses explicit `ServerOptions`; zero booleans stay disabled.
 - `Shutdown(ctx)` is part of the `Server` interface.
 - 404/405 are the defaults for unknown routes/methods; the previous
   HTTP 200 behavior is no longer the default.

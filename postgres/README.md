@@ -16,8 +16,8 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Constructors](#constructors)
-  - [New](#newpostgresclient)
-  - [NewFromEnv](#newpostgresclientfromenv)
+  - [New](#new)
+  - [NewFromEnv](#newfromenv)
 - [DSN Normalization](#dsn-normalization)
 - [Stored Procedures](#stored-procedures)
   - [Interface](#interface)
@@ -135,7 +135,7 @@ Behavior:
    correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
    5-second timeout context by default. The context variants preserve caller deadlines.
-4. Pings the postgres. If the ping fails the pool is closed before returning the error.
+4. Pings the database. If the ping fails the pool is closed before returning the error.
 
 Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
 parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a

@@ -330,8 +330,6 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 | `go.opentelemetry.io/otel/attribute`                               | OTEL attribute types for span events                    |
 | `go.opentelemetry.io/otel/propagation`                             | W3C trace-context injection into outbound headers (needs a global propagator set by the service) |
 | `github.com/trypanic/go-sdk/errorkit`                              | Structured error construction and retryability metadata |
-| `github.com/trypanic/go-sdk/httpclient`                            | External-service error codes (`ERR_EXTERNAL_*`)         |
-| `github.com/trypanic/go-sdk/logger`                                | Opt-in audit log line (`WithAuditLog`) only             |
 | `github.com/trypanic/go-sdk/telemetry`                             | Tracing wrapper (`New`, `NewWithInstrumenter`)          |
 
 ### Concrete adapters and escape hatches (v2)
