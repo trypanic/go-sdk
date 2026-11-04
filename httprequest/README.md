@@ -203,6 +203,8 @@ An empty body when JSON decoding is expected (`io.EOF`) is silently treated as s
 
 Network error payloads always include `url` and `original_error`. HTTP error payloads always include `url` and `status_code`, plus `provider_error_code` and `provider_error_type` when the body carries an OpenAI-style `{"error":{...}}` object. `response_body`, `request_body` and `provider_error_message` (which providers often use to echo input or partial keys) are added only with `WithBodyCapture()`, after the configured `BodyRedactor`.
 
+**Logging.** `Do` never logs the errors it returns: the caller handles each error once (log it with `logger.ErrorCtx(ctx, err, …)`, retry, or translate it). For one log line per attempt, opt in with `WithAuditLog()`, which writes through `logger.CtxOrGlobal(ctx)` with trace correlation.
+
 **URL sanitization.** Every URL placed in an error payload, a wrapped `*url.Error`, the audit log or a span event is sanitized first: userinfo (`user:pass@`) and the fragment are dropped, and each query value is replaced by `REDACTED` while the keys are kept (`?key=SECRET` → `?key=REDACTED`).
 
 **Retryability** starts from `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.

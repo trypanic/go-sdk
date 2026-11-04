@@ -15,7 +15,6 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/internal/redact"
-	"github.com/trypanic/go-sdk/logger"
 )
 
 // redactBody returns the redactor output as a string. It centralizes the
@@ -217,7 +216,8 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	if forceNonRetriable {
 		appErr.Metadata.Retriable = false
 	}
-	logger.Error(appErr)
+	// Not logged here: the error is returned, and the caller decides
+	// whether and how to log it (handle errors once).
 	return appErr
 }
 
