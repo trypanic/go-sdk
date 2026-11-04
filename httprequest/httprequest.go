@@ -265,7 +265,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 		}
 
 		// Execute request
-		retryAfter, err := h.executeRequest(ctx, config, out)
+		retryAfter, sent, err := h.executeRequest(ctx, config, out)
 		if err == nil {
 			return nil // Success
 		}
@@ -273,7 +273,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 		lastErr = err
 
 		// Check if error is retryable and resending is safe
-		if !h.isRetryable(err) || !safeToResend(config, err, rc) || attempt >= rc.MaxRetries-1 {
+		if !h.isRetryable(err) || !safeToResend(config, err, sent, rc) || attempt >= rc.MaxRetries-1 {
 			return err
 		}
 
@@ -306,19 +306,20 @@ func nextDelay(currentDelay, maxDelay time.Duration) time.Duration {
 
 // executeRequest performs a single HTTP request attempt. For a non-2xx
 // response it also returns the wait requested by its Retry-After header.
-func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, error) {
+// The bool reports evidence that any request in the attempt was sent.
+func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, bool, error) {
 	start := time.Now()
 
 	// Build request
 	req, err := h.buildRequest(ctx, config)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	// Execute request
-	res, err := h.client.Do(req)
+	res, sent, err := doTracked(h.client, req)
 	if err != nil {
-		return 0, h.buildNetworkError(err, config.URL, config.Body)
+		return 0, sent, h.buildNetworkError(err, config.URL, config.Body)
 	}
 	defer drainAndClose(res.Body)
 
@@ -329,7 +330,7 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, bodyBytes)
 		}
-		return parseRetryAfter(res.Header.Get("Retry-After"), time.Now()),
+		return parseRetryAfter(res.Header.Get("Retry-After"), time.Now()), true,
 			h.buildHTTPError(res, bodyBytes, config.Body)
 	}
 
@@ -350,13 +351,13 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, auditBody(respBuf, body.read))
 		}
-		return 0, err
+		return 0, true, err
 	}
 
 	if h.auditLog {
 		h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, nil)
 	}
-	return 0, nil
+	return 0, true, nil
 }
 
 // buildRequest creates an http.Request from RequestConfig.

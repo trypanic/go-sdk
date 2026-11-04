@@ -219,7 +219,7 @@ A retriable error is retried only when sending the request again cannot duplicat
 
 - the method is idempotent: `GET` (or empty), `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`; or
 - the request carries a non-empty `Idempotency-Key` or `X-Idempotency-Key` header; or
-- the connection was never made (a dial error such as "connection refused"), so nothing was sent.
+- the initial connection was never made (a dial error such as "connection refused"), and no request in the attempt was sent. A dial failure after a redirect does not make the original request safe to repeat.
 
 A `POST` or `PATCH` that gets a 5xx, a 429 or a timeout is therefore sent once and its error returned. Set `RetryConfig.RetryNonIdempotent` to retry every retriable error regardless, only when the upstream deduplicates requests or a duplicate is harmless.
 

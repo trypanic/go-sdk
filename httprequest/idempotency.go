@@ -4,12 +4,14 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/http/httptrace"
+	"sync/atomic"
 )
 
 // safeToResend reports whether a request whose attempt failed with err may
 // be sent again without risking a duplicate side effect.
-func safeToResend(config RequestConfig, err error, rc RetryConfig) bool {
-	return rc.RetryNonIdempotent || isIdempotent(config) || neverSent(err)
+func safeToResend(config RequestConfig, err error, sent bool, rc RetryConfig) bool {
+	return rc.RetryNonIdempotent || isIdempotent(config) || (!sent && neverSent(err))
 }
 
 // isIdempotent reports whether config is idempotent by method (RFC 9110
@@ -35,4 +37,28 @@ func isIdempotent(config RequestConfig) bool {
 func neverSent(err error) bool {
 	opErr, ok := errors.AsType[*net.OpError](err)
 	return ok && opErr.Op == "dial"
+}
+
+// doTracked observes the whole attempt, including redirects. A redirect is
+// evidence of a response even when a custom transport emits no trace events.
+func doTracked(client *http.Client, req *http.Request) (*http.Response, bool, error) {
+	var sent atomic.Bool
+	ctx := httptrace.WithClientTrace(req.Context(), &httptrace.ClientTrace{
+		WroteHeaders: func() { sent.Store(true) },
+		WroteRequest: func(httptrace.WroteRequestInfo) { sent.Store(true) },
+	})
+	attemptClient := *client
+	attemptClient.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		sent.Store(true)
+		if client.CheckRedirect != nil {
+			return client.CheckRedirect(next, via)
+		}
+		// Preserve net/http's default policy when the caller has no override.
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		return nil
+	}
+	res, err := attemptClient.Do(req.WithContext(ctx))
+	return res, sent.Load() || res != nil, err
 }
