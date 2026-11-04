@@ -502,10 +502,7 @@ var redactionNeedles = func() [][]byte {
 	return append(needles, []byte("email"))
 }()
 
-var (
-	urlSchemeSeparator = []byte("://")
-	jsonUnicodeEscape  = []byte(`\u`)
-)
+var urlSchemeSeparator = []byte("://")
 
 // normalizedLinePool recycles the scratch buffers used by mayNeedRedaction.
 var normalizedLinePool = sync.Pool{
@@ -516,12 +513,18 @@ var normalizedLinePool = sync.Pool{
 }
 
 // mayNeedRedaction is a cheap, conservative pre-filter: it returns false only
-// when the built-in policy cannot change line, i.e. the line contains no URL,
-// no JSON \u escape (which could hide a key) and, after the same
-// normalization applied to keys (lower case, letters and digits only), none
-// of redactionNeedles. Lines it rejects are written through untouched.
+// when the built-in policy cannot change line, i.e. the line contains no URL
+// separator "://", no backslash and, after the same normalization applied to
+// keys (lower case, letters and digits only), none of redactionNeedles. Lines
+// it rejects are written through untouched.
+//
+// Any backslash sends the line to the full path because a JSON escape can
+// hide what the byte scan looks for: "\u0070assword" or "to\tken" decode to
+// sensitive keys ("\t" decodes to a control character that key
+// normalization drops, while the scan would keep the "t"), and "\/" hides
+// "://" inside nested JSON.
 func mayNeedRedaction(line []byte) bool {
-	if bytes.Contains(line, urlSchemeSeparator) || bytes.Contains(line, jsonUnicodeEscape) {
+	if bytes.Contains(line, urlSchemeSeparator) || bytes.IndexByte(line, '\\') >= 0 {
 		return true
 	}
 

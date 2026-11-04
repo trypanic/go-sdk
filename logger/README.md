@@ -146,7 +146,7 @@ Every logger built by `Init` or `New` passes each JSON log line through a redact
 
 Keys that merely contain these words (`max_tokens`, `author`) are not masked. The fallback logger used before `Init` does not redact.
 
-Cost: a cheap byte scan decides first whether a line can contain anything the policy would change (a sensitive key or `email` anywhere in the line, a `://`, or a JSON `\u` escape). Lines that cannot are written through unchanged, with zerolog's field order. Only the others are decoded, redacted and re-encoded (fields then come out sorted by key). A logger with a `Config.Redactor` always takes the full path.
+Cost: a cheap byte scan decides first whether a line can contain anything the policy would change (a sensitive key or `email` anywhere in the line, a `://`, or any backslash: a JSON escape such as `\u0070`, `\t` or `\/` can hide a sensitive key or a URL). Lines that cannot are written through unchanged, with zerolog's field order. Only the others are decoded, redacted and re-encoded (fields then come out sorted by key). A logger with a `Config.Redactor` always takes the full path.
 
 `Config.Redactor func(key string, value any) any` extends the policy for a `New` logger: it is called for every object field after the built-in rules, with the already-redacted value, and its result is logged. It can add masking (for example for `ssn`) but cannot undo the built-in masking.
 

@@ -36,6 +36,12 @@ func TestRedactingWriterSlowPathTriggers(t *testing.T) {
 		{name: "escaped key in nested JSON", line: `{"body":"{\"\\u0070assword\":\"hunter2\"}"}`, leak: "hunter2"},
 		{name: "escaped unicode lower-cases to ascii", line: `{"to\u212Aen":"tok-1"}`, leak: "tok-1"},
 		{name: "raw unicode lower-cases to ascii", line: "{\"to\u212Aen\":\"tok-2\"}", leak: "tok-2"},
+		{name: "tab escape inside key", line: `{"to\tken":"tok-3"}`, leak: "tok-3"},
+		{name: "carriage return escape inside key", line: `{"api\rkey":"k-456"}`, leak: "k-456"},
+		{name: "newline escape inside key", line: `{"pass\nword":"hunter3"}`, leak: "hunter3"},
+		{name: "backspace and form feed escapes inside key", line: `{"sec\bret":"s-1","to\fken":"tok-4"}`, leak: "s-1"},
+		{name: "escaped slashes hide the URL scheme separator", line: `{"payload":"{\"url\":\"postgres:\\/\\/u:s3cr3tpw@h/db\"}"}`, leak: "s3cr3tpw"},
+		{name: "escaped slashes in a plain value", line: `{"message":"dial postgres:\/\/u:pw9@db/app"}`, leak: "pw9"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -47,6 +53,34 @@ func TestRedactingWriterSlowPathTriggers(t *testing.T) {
 				t.Fatalf("sensitive value leaked: %q", out.String())
 			}
 		})
+	}
+}
+
+// TestLoggerRedactsKeysWithEscapedControlCharacters goes through a real
+// logger: zerolog writes control characters in keys as two-character JSON
+// escapes (\t, \r, \n, \b, \f) and the decoded key drops them, so these
+// keys are sensitive and must be masked.
+func TestLoggerRedactsKeysWithEscapedControlCharacters(t *testing.T) {
+	var buf bytes.Buffer
+	l := newLoggerWithWriter(&buf, Prod)
+
+	l.Info().
+		Str("to\tken", "tok-e2e").
+		Str("api\rkey", "key-e2e").
+		Str("pass\nword", "pw-e2e").
+		Str("sec\bret", "sec-e2e").
+		Str("x_to\fken", "ff-e2e").
+		Str("payload", `{"url":"postgres:\/\/u:s3cr3tpw@h/db"}`).
+		Msg("escaped keys")
+
+	out := buf.String()
+	for _, leak := range []string{"tok-e2e", "key-e2e", "pw-e2e", "sec-e2e", "ff-e2e", "s3cr3tpw"} {
+		if strings.Contains(out, leak) {
+			t.Errorf("value %q leaked: %s", leak, out)
+		}
+	}
+	if !strings.Contains(out, "escaped keys") {
+		t.Fatalf("log line missing: %q", out)
 	}
 }
 
