@@ -274,20 +274,32 @@ run_vet() {
   # vet emits diagnostics on stderr; treat captured log as the raw report too.
   [[ -s "${VET_ERR_LOG}" && ! -s "${VET_RAW}" ]] && cp "${VET_ERR_LOG}" "${VET_RAW}"
 
-  # Parse "file:line[:col]: message" into TSV; every other non-blank,
-  # non-"#" line is unparsable (e.g. a vet panic) and is kept apart.
+  # Parse "file:line[:col]: message" into TSV. Type-check errors carry a
+  # "vet: " prefix and may continue on tab-indented lines ("\thave ()",
+  # "\twant (int)"), which are appended to that diagnostic. Every other
+  # non-blank, non-"#" line (e.g. a vet panic and its stack) is unparsable
+  # and kept apart; a tab-indented line counts as a continuation only right
+  # after a diagnostic.
   local findings_tmp vet_tsv vet_unparsed
   findings_tmp="$(mktemp)"; vet_tsv="$(mktemp)"; vet_unparsed="$(mktemp)"
   awk -v unparsed="${vet_unparsed}" '
-    /^#/ { next }
-    /^[[:space:]]*$/ { next }
+    function flush() { if (pending != "") print pending; pending = "" }
+    /^#/ || /^[[:space:]]*$/ { flush(); next }
+    /^\t/ {
+      if (pending != "") { c = $0; sub(/^[[:space:]]+/, "", c); pending = pending " " c; next }
+      print > unparsed; next
+    }
     {
-      n = index($0, ":")
-      n2 = (n > 0) ? index(substr($0, n+1), ":") : 0
-      line = (n2 > 0) ? substr($0, n+1, n2-1) : ""
+      flush()
+      text = $0
+      sub(/^vet: /, "", text)
+      n = index(text, ":")
+      n2 = (n > 0) ? index(substr(text, n+1), ":") : 0
+      line = (n2 > 0) ? substr(text, n+1, n2-1) : ""
       if (n <= 1 || line !~ /^[0-9]+$/) { print > unparsed; next }
-      file = substr($0, 1, n-1)
-      rest2 = substr($0, n+n2+1)
+      file = substr(text, 1, n-1)
+      sub(/^\.\//, "", file)
+      rest2 = substr(text, n+n2+1)
       n3 = index(rest2, ":")
       col = "0"
       msg = rest2
@@ -296,8 +308,10 @@ run_vet() {
         msg = substr(rest2, n3+1)
       }
       sub(/^[[:space:]]+/, "", msg)
-      printf "%s\t%s\t%s\t%s\n", file, line, col, msg
+      gsub(/\t/, " ", msg)
+      pending = file "\t" line "\t" col "\t" msg
     }
+    END { flush() }
   ' "${VET_RAW}" > "${vet_tsv}"
   # jq builds the JSON, so quotes, backslashes and tabs in messages are safe.
   jq -R -s 'split("\n") | map(select(length > 0) | split("\t") |
