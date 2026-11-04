@@ -208,6 +208,16 @@ connection.
 
 A non-positive duration keeps the default.
 
+### Logging
+
+The package logs only diagnostics it does not return to the caller:
+publisher and subscriber reconnects, the publisher's single in-call retry,
+failed acks/nacks and teardown failures.  They go to the `WithLogger` logger
+(else the logger stored in the `ctx`, else the global one) at **Warn** level,
+with structured fields (`queue`, `exchange`, `routing_key`, `error`,
+`retry_in` as a duration string) and the `trace_id`/`span_id` of the active
+span.
+
 ### Publishing
 
 ```go

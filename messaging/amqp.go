@@ -44,6 +44,7 @@ type Publisher struct {
 	exchanges []Exchange       // declared on every (re)connect
 	declare   *Topology        // when non-nil, its queues and bindings are declared on every (re)connect
 	opts      connOptions
+	log       *logger.Logger // nil means the ctx/global logger
 	amqpURL   string
 	dial      dialFunc // nil means dialAMQP
 }
@@ -185,7 +186,7 @@ func (p *Publisher) currentLink(ctx context.Context) (publisherLink, error) {
 	}
 	p.mu.Unlock()
 
-	logger.Info("publisher connection closed, reconnecting")
+	warnEvent(ctx, p.log).Msg("messaging: publisher connection closed, reconnecting")
 	return p.reconnect(ctx)
 }
 
@@ -206,7 +207,7 @@ func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 	p.mu.Unlock()
 	if old != nil && !old.IsClosed() {
 		if err := old.Close(); err != nil {
-			logger.Warn("publisher: closing the previous connection failed: %v", err)
+			warnEvent(ctx, p.log).Err(err).Msg("messaging: closing the previous publisher connection failed")
 		}
 	}
 
@@ -283,7 +284,8 @@ func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, bo
 		}
 		// Channel may have died between the connection check and Publish.
 		// Reconnect once and retry.
-		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
+		warnEvent(ctx, p.log).Err(err).Str("exchange", exchange).Str("routing_key", routingKey).
+			Msg("messaging: publish failed, reconnecting for a single retry")
 		l, err = p.reconnect(ctx)
 		if err != nil {
 			return err
@@ -427,7 +429,8 @@ type Subscriber struct {
 	routingKeys []string
 	amqpURL     string
 	opts        connOptions
-	dial        dialFunc // nil means dialAMQP
+	log         *logger.Logger // nil means the global logger
+	dial        dialFunc       // nil means dialAMQP
 }
 
 // NewSubscriber dials the broker, declares the exchange and queue, binds the
@@ -513,7 +516,8 @@ func (s *Subscriber) connect() error {
 func (s *Subscriber) Reconnect() error {
 	if s.conn != nil && !s.conn.IsClosed() {
 		if err := s.conn.Close(); err != nil {
-			logger.Warn("subscriber: closing the previous connection failed: %v", err)
+			warnEvent(context.Background(), s.log).Err(err).Str("queue", s.queue.Name).
+				Msg("messaging: closing the previous subscriber connection failed")
 		}
 	}
 	return s.connect()

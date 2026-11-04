@@ -81,9 +81,11 @@ func WithTopologyFile(path string) PubSubOption {
 	return func(p *pubSubBuild) { p.topologyPath = path }
 }
 
-// WithLogger injects an explicit logger instance for messaging reconnect/retry
-// diagnostics. When nil, the messaging package falls back to the package-level
-// global logger so existing call sites keep working.
+// WithLogger injects an explicit logger instance for the messaging
+// diagnostics of the publisher and of every subscriber (reconnects, retries,
+// failed acks). They are logged at Warn level with structured fields and the
+// trace IDs of the active span. When nil, the logger stored in the ctx (see
+// logger.CtxOrGlobal) or the package-level global logger is used.
 func WithLogger(l *logger.Logger) PubSubOption {
 	return func(p *pubSubBuild) { p.log = l }
 }
@@ -156,7 +158,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 		return nil, err
 	}
 
-	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial, opts: build.conn}
+	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial, opts: build.conn, log: build.log}
 	if build.declareTopo {
 		pub.declare = topo
 	}
@@ -336,6 +338,7 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 		queueArgs:   args,
 		routingKeys: binding.RoutingKeys,
 		opts:        p.connOpts,
+		log:         p.log,
 		dial:        p.dial,
 	}
 	if err := sub.connect(); err != nil {
@@ -567,7 +570,7 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 					// e.g. ERR_MQ_AUTH_FAILED: retrying cannot succeed.
 					return err
 				}
-				warnReconnect(log, sub.queue.Name, err, delay)
+				warnReconnect(ctx, log, sub.queue.Name, err, delay)
 				delay *= 2
 				if delay > MaxReconnectDelay {
 					delay = MaxReconnectDelay
@@ -579,12 +582,9 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 	}
 }
 
-func warnReconnect(log *logger.Logger, queue string, err error, delay time.Duration) {
-	if log != nil {
-		log.Warn("reconnect attempt failed. queue %s, error %s, retry_in %d", queue, err, delay)
-		return
-	}
-	logger.Warn("reconnect attempt failed. queue %s, error %s, retry_in %d", queue, err, delay)
+func warnReconnect(ctx context.Context, log *logger.Logger, queue string, err error, delay time.Duration) {
+	warnEvent(ctx, log).Err(err).Str("queue", queue).Str("retry_in", delay.String()).
+		Msg("messaging: subscriber reconnect attempt failed")
 }
 
 // buildQueueArgs translates the topology QueueTopology into the amqp.Table
