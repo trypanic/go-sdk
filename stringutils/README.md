@@ -89,21 +89,26 @@ Returns the inner content of `input` if — and only if — the entire string (a
 
 ## Real-World Usage
 
-### LLM gateway — stripping code fences from model output
+### LLM responses — stripping code fences from model output
 
-`RemoveMarkdownCodeBlock` is typically called immediately after receiving a raw LLM response. Models often wrap JSON answers in a ` ```json … ``` ` fence; this call removes the fence before `json.Unmarshal` is attempted.
+`RemoveMarkdownCodeBlock` is typically called right after receiving a raw LLM
+response. Models often wrap JSON answers in a ` ```json … ``` ` fence; this
+call removes the fence before `json.Unmarshal` is attempted.
 
 ```go
-raw, err := l.callLLM(ctx, llmConfig, systemPrompt, chunk)
+answer, err := client.Execute(ctx, cfg) // *llmclient.Client, returns the message content
 if err != nil {
-    return nil, wrapExternal(err, fmt.Sprintf("LLM call failed on chunk %d", i))
+    return nil, err
 }
 
-raw = stringutils.RemoveMarkdownCodeBlock(raw)
+raw := stringutils.RemoveMarkdownCodeBlock(answer)
 
-var partial []entities.EnrichAttribute
-if err := json.Unmarshal([]byte(raw), &partial); err != nil {
-    return nil, wrapExternal(err, fmt.Sprintf("unmarshal failed on chunk %d", i))
+var attrs []Attribute
+if err := json.Unmarshal([]byte(raw), &attrs); err != nil {
+    return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+        errorkit.WithReason("model answer is not valid JSON"),
+        errorkit.WithWrapped(err),
+    )
 }
 ```
 

@@ -7,6 +7,10 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// NoEscape encodes v as JSON with HTML escaping disabled and returns it as a
+// string ending with a newline (the json.Encoder.Encode format). An encode
+// error (for example a channel or func value) is returned as an
+// *errorkit.AppError with code ERR_INTERNAL.
 func NoEscape(v any) (string, error) {
 	b, err := NoEscapeBytes(v)
 	if err != nil {
@@ -15,6 +19,7 @@ func NoEscape(v any) (string, error) {
 	return string(b), nil
 }
 
+// NoEscapeBytes is NoEscape returning a []byte; it returns nil on error.
 func NoEscapeBytes(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
