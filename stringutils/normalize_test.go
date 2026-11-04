@@ -121,3 +121,17 @@ func BenchmarkNormalizeText(b *testing.B) {
 		_ = NormalizeText("Men's Clothing & Accessories")
 	}
 }
+
+// NormalizeText is lossy: the README documents collisions and the empty
+// result, so pin them.
+func TestNormalizeTextCollisionsAndEmptyResult(t *testing.T) {
+	if NormalizeText("a-b") != NormalizeText("ab") {
+		t.Errorf("expected %q and %q to collide", "a-b", "ab")
+	}
+	if got := NormalizeText("日本語"); got != "" {
+		t.Errorf("NormalizeText(%q) = %q, want empty", "日本語", got)
+	}
+	if got := NormalizeText("İstanbul Kelvin"); got != "istanbul_kelvin" {
+		t.Errorf("NormalizeText lowercase exception = %q, want %q", got, "istanbul_kelvin")
+	}
+}

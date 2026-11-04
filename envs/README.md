@@ -95,8 +95,13 @@ func NewLoader(c any) error
 2. If parsing succeeds, returns `nil`.
 3. If parsing fails for any reason (missing required variable, type conversion error, etc.), returns a structured `*errorkit.AppError` with:
    - Code: `errorkit.ERR_SYSTEM_CONFIG_INVALID` (HTTP 500, non-retriable)
-   - Reason: `"failed to parse environment variables"`
-   - Wrapped: the original `error` from `env.Parse`
+   - Reason: `"failed to parse environment variables: <details>"`, where the details name the
+     variables, fields and types involved but **never the raw values** (a secret assigned to
+     an `int` field does not end up in logs)
+   - Wrapped: a value-free error with the same details whose chain still contains the
+     original `caarlos0/env` error, so `errors.As(err, &env.ParseError{})` and similar
+     checks keep working; `Pretty()`, `PrettyJSON()` and the logger print only the
+     value-free text
 
 **Error conditions**
 
@@ -120,8 +125,8 @@ if err := envs.NewLoader(cfg); err != nil {
     var appErr *errorkit.AppError
     if errors.As(err, &appErr) {
         // appErr.ErrCode  == errorkit.ERR_SYSTEM_CONFIG_INVALID
-        // appErr.Reason   == "failed to parse environment variables"
-        // appErr.Wrapped  == original env.Parse error
+        // appErr.Reason   == "failed to parse environment variables: ..." (no values)
+        // errors.As(err, &env.ParseError{}) reaches the original env.Parse error
         log.Fatalf("config error: %s", appErr.Pretty())
     }
 }

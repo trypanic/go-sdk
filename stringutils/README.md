@@ -50,9 +50,11 @@ Transforms `input` into a lowercase, underscore-delimited token suitable for use
 3. Drop it unless it is an ASCII letter (`a-z`), ASCII digit (`0-9`), or underscore (`_`).
 
 **Edge cases:**
-- Characters outside the ASCII range (e.g., accented letters, CJK) are removed entirely.
+- Characters outside the ASCII range (e.g., accented letters, CJK) are removed entirely, with the lowercase exception below.
 - Consecutive spaces produce consecutive underscores (e.g., `"a  b"` → `"a__b"`).
-- An empty string or a string of only non-matching characters returns `""`.
+- An empty string or a string of only non-matching characters returns `""` (for example `"日本語"` → `""`).
+- The result is lossy and **not injective**: different inputs can collide (`"a-b"` and `"ab"` both give `"ab"`; `"Café"` and `"caf"` both give `"caf"`). Do not use it as a unique key without handling collisions and the empty result.
+- Lowercasing runs before the ASCII filter, so the few non-ASCII letters whose lowercase form is ASCII are kept: the Kelvin sign `U+212A` gives `"k"` and `"İstanbul"` gives `"istanbul"`.
 
 **Error conditions:** None.
 
