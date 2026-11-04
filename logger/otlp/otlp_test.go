@@ -13,7 +13,7 @@ import (
 )
 
 // recordingExporter is an in-memory sdklog.Exporter used to observe the
-// records an OTLPWriter emits without any network traffic.
+// records an Writer emits without any network traffic.
 type recordingExporter struct {
 	mu      sync.Mutex
 	records []sdklog.Record
@@ -55,7 +55,7 @@ func installRecordingProvider(t *testing.T) *recordingExporter {
 func TestNewOTLPWriterResolvesGlobalProvider(t *testing.T) {
 	exp := installRecordingProvider(t)
 
-	w := NewOTLPWriter("svc")
+	w := NewWriter("svc")
 	_, err := w.Write([]byte(`{"level":"info","message":"hello"}` + "\n"))
 	require.NoError(t, err)
 
@@ -71,7 +71,7 @@ func TestInitLogProviderRegistersGlobalProvider(t *testing.T) {
 
 	// The exporter connects lazily and no record is written, so no traffic
 	// leaves the process.
-	handle := InitLogProvider(t.Context(), "svc", "127.0.0.1:1")
+	handle := InitProvider(t.Context(), "svc", "127.0.0.1:1")
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()

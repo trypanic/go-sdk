@@ -19,7 +19,7 @@ const leakedPassword = "S3cr3tPw"
 // through the payload, PrettyJSON or a log line, and the driver error must be
 // reachable through errors.As.
 func TestNewPostgresClient_ParseError_DoesNotLeakPassword(t *testing.T) {
-	_, err := NewPostgresClient(Config{DSN: "postgres://svc:" + leakedPassword + "@db.internal:notaport/app"})
+	_, err := New(Config{DSN: "postgres://svc:" + leakedPassword + "@db.internal:notaport/app"})
 	if err == nil {
 		t.Fatal("expected parse error, got nil")
 	}
@@ -45,7 +45,7 @@ func TestNewPostgresClient_ParseError_DoesNotLeakPassword(t *testing.T) {
 // dial fails locally without any network traffic.
 func TestNewPostgresClient_PingError_KeepsCause(t *testing.T) {
 	socketDir := filepath.Join(t.TempDir(), "nosocket")
-	_, err := NewPostgresClient(Config{DSN: "postgres://svc:" + leakedPassword + "@/app?host=" + socketDir + "&connect_timeout=1"})
+	_, err := New(Config{DSN: "postgres://svc:" + leakedPassword + "@/app?host=" + socketDir + "&connect_timeout=1"})
 	if err == nil {
 		t.Fatal("expected connect error, got nil")
 	}

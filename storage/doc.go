@@ -2,7 +2,7 @@
 // memory, with overwrite and append semantics) and FileStorage (an append log
 // persisted as one JSON Lines file per key).
 //
-// KVStorager means overwrite (Put/Get); AppendLogStorager means append
+// KVStore means overwrite (Put/Get); AppendLog means append
 // (Append/List). Every failure is an *errorkit.AppError.
 //
 // Both stores are safe for concurrent use. Construct them with NewMemory and

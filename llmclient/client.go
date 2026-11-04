@@ -17,23 +17,23 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-// LLMRequest is the chat-completions request body.
-type LLMRequest struct {
+// Request is the chat-completions request body.
+type Request struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
 	MaxTokens   int       `json:"max_tokens,omitzero"`
 	Temperature float64   `json:"temperature,omitzero"`
 }
 
-// LLMResponse is the chat-completions response body.
-type LLMResponse struct {
+// Response is the chat-completions response body.
+type Response struct {
 	ID      string   `json:"id"`
 	Model   string   `json:"model"`
 	Choices []Choice `json:"choices"`
 	Usage   Usage    `json:"usage"`
 }
 
-// Choice is one completion in an LLMResponse.
+// Choice is one completion in an Response.
 type Choice struct {
 	Index   int     `json:"index"`
 	Message Message `json:"message"`
@@ -46,16 +46,16 @@ type Usage struct {
 	TotalTokens      int `json:"total_tokens"`
 }
 
-// LLMProvider runs one chat completion and returns the first choice's
+// Provider runs one chat completion and returns the first choice's
 // content. *Client and the tracing wrapper implement it.
-type LLMProvider interface {
-	Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error)
+type Provider interface {
+	Execute(ctx context.Context, reqConfig RequestConfig) (string, error)
 }
 
-// LLMRequestConfig holds configuration for individual LLM requests.
+// RequestConfig holds configuration for individual LLM requests.
 // Streaming is intentionally not part of this contract; the SDK does not
 // implement chunked responses.
-type LLMRequestConfig struct {
+type RequestConfig struct {
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
 	UserMessage  string `json:"user_message"`
@@ -84,28 +84,28 @@ const DefaultTimeout = 5 * time.Minute
 // for concurrent use; its fields are not mutated by Execute.
 type Client struct {
 	instrumenter *telemetry.Instrumenter
-	httpRequest  httprequest.HTTPRequester
+	httpRequest  httprequest.Requester
 	cfg          Config
 }
 
 // NewClient builds a concrete *Client with explicit Config. No tracing wrapper.
-func NewClient(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
+func NewClient(httpRequest httprequest.Requester, cfg Config) *Client {
 	return &Client{httpRequest: httpRequest, cfg: cfg}
 }
 
-// New builds an LLMProvider wrapped with the global tracer.
-func New(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
+// New builds an Provider wrapped with the global tracer.
+func New(httpRequest httprequest.Requester, cfg Config) *Client {
 	return NewWithInstrumenter(httpRequest, cfg, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
-// NewWithoutTracing builds an LLMProvider with no tracing wrapper.
-func NewWithoutTracing(httpRequest httprequest.HTTPRequester, cfg Config) *Client {
+// NewWithoutTracing builds an Provider with no tracing wrapper.
+func NewWithoutTracing(httpRequest httprequest.Requester, cfg Config) *Client {
 	return NewClient(httpRequest, cfg)
 }
 
-// NewWithInstrumenter builds an LLMProvider wrapped with the supplied
+// NewWithInstrumenter builds an Provider wrapped with the supplied
 // instrumenter; pass nil to disable tracing.
-func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, instrumenter *telemetry.Instrumenter) *Client {
+func NewWithInstrumenter(httpRequest httprequest.Requester, cfg Config, instrumenter *telemetry.Instrumenter) *Client {
 	client := NewClient(httpRequest, cfg)
 	client.instrumenter = instrumenter
 	return client
@@ -148,7 +148,7 @@ func (c *Client) timeout() time.Duration {
 }
 
 // Execute performs a non-streaming LLM request.
-func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (result string, err error) {
+func (c *Client) Execute(ctx context.Context, reqConfig RequestConfig) (result string, err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
 		ctx, span = llmSpan(c.instrumenter, ctx, reqConfig.Model)
@@ -171,7 +171,7 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (resul
 		defer cancel()
 	}
 
-	body, err := marshal.NoEscapeBytes(LLMRequest{
+	body, err := marshal.NoEscapeBytes(Request{
 		Model: reqConfig.Model,
 		Messages: []Message{
 			{Role: "system", Content: reqConfig.SystemPrompt},
@@ -185,7 +185,7 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (resul
 		)
 	}
 
-	var response LLMResponse
+	var response Response
 	httpCfg := httprequest.RequestConfig{
 		URL:         c.cfg.Endpoint,
 		Method:      "POST",

@@ -17,7 +17,7 @@ func TestReplyWithErrorHidesInternalTextAndLogsIt(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, testOptions())
-	s.GET("/fail", func(ctx context.Context, c httpserver.HTTPContext) {
+	s.GET("/fail", func(ctx context.Context, c httpserver.Context) {
 		c.Reply(http.StatusInternalServerError, c.WithError(errors.New("db password=hunter2 host=db.internal")))
 	})
 	ctx, logs := logContext(t)
@@ -34,7 +34,7 @@ func TestReplyWithClientAppError(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, testOptions())
-	s.GET("/bad", func(ctx context.Context, c httpserver.HTTPContext) {
+	s.GET("/bad", func(ctx context.Context, c httpserver.Context) {
 		c.Reply(http.StatusBadRequest, c.WithError(errorkit.NewError(errorkit.ERR_CLIENT_BAD_REQUEST).
 			With(errorkit.WithReason("email is required"))))
 	})
@@ -50,7 +50,7 @@ func TestPrettyJSONMarshalFailureHidesErrorText(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, testOptions())
-	s.GET("/pretty", func(ctx context.Context, c httpserver.HTTPContext) {
+	s.GET("/pretty", func(ctx context.Context, c httpserver.Context) {
 		c.(*hertzContext).PrettyJSON(http.StatusOK, map[string]float64{"x": math.Inf(1)})
 	})
 	ctx, logs := logContext(t)

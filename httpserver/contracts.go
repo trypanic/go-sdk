@@ -7,9 +7,9 @@ import (
 	"context"
 )
 
-// HTTPContext provides framework-agnostic access to HTTP request/response operations.
+// Context provides framework-agnostic access to HTTP request/response operations.
 // Methods are safe within a single request but not for concurrent use across goroutines.
-type HTTPContext interface {
+type Context interface {
 	// ===== Request Methods =====
 
 	// Param returns the URL path parameter value by name.
@@ -73,7 +73,7 @@ type HTTPContext interface {
 //
 // Example:
 //
-//	func GetUser(ctx context.Context, c interfaces.HTTPContext) {
+//	func GetUser(ctx context.Context, c interfaces.Context) {
 //	    userID := c.Param("id")
 //	    user, err := userRepo.FindByID(ctx, userID)
 //	    if err != nil {
@@ -84,14 +84,14 @@ type HTTPContext interface {
 //	    }
 //	    c.JSON(200, user)
 //	}
-type HandlerFunc func(ctx context.Context, c HTTPContext)
+type HandlerFunc func(ctx context.Context, c Context)
 
 // MiddlewareFunc is a framework-agnostic middleware function.
 // Middleware executes before/after handlers and must call next() to continue the chain.
 //
 // Example with logging:
 //
-//	func LoggerMiddleware(ctx context.Context, c interfaces.HTTPContext, next interfaces.HandlerFunc) {
+//	func LoggerMiddleware(ctx context.Context, c interfaces.Context, next interfaces.HandlerFunc) {
 //	    start := time.Now()
 //	    next(ctx, c)
 //	    log.Printf("Request completed in %v", time.Since(start))
@@ -99,14 +99,14 @@ type HandlerFunc func(ctx context.Context, c HTTPContext)
 //
 // Example with authentication:
 //
-//	func AuthMiddleware(ctx context.Context, c interfaces.HTTPContext, next interfaces.HandlerFunc) {
+//	func AuthMiddleware(ctx context.Context, c interfaces.Context, next interfaces.HandlerFunc) {
 //	    if c.GetHeader("Authorization") == "" {
 //	        c.JSON(401, map[string]string{"error": "unauthorized"})
 //	        return // Don't call next() to stop the chain
 //	    }
 //	    next(ctx, c)
 //	}
-type MiddlewareFunc func(ctx context.Context, c HTTPContext, next HandlerFunc)
+type MiddlewareFunc func(ctx context.Context, c Context, next HandlerFunc)
 
 // RouterGroup represents a group of routes with a common prefix and middleware.
 //
@@ -149,13 +149,13 @@ type RouterGroup interface {
 	Use(middleware ...MiddlewareFunc)
 }
 
-// HTTPServer represents the HTTP server interface (Primary Port).
+// Server represents the HTTP server interface (Primary Port).
 //
 // Benefits:
 // - Framework-agnostic: Switch between Gin/Echo/Hertz with only adapter changes
 // - Clean architecture: Business logic never imports framework packages
 // - Testable: Easy to mock for unit tests
-type HTTPServer interface {
+type Server interface {
 	// GET registers a handler for HTTP GET requests.
 	// Supports path parameters using :param syntax (e.g., "/user/:id").
 	GET(endpoint string, handler HandlerFunc)

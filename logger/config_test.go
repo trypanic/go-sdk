@@ -161,6 +161,6 @@ func TestFormatConsoleExtrasCompactsAndRedactsSensitiveJSONFields(t *testing.T) 
 }
 
 func stripConsoleANSI(s string) string {
-	replacer := strings.NewReplacer(Blue, "", Reset, "")
+	replacer := strings.NewReplacer(blue, "", reset, "")
 	return replacer.Replace(s)
 }

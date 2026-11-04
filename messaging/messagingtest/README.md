@@ -1,6 +1,6 @@
 # messagingtest
 
-Callback-based `Messager` implementing the public publish/subscribe port.
+Callback-based `Broker` implementing the public publish/subscribe port.
 
 Import `github.com/trypanic/go-sdk/messaging/messagingtest` in consumer tests. These helpers create
 no network connections and require no infrastructure. The external-package

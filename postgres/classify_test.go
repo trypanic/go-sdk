@@ -140,7 +140,7 @@ func TestStoredProcedureQueryRow_NoRowsIsNotFound(t *testing.T) {
 
 func TestNewPostgresClient_ErrorClassification(t *testing.T) {
 	t.Run("parse failure is a configuration error", func(t *testing.T) {
-		_, err := NewPostgresClient(Config{DSN: "postgres://u:p@host:notaport/db"})
+		_, err := New(Config{DSN: "postgres://u:p@host:notaport/db"})
 		assertClass(t, err, wantConfig, nil)
 		if _, ok := errors.AsType[*pgconn.ParseConfigError](err); !ok {
 			t.Fatal("ParseConfigError must stay wrapped")
@@ -149,7 +149,7 @@ func TestNewPostgresClient_ErrorClassification(t *testing.T) {
 
 	t.Run("dial failure is a connection error", func(t *testing.T) {
 		socketDir := filepath.Join(t.TempDir(), "nosocket")
-		_, err := NewPostgresClient(Config{DSN: "postgres://u:p@/db?host=" + socketDir})
+		_, err := New(Config{DSN: "postgres://u:p@/db?host=" + socketDir})
 		assertClass(t, err, wantConnFailed, nil)
 	})
 }

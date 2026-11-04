@@ -153,7 +153,7 @@ func TestFileStorageGetAllRoundTripsKeys(t *testing.T) {
 
 // Compile-time interface conformance: split interfaces.
 var (
-	_ KVStorager[int]        = (*MemoryStorage[int])(nil)
-	_ AppendLogStorager[int] = (*MemoryStorage[int])(nil)
-	_ AppendLogStorager[int] = (*FileStorage[int])(nil)
+	_ KVStore[int]   = (*MemoryStorage[int])(nil)
+	_ AppendLog[int] = (*MemoryStorage[int])(nil)
+	_ AppendLog[int] = (*FileStorage[int])(nil)
 )

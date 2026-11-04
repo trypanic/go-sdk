@@ -13,7 +13,7 @@ func TestExtendedRoutingMethods(t *testing.T) {
 	for _, method := range []string{"PATCH", "HEAD", "OPTIONS", "TRACE"} {
 		t.Run(method, func(t *testing.T) {
 			srv := NewWithOptions(httpserver.ServerConfig{}, httpserver.ServerOptions{})
-			handler := func(_ context.Context, c httpserver.HTTPContext) { c.SetHeader("X-Matched", "yes"); c.Status(204) }
+			handler := func(_ context.Context, c httpserver.Context) { c.SetHeader("X-Matched", "yes"); c.Status(204) }
 			group := srv.Group("/v1")
 			switch method {
 			case "PATCH":

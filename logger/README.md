@@ -15,10 +15,10 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
-    - [NewLogProvider](#newlogprovider)
-    - [InitLogProvider](#initlogprovider)
-    - [NewOTLPWriter](#newotlpwriter)
-    - [LogProviderHandle.Close / Shutdown](#logproviderhandleclose--shutdown)
+    - [NewProvider](#newlogprovider)
+    - [InitProvider](#initlogprovider)
+    - [NewWriter](#newotlpwriter)
+    - [Provider.Close / Shutdown](#logproviderhandleclose--shutdown)
     - [Error](#error)
     - [LogAndReturn](#logandreturn)
     - [Panic](#panic)
@@ -55,15 +55,15 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `Environment`        | type (`string`) | Typed constant for `Dev` / `Prod`                                  |
 | `Dev`                | const           | `"development"`                                                    |
 | `Prod`               | const           | `"production"`                                                     |
-| `otlp.OTLPWriter`         | struct          | `io.Writer` that converts zerolog JSON lines to OTEL `LogRecord`s  |
-| `otlp.LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Close` (or `Shutdown`) on exit |
-| `otlp.LogProviderConfig`  | struct          | `otlp.NewLogProvider` config: service name, endpoint, TLS / insecure, headers, timeout |
+| `otlp.Writer`         | struct          | `io.Writer` that converts zerolog JSON lines to OTEL `LogRecord`s  |
+| `otlp.Provider`  | struct          | Wraps the SDK `LoggerProvider`; call `Close` (or `Shutdown`) on exit |
+| `otlp.Config`  | struct          | `otlp.NewProvider` config: service name, endpoint, TLS / insecure, headers, timeout |
 | `Init`               | func            | Creates, configures, and installs the global logger                |
 | `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Prod`                    |
-| `otlp.NewLogProvider`     | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC (TLS by default); returns errors |
-| `otlp.InitLogProvider`    | func            | Plaintext `NewLogProvider` wrapper that never fails (compatibility) |
-| `otlp.NewOTLPWriter`      | func            | Creates an `OTLPWriter` backed by the global `LoggerProvider`      |
-| `otlp.SetupOTLP`          | func            | Bundles `InitLogProvider` + `NewOTLPWriter` in correct order; returns handle + writer |
+| `otlp.NewProvider`     | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC (TLS by default); returns errors |
+| `otlp.InitProvider`    | func            | Plaintext `NewProvider` wrapper that never fails (compatibility) |
+| `otlp.NewWriter`      | func            | Creates an `otlp.Writer` backed by the global `LoggerProvider`      |
+| `otlp.Setup`          | func            | Bundles `InitProvider` + `NewWriter` in correct order; returns handle + writer |
 | `Error`              | func            | Logs an `errorkit.AppError` at Error level via the global logger   |
 | `LogAndReturn`       | func            | `Error` + returns the original error                               |
 | `Panic`              | func            | `Error` + `os.Exit(1)` (non-zero exit so supervisors detect failure) |
@@ -135,7 +135,7 @@ Both environments add a `time` field to every log line automatically: the UTC ti
 
 ### Redaction
 
-Every logger built by `Init` or `New` passes each JSON log line through a redacting writer before it reaches stdout, the console writer or an `OTLPWriter`. The built-in policy:
+Every logger built by `Init` or `New` passes each JSON log line through a redacting writer before it reaches stdout, the console writer or an `otlp.Writer`. The built-in policy:
 
 | Rule | Applies to | Result |
 | ---- | ---------- | ------ |
@@ -166,7 +166,7 @@ l := logger.New(logger.Config{
 
 - `Init` (global logger) is controlled by the `ENVIRONMENT` environment variable (see the table above) and its optional `io.Writer` argument.
 - `New` (instance logger) takes a `Config` struct: `AppName`, `Version`, `Env` (empty means `DetectEnv()`), `Writer` (overrides the environment's writer), `OTLPWriter` and `Redactor`. See [Instance API](#instance-api).
-- The OTLP export is configured by `LogProviderConfig` (see [NewLogProvider](#newlogprovider)).
+- The OTLP export is configured by `Config` (see [NewProvider](#newlogprovider)).
 
 ---
 
@@ -181,7 +181,7 @@ func Init(appName, version string, otlpWriter ...io.Writer) (*zerolog.Logger, io
 Creates and installs the global logger. Sets both the package-level global and `zerolog`'s `log.Logger` so code using `zerolog` directly picks up the same configuration.
 
 - `appName` and `version` are embedded in every Dev console line as `service_name` and `service_version`.
-- If an `*OTLPWriter` is supplied, each log event is fanned out to both the console/stdout writer **and** the OTLP writer via `zerolog.MultiLevelWriter`.
+- If an `*otlp.Writer` is supplied, each log event is fanned out to both the console/stdout writer **and** the OTLP writer via `zerolog.MultiLevelWriter`.
 - Returns the logger pointer and an `io.NopCloser` (the closer is a no-op; it exists for forward-compatibility with the OTLP path).
 
 Calling `Init` more than once replaces the global logger.
@@ -448,7 +448,7 @@ func main() {
 
 ### Bootstrap With OTLP
 
-The OTLP path needs the log provider before the logger writer, and they must share the same service name. Use `SetupOTLP` to bundle the order safely:
+The OTLP path needs the log provider before the logger writer, and they must share the same service name. Use `Setup` to bundle the order safely:
 
 ```go
 func main() {
@@ -456,8 +456,8 @@ func main() {
 
     // Optional: configure your trace provider first if you want traces too.
 
-    // Bundle InitLogProvider + NewOTLPWriter in correct order.
-    handle, otlpWriter := otlp.SetupOTLP(ctx, serviceName, "otel-collector:4317")
+    // Bundle InitProvider + NewWriter in correct order.
+    handle, otlpWriter := otlp.Setup(ctx, serviceName, "otel-collector:4317")
     defer handle.Shutdown(ctx)
 
     _, cleanup := logger.Init(serviceName, serviceVersion, otlpWriter)
@@ -469,7 +469,7 @@ func main() {
 
 The same `serviceName` should be used by your trace provider so log records and trace spans correlate under one service in your observability backend.
 
-`SetupOTLP` uses `InitLogProvider`, so it ships records in plaintext and swallows setup errors. For TLS, headers, a timeout or error handling, call `NewLogProvider` and then `NewOTLPWriter(serviceName)` yourself, in that order.
+`Setup` uses `InitProvider`, so it ships records in plaintext and swallows setup errors. For TLS, headers, a timeout or error handling, call `NewProvider` and then `NewWriter(serviceName)` yourself, in that order.
 
 ---
 
@@ -593,10 +593,10 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 ## Lifecycle / Concurrency Notes
 
 - **Global logger** — `Init` sets a package-level `*zerolog.Logger` and `zerolog.log.Logger`. Both are safe for concurrent use after `Init` returns. Do not call `Init` concurrently or after the service has started handling requests.
-- **`*OTLPWriter`** — `Write` is called by zerolog on every log event. zerolog guarantees exactly one `Write` call per event with a complete JSON line. `OTLPWriter` itself holds no mutable state and is safe for concurrent use.
-- **`LogProviderHandle`** — `Close` (or `Shutdown`) should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
+- **`*otlp.Writer`** — `Write` is called by zerolog on every log event. zerolog guarantees exactly one `Write` call per event with a complete JSON line. `otlp.Writer` itself holds no mutable state and is safe for concurrent use.
+- **`Provider`** — `Close` (or `Shutdown`) should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
 - **Context loggers** — Loggers stored in a context via `WithLogger` (or any framework adapter that calls `(*zerolog.Logger).WithContext`) are `zerolog.Logger` values copied by value. They are safe for concurrent use.
-- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `LogProviderHandle.Close` (or `Shutdown`), which must be deferred when the OTLP path is used.
+- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `Provider.Close` (or `Shutdown`), which must be deferred when the OTLP path is used.
 
 ---
 

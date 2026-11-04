@@ -2,8 +2,8 @@
 
 Generic key-based storage with two implementations:
 
-- `MemoryStorage[T]` — in-memory, satisfies both `KVStorager[T]` and `AppendLogStorager[T]`.
-- `FileStorage[T]` — JSON Lines file backed, satisfies `AppendLogStorager[T]` only.
+- `MemoryStorage[T]` — in-memory, satisfies both `KVStore[T]` and `AppendLog[T]`.
+- `FileStorage[T]` — JSON Lines file backed, satisfies `AppendLog[T]` only.
 
 The two interfaces are deliberately separate. `Put` always means *overwrite*;
 `Append` always means *append*. No method does both.
@@ -13,14 +13,14 @@ The two interfaces are deliberately separate. `Put` always means *overwrite*;
 ## Interfaces
 
 ```go
-type KVStorager[T any] interface {
+type KVStore[T any] interface {
     Put(key string, value *T) error
     Get(key string) (*T, bool, error)
     Delete(key string) error
     Clear() error
 }
 
-type AppendLogStorager[T any] interface {
+type AppendLog[T any] interface {
     Append(key string, item *T) (*[]T, error)
     List(key string) (*[]T, bool, error)
     Delete(key string) error
@@ -223,8 +223,8 @@ returns). Other files in `baseDir`, such as `config.json`, are left untouched.
 
 | Need | Use |
 |---|---|
-| Process-local KV with overwrite semantics | `MemoryStorage[T]` (KVStorager) |
-| Process-local append-log | `MemoryStorage[T]` (AppendLogStorager) |
+| Process-local KV with overwrite semantics | `MemoryStorage[T]` (KVStore) |
+| Process-local append-log | `MemoryStorage[T]` (AppendLog) |
 | Persistent append-log across restarts | `FileStorage[T]` |
 
 For ad-hoc dump-to-disk during development (one-shot file write, not a

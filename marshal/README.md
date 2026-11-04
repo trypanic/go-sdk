@@ -102,7 +102,7 @@ userMessageJSON, err := marshal.NoEscapeNoNewline(userMessage)
 if err != nil {
     return "", err // already an *errorkit.AppError (ERR_INTERNAL)
 }
-answer, err := client.Execute(ctx, llmclient.LLMRequestConfig{
+answer, err := client.Execute(ctx, llmclient.RequestConfig{
     UserMessage: userMessageJSON,
     // ...
 })

@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {
-	_, err := NewPostgresClient(Config{})
+	_, err := New(Config{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -25,11 +25,11 @@ func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {
 }
 
 func TestNewPostgresClient_DoesNotReadEnvVar(t *testing.T) {
-	// Setting POSTGRES_DSN must not influence NewPostgresClient — the env
-	// fallback is now opt-in via NewPostgresClientFromEnv.
+	// Setting POSTGRES_DSN must not influence New — the env
+	// fallback is now opt-in via NewFromEnv.
 	t.Setenv("POSTGRES_DSN", "postgres://from-env:secret@host/db")
 
-	_, err := NewPostgresClient(Config{})
+	_, err := New(Config{})
 	if err == nil {
 		t.Fatal("expected error when DSN missing despite env var being set")
 	}
@@ -43,7 +43,7 @@ func TestNewPostgresClient_DoesNotReadEnvVar(t *testing.T) {
 func TestNewPostgresClientFromEnv_MissingEnvReturnsConfigError(t *testing.T) {
 	t.Setenv("POSTGRES_DSN", "")
 
-	_, err := NewPostgresClientFromEnv(Config{})
+	_, err := NewFromEnv(Config{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

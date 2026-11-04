@@ -34,7 +34,7 @@ func TestExecuteValidatesKeyAndEndpoint(t *testing.T) {
 			t.Parallel()
 
 			stub := &captureRequester{}
-			_, err := NewClient(stub, tt.cfg).Execute(t.Context(), LLMRequestConfig{Model: "m"})
+			_, err := NewClient(stub, tt.cfg).Execute(t.Context(), RequestConfig{Model: "m"})
 
 			if !tt.wantErr {
 				if err != nil {

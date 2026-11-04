@@ -23,7 +23,7 @@ func TestRoutingMethodsAndRequestAccessors(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, plainOptions())
-	echo := func(ctx context.Context, c httpserver.HTTPContext) {
+	echo := func(ctx context.Context, c httpserver.Context) {
 		c.JSON(http.StatusOK, map[string]string{
 			"id":     c.Param("id"),
 			"q":      c.Query("q"),
@@ -51,7 +51,7 @@ func TestGroupsAndMiddlewareOrder(t *testing.T) {
 	s := newTestServer(t, plainOptions())
 	var order []string
 	mark := func(name string) httpserver.MiddlewareFunc {
-		return func(ctx context.Context, c httpserver.HTTPContext, next httpserver.HandlerFunc) {
+		return func(ctx context.Context, c httpserver.Context, next httpserver.HandlerFunc) {
 			order = append(order, name+">")
 			next(ctx, c)
 			order = append(order, "<"+name)
@@ -62,7 +62,7 @@ func TestGroupsAndMiddlewareOrder(t *testing.T) {
 	api.Use(mark("api"))
 	v1 := api.Group("/v1")
 	v1.Use(mark("v1"))
-	handler := func(_ context.Context, c httpserver.HTTPContext) {
+	handler := func(_ context.Context, c httpserver.Context) {
 		order = append(order, "handler")
 		c.Status(http.StatusNoContent)
 	}
@@ -84,7 +84,7 @@ func TestReplyEnvelopeJSON(t *testing.T) {
 
 	o := plainOptions()
 	s := newTestServer(t, o)
-	s.GET("/reply", func(_ context.Context, c httpserver.HTTPContext) {
+	s.GET("/reply", func(_ context.Context, c httpserver.Context) {
 		c.Reply(http.StatusOK, c.WithMessage("done"), c.WithData(map[string]int{"n": 1}), c.WithMetadata(map[string]string{"page": "1"}))
 	})
 
@@ -99,7 +99,7 @@ func TestBindJSONReturnsBadRequestAppError(t *testing.T) {
 	s := newTestServer(t, plainOptions())
 	var bindErr error
 	var got struct{ Name string }
-	s.POST("/bind", func(_ context.Context, c httpserver.HTTPContext) {
+	s.POST("/bind", func(_ context.Context, c httpserver.Context) {
 		bindErr = c.BindJSON(&got)
 		c.Status(http.StatusOK)
 	})
@@ -118,7 +118,7 @@ func TestRedirectAndHeaders(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, plainOptions())
-	s.GET("/old", func(_ context.Context, c httpserver.HTTPContext) {
+	s.GET("/old", func(_ context.Context, c httpserver.Context) {
 		c.SetHeader("X-Moved", "yes")
 		c.Redirect(http.StatusMovedPermanently, []byte("/new"))
 	})

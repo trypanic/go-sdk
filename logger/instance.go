@@ -27,7 +27,7 @@ type Config struct {
 	Writer io.Writer
 
 	// OTLPWriter, when non-nil, is composed with Writer through
-	// zerolog.MultiLevelWriter. The OTLP path requires InitLogProvider to
+	// zerolog.MultiLevelWriter. The OTLP path requires InitProvider to
 	// have run first.
 	OTLPWriter io.Writer
 

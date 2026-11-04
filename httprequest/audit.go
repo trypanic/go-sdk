@@ -19,7 +19,7 @@ func sanitizeHTTPHeaders(h http.Header) map[string]string {
 // logHTTPAudit emits one structured audit log entry per outbound HTTP call.
 // It records method, URL, status code, sanitized headers, full request and response bodies,
 // and elapsed duration. Called after every executeRequest attempt (success or error).
-func (h *HTTPRequest) logHTTPAudit(
+func (h *Request) logHTTPAudit(
 	ctx context.Context,
 	start time.Time,
 	config RequestConfig,

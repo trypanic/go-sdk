@@ -85,7 +85,7 @@ func TestNewLoaderTable(t *testing.T) {
 				t.Setenv(k, tc.env[k])
 			}
 			target := tc.target()
-			err := NewLoader(target)
+			err := LoadInto(target)
 			if tc.wantErr {
 				appErr, ok := errors.AsType[*errorkit.AppError](err)
 				if !ok {

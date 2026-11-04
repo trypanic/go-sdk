@@ -11,7 +11,7 @@ import (
 
 func TestOTLPWriterKeepsTimestampAndIntegerPrecision(t *testing.T) {
 	exp := installRecordingProvider(t)
-	w := NewOTLPWriter("svc")
+	w := NewWriter("svc")
 
 	line := `{"level":"info","message":"m","time":"2026-11-03T10:00:00.123456789Z",` +
 		`"snowflake":9007199254740993,"ratio":0.5,"negative":-42}` + "\n"
@@ -38,7 +38,7 @@ func TestOTLPWriterKeepsTimestampAndIntegerPrecision(t *testing.T) {
 
 func TestOTLPWriterAcceptsLegacyUnixSeconds(t *testing.T) {
 	exp := installRecordingProvider(t)
-	w := NewOTLPWriter("svc")
+	w := NewWriter("svc")
 
 	_, err := w.Write([]byte(`{"level":"info","message":"m","time":1793753281}`))
 	require.NoError(t, err)

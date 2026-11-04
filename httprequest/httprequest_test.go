@@ -11,7 +11,7 @@ import (
 )
 
 func TestIsRetryable(t *testing.T) {
-	h := &HTTPRequest{}
+	h := &Request{}
 
 	// Case 1: Error is AppError and Retriable is true
 	appErr := errorkit.NewError(ERR_NETWORK_TIMEOUT)
@@ -38,7 +38,7 @@ func TestIsRetryable(t *testing.T) {
 func TestBuildHTTPError_InsufficientQuotaIsNotRetriable(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPRequest{}
+	h := &Request{}
 	requestURL, err := url.Parse("https://api.openai.com/v1/chat/completions")
 	if err != nil {
 		t.Fatalf("failed to parse URL: %v", err)
@@ -78,7 +78,7 @@ func TestBuildHTTPError_InsufficientQuotaIsNotRetriable(t *testing.T) {
 func TestBuildHTTPError_TooManyRequestsStaysRetriableByDefault(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPRequest{}
+	h := &Request{}
 	requestURL, err := url.Parse("https://api.example.com/resource")
 	if err != nil {
 		t.Fatalf("failed to parse URL: %v", err)

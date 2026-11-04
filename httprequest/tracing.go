@@ -13,14 +13,14 @@ import (
 
 // WrapWithTracing adds bounded external.http.<host>.<method> client spans.
 // The URL path is an attribute; query strings and credentials are omitted.
-func WrapWithTracing(inner HTTPRequester) HTTPRequester {
+func WrapWithTracing(inner Requester) Requester {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
-// WrapWithInstrumenter wraps an HTTPRequester with an explicit instrumenter so
+// WrapWithInstrumenter wraps an Requester with an explicit instrumenter so
 // SDK consumers can opt in to tracing without depending on global tracer state.
 // Pass nil to disable tracing entirely (returns inner unchanged).
-func WrapWithInstrumenter(inner HTTPRequester, instrumenter *telemetry.Instrumenter) HTTPRequester {
+func WrapWithInstrumenter(inner Requester, instrumenter *telemetry.Instrumenter) Requester {
 	if instrumenter == nil {
 		return inner
 	}
@@ -28,7 +28,7 @@ func WrapWithInstrumenter(inner HTTPRequester, instrumenter *telemetry.Instrumen
 }
 
 type tracingHTTPRequester struct {
-	inner        HTTPRequester
+	inner        Requester
 	instrumenter *telemetry.Instrumenter
 }
 
@@ -75,4 +75,4 @@ func hostKeyword(host string) string {
 }
 
 // Unwrap returns the request implementation enclosed by this decorator.
-func (t *tracingHTTPRequester) Unwrap() HTTPRequester { return t.inner }
+func (t *tracingHTTPRequester) Unwrap() Requester { return t.inner }

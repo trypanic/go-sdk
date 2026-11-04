@@ -15,11 +15,11 @@ import (
 
 // startServer runs srv on a free loopback port with a /slow route that
 // waits for release (or d when release is nil) and returns its base URL.
-func startServer(t *testing.T, d time.Duration, release <-chan struct{}) (httpserver.HTTPServer, string, chan error) {
+func startServer(t *testing.T, d time.Duration, release <-chan struct{}) (httpserver.Server, string, chan error) {
 	t.Helper()
 	port := freePort(t)
 	srv := NewWithOptions(loopbackConfig(t, port), httpserver.ServerOptions{EnableHealth: true})
-	srv.GET("/slow", func(ctx context.Context, c httpserver.HTTPContext) {
+	srv.GET("/slow", func(ctx context.Context, c httpserver.Context) {
 		if release != nil {
 			<-release
 		} else {

@@ -8,16 +8,15 @@ Package `httprequest` wraps `net/http` with automatic retries (exponential backo
 
 | Symbol                    | Kind      | Purpose                                                |
 | ------------------------- | --------- | ------------------------------------------------------ |
-| `HTTPRequester`           | Interface | Single-method contract for executing HTTP requests     |
-| `HTTPRequest`             | Struct    | Concrete implementation of `HTTPRequester`             |
+| `Requester`           | Interface | Single-method contract for executing HTTP requests     |
+| `Request`             | Struct    | Concrete implementation of `Requester`             |
 | `RequestConfig`           | Struct    | All parameters needed to build one `http.Request`      |
 | `RetryConfig`             | Struct    | Controls max retries, initial delay, and delay ceiling |
-| `New`                     | Function  | Creates an `HTTPRequest` with default retry settings (auto-traced via global tracer) |
-| `NewHTTPRequestWithRetry` | Function  | Creates an `HTTPRequest` with custom `RetryConfig` (auto-traced) |
-| `NewWithoutTracing`       | Function  | Creates a plain `HTTPRequester` with no tracing wrapper |
-| `NewWithInstrumenter`     | Function  | Creates an `HTTPRequester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
-| `NewWithOptions`          | Function  | Builds an `HTTPRequester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
-| `WrapWithInstrumenter`    | Function  | Wraps an existing `HTTPRequester` with an explicit instrumenter |
+| `New`                     | Function  | Creates an `Request` with default retry settings (auto-traced via global tracer) |
+| `NewWithoutTracing`       | Function  | Creates a plain `Requester` with no tracing wrapper |
+| `NewWithInstrumenter`     | Function  | Creates an `Requester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
+| `NewWithOptions`          | Function  | Builds an `Requester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
+| `WrapWithInstrumenter`    | Function  | Wraps an existing `Requester` with an explicit instrumenter |
 | `BodyRedactor`            | Type      | `func([]byte) []byte` — policy applied to bodies in error payloads and audit logs |
 | `DefaultBodyRedactor`     | Function  | Replaces any non-empty body with the literal `[REDACTED]` |
 | `WithRetryConfig`         | Option    | Override the retry configuration |
@@ -114,10 +113,10 @@ This package reads no environment variables.
 
 ## API Reference
 
-### `HTTPRequester`
+### `Requester`
 
 ```go
-type HTTPRequester interface {
+type Requester interface {
     Do(ctx context.Context, config RequestConfig, out any) error
 }
 ```
@@ -129,27 +128,25 @@ The single-method interface used throughout the codebase. Accept this interface 
 ### `New`
 
 ```go
-func New(client *http.Client) HTTPRequester
+func New(client *http.Client) Requester
 ```
 
-Returns an `HTTPRequester` (an `*HTTPRequest` wrapped with tracing through the global OTel tracer) with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
+Returns an `Requester` (an `*Request` wrapped with tracing through the global OTel tracer) with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
 
 ---
 
-### `NewHTTPRequestWithRetry`
+### Retry and tracing options
 
-```go
-func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) HTTPRequester
-```
-
-Returns an `HTTPRequester` wrapped with tracing, like `New`, with `retryConfig` normalized (zero fields take the defaults, a negative `MaxRetries` becomes 1). For explicit options without tracing, use `NewWithOptions(client, WithRetryConfig(rc), …)`.
+Use `NewWithOptions(client, WithRetryConfig(rc), WithInstrumenter(instr))` to
+combine custom retries and tracing. Nil instrumenters disable spans. Retry zero
+fields take defaults; a negative `MaxRetries` becomes one attempt.
 
 ---
 
 ### `Do`
 
 ```go
-func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) error
+func (h *Request) Do(ctx context.Context, config RequestConfig, out any) error
 ```
 
 **Execution sequence per attempt:**
@@ -236,9 +233,10 @@ Build the requesters once at startup and share them. Two variants appear in prac
 httpRequest := httprequest.New(httpclient.NewDefaultClient())
 
 // LLM client: a single attempt over a client tuned for slow first bytes.
-llmRequest := httprequest.NewHTTPRequestWithRetry(
+llmRequest := httprequest.NewWithOptions(
     httpclient.NewClient(httpclient.SetupForLLM()),
-    httprequest.RetryConfig{MaxRetries: 1},
+    httprequest.WithRetryConfig(httprequest.RetryConfig{MaxRetries: 1}),
+    httprequest.WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})),
 )
 cfg, err := llmclient.ConfigFromEnv() // LLM_API_KEY, LLM_ENDPOINT
 if err != nil {
@@ -249,15 +247,15 @@ llm := llmclient.New(llmRequest, cfg)
 
 ### Constructor injection
 
-Inject `HTTPRequester` via constructor so the dependency is explicit and replaceable in tests:
+Inject `Requester` via constructor so the dependency is explicit and replaceable in tests:
 
 ```go
 type AuthClient struct {
-    httpRequest httprequest.HTTPRequester
+    httpRequest httprequest.Requester
     endpoint    string
 }
 
-func NewAuthClient(r httprequest.HTTPRequester, endpoint string) *AuthClient {
+func NewAuthClient(r httprequest.Requester, endpoint string) *AuthClient {
     return &AuthClient{httpRequest: r, endpoint: endpoint}
 }
 
@@ -278,7 +276,7 @@ func (a *AuthClient) Login(ctx context.Context, body []byte) (*Response, error) 
 
 ### Body redaction and audit log (opt-in)
 
-By default `HTTPRequest` does not place request or response bodies into structured error payloads. When body context is required for debugging, opt in with `WithBodyCapture()`. Captured bodies pass through a `BodyRedactor` (default replaces non-empty bodies with `[REDACTED]`):
+By default `Request` does not place request or response bodies into structured error payloads. When body context is required for debugging, opt in with `WithBodyCapture()`. Captured bodies pass through a `BodyRedactor` (default replaces non-empty bodies with `[REDACTED]`):
 
 ```go
 requester := httprequest.NewWithOptions(client,
@@ -316,9 +314,9 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-- `HTTPRequest` is fully immutable after construction. Retry defaults are normalized once in the constructor; `Do` works on a local copy of `retryConfig` and never mutates the receiver. The instance is safe for concurrent use across goroutines.
+- `Request` is fully immutable after construction. Retry defaults are normalized once in the constructor; `Do` works on a local copy of `retryConfig` and never mutates the receiver. The instance is safe for concurrent use across goroutines.
 - There is no `Close` method. Lifecycle management of the underlying `*http.Client` and its transport is the caller's responsibility.
-- One instance should be created per process (or per distinct `http.Client`) and reused across requests; do not create a new `HTTPRequest` per request.
+- One instance should be created per process (or per distinct `http.Client`) and reused across requests; do not create a new `Request` per request.
 
 ---
 

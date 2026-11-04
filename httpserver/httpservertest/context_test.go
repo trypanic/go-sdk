@@ -15,7 +15,7 @@ import (
 func TestHandlerWithRecorder(t *testing.T) {
 	c := httpservertest.NewContext(httptest.NewRequest("POST", "/users?sort=name", strings.NewReader(`{"name":"Ada"}`)))
 	c.Params["id"] = "123"
-	handler := httpserver.HandlerFunc(func(_ context.Context, c httpserver.HTTPContext) {
+	handler := httpserver.HandlerFunc(func(_ context.Context, c httpserver.Context) {
 		var body struct{ Name string }
 		require.NoError(t, c.BindJSON(&body))
 		require.Equal(t, "Ada", body.Name)

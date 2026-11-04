@@ -30,10 +30,10 @@ constructors never do.
 | Constructor | Returns | Tracing |
 |---|---|---|
 | `NewClient(httpRequest, cfg)` | `*Client` | None |
-| `New(httpRequest, cfg)` | `LLMProvider` | Wraps with the global OTel tracer |
-| `NewWithoutTracing(httpRequest, cfg)` | `LLMProvider` | None |
-| `NewWithInstrumenter(httpRequest, cfg, instr)` | `LLMProvider` | Explicit instrumenter (`nil` skips tracing) |
-| `WrapWithInstrumenter(provider, instr)` | `LLMProvider` | Wraps an existing provider |
+| `New(httpRequest, cfg)` | `Provider` | Wraps with the global OTel tracer |
+| `NewWithoutTracing(httpRequest, cfg)` | `Provider` | None |
+| `NewWithInstrumenter(httpRequest, cfg, instr)` | `Provider` | Explicit instrumenter (`nil` skips tracing) |
+| `WrapWithInstrumenter(provider, instr)` | `Provider` | Wraps an existing provider |
 
 `Config` and `Client` never print the API key: `String`, `GoString`
 (`%v`, `%+v`, `%#v`), `MarshalJSON` and `LogValue` (slog) show
@@ -53,7 +53,7 @@ requester := httprequest.NewHTTPRequestWithRetry(
 )
 provider := llmclient.New(requester, cfg)
 
-content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
+content, err := provider.Execute(ctx, llmclient.RequestConfig{
     Model:        "gpt-4o-mini",
     SystemPrompt: "You are a helpful assistant.",
     UserMessage:  "What is the capital of France?",

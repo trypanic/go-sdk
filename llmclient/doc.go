@@ -2,7 +2,7 @@
 // chat-completion endpoints (non-streaming only).
 //
 // Build a Config (or read it with ConfigFromEnv from LLM_API_KEY and
-// LLM_ENDPOINT), pass an httprequest.HTTPRequester, and call Execute. The
+// LLM_ENDPOINT), pass an httprequest.Requester, and call Execute. The
 // API key is required and is sent only over https unless
 // Config.AllowInsecureEndpoint is set; it is never printed by String,
 // GoString, MarshalJSON or LogValue. Each Execute is bounded by

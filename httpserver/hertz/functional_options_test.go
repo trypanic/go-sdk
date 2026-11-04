@@ -16,7 +16,7 @@ func TestNewServerDefaultsAndExplicitLogger(t *testing.T) {
 	var logs bytes.Buffer
 	base := logger.New(logger.Config{Env: logger.Prod, Writer: &logs})
 	srv := hertz.NewServer(httpserver.ServerConfig{}, hertz.WithLogger(base))
-	srv.GET("/panic", func(context.Context, httpserver.HTTPContext) { panic("private failure") })
+	srv.GET("/panic", func(context.Context, httpserver.Context) { panic("private failure") })
 	for _, tc := range []struct {
 		method, path string
 		status       int

@@ -25,18 +25,18 @@ func TestNewLoaderReturnsConfigErrorWithParseDetails(t *testing.T) {
 		RequiredValue string `env:"ENVS_TEST_REQUIRED_VALUE,required"`
 	}
 
-	err := NewLoader(&cfg)
+	err := LoadInto(&cfg)
 	if err == nil {
-		t.Fatal("NewLoader() error = nil, want error")
+		t.Fatal("LoadInto() error = nil, want error")
 	}
 
 	appErr, ok := errors.AsType[*errorkit.AppError](err)
 	if !ok {
-		t.Fatalf("NewLoader() error type = %T, want *errorkit.AppError", err)
+		t.Fatalf("LoadInto() error type = %T, want *errorkit.AppError", err)
 	}
 
 	if got, want := appErr.Code(), errorkit.ERR_SYSTEM_CONFIG_INVALID; got != want {
-		t.Fatalf("NewLoader() code = %s, want %s", got, want)
+		t.Fatalf("LoadInto() code = %s, want %s", got, want)
 	}
 
 	errorText := err.Error()
@@ -45,7 +45,7 @@ func TestNewLoaderReturnsConfigErrorWithParseDetails(t *testing.T) {
 		requiredEnv,
 	} {
 		if !strings.Contains(errorText, want) {
-			t.Errorf("NewLoader() error = %q, want substring %q", errorText, want)
+			t.Errorf("LoadInto() error = %q, want substring %q", errorText, want)
 		}
 	}
 }
@@ -62,13 +62,13 @@ func TestNewLoaderErrorDoesNotLeakValues(t *testing.T) {
 		Port    int           `env:"ENVS_TEST_PORT"`
 		Timeout time.Duration `env:"ENVS_TEST_TIMEOUT"`
 	}
-	err := NewLoader(&cfg)
+	err := LoadInto(&cfg)
 	if err == nil {
-		t.Fatal("NewLoader() error = nil, want error")
+		t.Fatal("LoadInto() error = nil, want error")
 	}
 	appErr, ok := errors.AsType[*errorkit.AppError](err)
 	if !ok {
-		t.Fatalf("NewLoader() error type = %T, want *errorkit.AppError", err)
+		t.Fatalf("LoadInto() error type = %T, want *errorkit.AppError", err)
 	}
 	if got, want := appErr.Code(), errorkit.ERR_SYSTEM_CONFIG_INVALID; got != want {
 		t.Fatalf("code = %s, want %s", got, want)

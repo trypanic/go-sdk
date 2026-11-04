@@ -10,10 +10,10 @@ import (
 )
 
 func TestConcreteRequesterAndUnwrap(t *testing.T) {
-	var requester *httprequest.HTTPRequest = httprequest.New(&http.Client{})
+	var requester *httprequest.Request = httprequest.New(&http.Client{})
 	wrapped := httprequest.WrapWithInstrumenter(requester, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 	unwrappable, ok := wrapped.(interface {
-		Unwrap() httprequest.HTTPRequester
+		Unwrap() httprequest.Requester
 	})
 	require.True(t, ok)
 	require.Same(t, requester, unwrappable.Unwrap())

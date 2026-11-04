@@ -16,8 +16,8 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Constructors](#constructors)
-  - [NewPostgresClient](#newpostgresclient)
-  - [NewPostgresClientFromEnv](#newpostgresclientfromenv)
+  - [New](#newpostgresclient)
+  - [NewFromEnv](#newpostgresclientfromenv)
 - [DSN Normalization](#dsn-normalization)
 - [Stored Procedures](#stored-procedures)
   - [Interface](#interface)
@@ -38,9 +38,9 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `Config` | struct | DSN + pool tuning fields |
-| `PostgresEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewPostgresClientFromEnv` |
-| `NewPostgresClient` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
-| `NewPostgresClientFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `NewPostgresClient` |
+| `DSNEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewFromEnv` |
+| `New` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
+| `NewFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `New` |
 | `normalizePostgresDSN` | func (unexported) | Percent-encodes raw `@`, `/`, `?`, `#` in URL passwords so pgx can parse the DSN |
 | `Querier` | interface | `Query` + `QueryRow`; `*pgxpool.Pool` and `pgx.Tx` both implement it |
 | `Execer` | interface | `Exec` |
@@ -64,7 +64,7 @@ import (
     "github.com/trypanic/go-sdk/postgres" // package identifier: postgres
 )
 
-pool, err := postgres.NewPostgresClient(postgres.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
     MaxConnLifetime: time.Hour,
     MaxConnIdleTime: time.Minute,
@@ -113,8 +113,8 @@ type Config struct {
 }
 ```
 
-The package reads no environment variables in `NewPostgresClient`. The convenience helper
-`NewPostgresClientFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
+The package reads no environment variables in `New`. The convenience helper
+`NewFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
 `Config` unchanged. SDK consumers that prefer a different env var name should read it themselves
 and assign `Config.DSN`.
 
@@ -122,10 +122,10 @@ and assign `Config.DSN`.
 
 ## Constructors
 
-### NewPostgresClient
+### New
 
 ```go
-func NewPostgresClient(cfg Config) (*pgxpool.Pool, error)
+func New(cfg Config) (*pgxpool.Pool, error)
 ```
 
 Behavior:
@@ -145,14 +145,14 @@ the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
 driver's `Error()` text, in which pgx masks the password. The driver error value itself is
 never used as the payload: `*pgconn.ParseConfigError` exports the unredacted connection string.
 
-### NewPostgresClientFromEnv
+### NewFromEnv
 
 ```go
-func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error)
+func NewFromEnv(cfg Config) (*pgxpool.Pool, error)
 ```
 
-Reads `os.Getenv(PostgresEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
-`NewPostgresClient`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
+Reads `os.Getenv(DSNEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
+`New`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
 
 ---
 
@@ -300,7 +300,7 @@ inherit the dependency.
 
 ```go
 // Wire pool + repository
-pool, err := postgres.NewPostgresClient(postgres.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             cfg.Postgres.DSN,
     MaxConnLifetime: cfg.Postgres.MaxConnLifetime,
     MaxConnIdleTime: cfg.Postgres.MaxConnIdleTime,
@@ -365,7 +365,7 @@ driver-level tracing wire it up themselves.
 
 ### Cancellable setup
 
-`NewPostgresClientContext(ctx, cfg)` and `NewPostgresClientFromEnvContext(ctx, cfg)`
+`NewContext(ctx, cfg)` and `NewFromEnvContext(ctx, cfg)`
 use the caller context during pool creation and verification. With no deadline,
 the default setup timeout is five seconds. Positive `Config.ConnectTimeout`
 caps setup even with a later caller deadline; negative values are rejected.

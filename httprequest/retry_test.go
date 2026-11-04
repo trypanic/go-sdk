@@ -62,13 +62,13 @@ func TestDoMaxRetriesAttempts(t *testing.T) {
 	}
 }
 
-// TestDoGuardsUnnormalizedRetryConfig covers an HTTPRequest whose retry
+// TestDoGuardsUnnormalizedRetryConfig covers an Request whose retry
 // configuration bypassed the constructors: Do must still send one request.
 func TestDoGuardsUnnormalizedRetryConfig(t *testing.T) {
 	t.Parallel()
 
 	srv, hits := countingServer(t, http.StatusServiceUnavailable)
-	h := &HTTPRequest{client: srv.Client(), retryConfig: RetryConfig{MaxRetries: -1}}
+	h := &Request{client: srv.Client(), retryConfig: RetryConfig{MaxRetries: -1}}
 
 	err := h.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil)
 

@@ -11,12 +11,12 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-// NewLoader parses environment variables into c, a non-nil pointer to a
+// LoadInto parses environment variables into c, a non-nil pointer to a
 // struct tagged for caarlos0/env. On failure it returns an
 // ERR_SYSTEM_CONFIG_INVALID *errorkit.AppError whose text names the
 // offending variables and fields but never the raw values; the original
 // caarlos0/env error stays reachable with errors.As.
-func NewLoader(c any) error {
+func LoadInto(c any) error {
 	if err := env.Parse(c); err != nil {
 		return configError(err)
 	}
@@ -25,20 +25,20 @@ func NewLoader(c any) error {
 
 // Load parses environment variables into a new value of the struct type T
 // and returns it. On failure it returns the zero T and the same
-// ERR_SYSTEM_CONFIG_INVALID error as NewLoader. T must be a struct type (not
+// ERR_SYSTEM_CONFIG_INVALID error as LoadInto. T must be a struct type (not
 // a pointer); any other type fails with ERR_SYSTEM_CONFIG_INVALID.
 //
 //	cfg, err := envs.Load[Config]()
 func Load[T any]() (T, error) {
 	var cfg T
-	if err := NewLoader(&cfg); err != nil {
+	if err := LoadInto(&cfg); err != nil {
 		var zero T
 		return zero, err
 	}
 	return cfg, nil
 }
 
-// LoadWithOptions is like NewLoader but passes opts to caarlos0/env, for
+// LoadWithOptions is like LoadInto but passes opts to caarlos0/env, for
 // example a Prefix, custom FuncMap parsers, or an Environment map that
 // replaces the process environment (useful in tests).
 func LoadWithOptions(c any, opts env.Options) error {

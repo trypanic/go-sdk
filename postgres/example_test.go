@@ -16,7 +16,7 @@ type item struct {
 // Example wires a pool and a traced stored-procedure runner. It needs a
 // database, so it is compiled but not run.
 func Example() {
-	pool, err := postgres.NewPostgresClient(postgres.Config{
+	pool, err := postgres.New(postgres.Config{
 		DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
 		MaxConnLifetime: time.Hour,
 		MaxConns:        10,

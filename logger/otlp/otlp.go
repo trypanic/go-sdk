@@ -12,40 +12,40 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// OTLPWriter is a zerolog io.Writer that converts each JSON log line into an
+// Writer is a zerolog io.Writer that converts each JSON log line into an
 // OTEL LogRecord and emits it via the global LoggerProvider (set up by
-// NewLogProvider or InitLogProvider, which own the exporter connection).
+// NewProvider or InitProvider, which own the exporter connection).
 //
 // Trace correlation works automatically: trace_id and span_id written by
 // WithTrace() / ErrorCtx() are promoted to the record's first-class trace
 // fields, which observability backends use to link a log line to its trace.
 // It is safe for concurrent use.
-type OTLPWriter struct {
+type Writer struct {
 	logger log.Logger
 }
 
-// NewOTLPWriter creates an OTLPWriter for the given service name, used as
+// NewWriter creates an Writer for the given service name, used as
 // the instrumentation scope. Use the same service name as the log provider
 // and the trace provider so the backend groups logs and traces under one
 // service.
 //
-// Must be called AFTER the log provider has been created (NewLogProvider or
-// InitLogProvider): the writer binds to the global provider at construction.
+// Must be called AFTER the log provider has been created (NewProvider or
+// InitProvider): the writer binds to the global provider at construction.
 //
 // Usage:
 //
-//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	l, cleanup := logger.Init("my-service", version, otlp.NewOTLPWriter("my-service"))
-func NewOTLPWriter(serviceName string) *OTLPWriter {
-	return &OTLPWriter{
+//	l, cleanup := logger.Init("my-service", version, otlp.NewWriter("my-service"))
+func NewWriter(serviceName string) *Writer {
+	return &Writer{
 		logger: otel.GetLoggerProvider().Logger(serviceName),
 	}
 }
 
 // Write implements io.Writer. Each call receives exactly one complete JSON
 // log line from zerolog (zerolog guarantees one Write per event).
-func (w *OTLPWriter) Write(p []byte) (int, error) {
+func (w *Writer) Write(p []byte) (int, error) {
 	// Parse the zerolog JSON so we can extract fields into the OTEL record.
 	// UseNumber keeps integers above 2^53 exact (see anyToLogValue).
 	var fields map[string]any

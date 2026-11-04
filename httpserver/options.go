@@ -36,7 +36,7 @@ type AuditOptions struct {
 	BodyRedactor  BodyRedactor
 }
 
-// ReplyOptions configures the JSON envelope produced by HTTPContext.Reply.
+// ReplyOptions configures the JSON envelope produced by Context.Reply.
 type ReplyOptions struct {
 	// Layout is the time.Format layout used for Reply.Timestamp.
 	Layout string

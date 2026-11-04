@@ -11,7 +11,7 @@ import (
 
 func TestConsumerUsesFake(t *testing.T) {
 	var published string
-	fake := &messagingtest.Messager{
+	fake := &messagingtest.Broker{
 		PublishFunc: func(_ context.Context, q string, e messaging.Event) error {
 			published = q
 			require.Equal(t, "id", e.CorrelationID)
@@ -22,7 +22,7 @@ func TestConsumerUsesFake(t *testing.T) {
 		},
 		CloseFunc: func() error { return nil },
 	}
-	var port messaging.Messager = fake
+	var port messaging.Broker = fake
 	require.NoError(t, port.Publish(t.Context(), "jobs", messaging.Event{CorrelationID: "id"}))
 	require.Equal(t, "jobs", published)
 	require.NoError(t, port.Subscribe(t.Context(), "jobs", "worker", func(_ context.Context, m messaging.Message) error {
@@ -30,5 +30,5 @@ func TestConsumerUsesFake(t *testing.T) {
 		return nil
 	}))
 	require.NoError(t, port.Close())
-	require.Panics(t, func() { _ = new(messagingtest.Messager).Close() })
+	require.Panics(t, func() { _ = new(messagingtest.Broker).Close() })
 }

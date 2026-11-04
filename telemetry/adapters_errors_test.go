@@ -26,7 +26,7 @@ func (f failingRequest) Do(context.Context, httprequest.RequestConfig, any) erro
 
 type failingLLM struct{ err error }
 
-func (f failingLLM) Execute(context.Context, llmclient.LLMRequestConfig) (string, error) {
+func (f failingLLM) Execute(context.Context, llmclient.RequestConfig) (string, error) {
 	return "", f.err
 }
 
@@ -67,11 +67,11 @@ func TestAdaptersRecordFailures(t *testing.T) {
 			return httprequest.NewWithInstrumenter(&http.Client{}, i).Do(ctx, httprequest.RequestConfig{URL: ":invalid"}, nil)
 		},
 		"LLM wrapper": func(i *telemetry.Instrumenter) error {
-			_, err := llmclient.WrapWithInstrumenter(failingLLM{failure}, i).Execute(ctx, llmclient.LLMRequestConfig{})
+			_, err := llmclient.WrapWithInstrumenter(failingLLM{failure}, i).Execute(ctx, llmclient.RequestConfig{})
 			return err
 		},
 		"LLM concrete": func(i *telemetry.Instrumenter) error {
-			_, err := llmclient.NewWithInstrumenter(failingRequest{failure}, llmclient.Config{APIKey: "test", Endpoint: "https://example.invalid"}, i).Execute(ctx, llmclient.LLMRequestConfig{Model: "model"})
+			_, err := llmclient.NewWithInstrumenter(failingRequest{failure}, llmclient.Config{APIKey: "test", Endpoint: "https://example.invalid"}, i).Execute(ctx, llmclient.RequestConfig{Model: "model"})
 			return err
 		},
 		"Mongo ping": func(i *telemetry.Instrumenter) error {

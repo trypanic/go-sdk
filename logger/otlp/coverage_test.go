@@ -21,7 +21,7 @@ var (
 
 func TestOTLPWriterMapsRecordFields(t *testing.T) {
 	exp := installRecordingProvider(t)
-	w := NewOTLPWriter("svc")
+	w := NewWriter("svc")
 
 	line := `{"level":"warn","message":"slow","time":"2026-11-03T10:00:00Z",` +
 		`"trace_id":"` + testTraceID.String() + `","span_id":"` + testSpanID.String() + `",` +
@@ -77,7 +77,7 @@ func TestOTLPWriterSeverityMapping(t *testing.T) {
 func TestOTLPWriterEmitsMalformedLinesAsText(t *testing.T) {
 	exp := installRecordingProvider(t)
 
-	_, err := NewOTLPWriter("svc").Write([]byte("not json"))
+	_, err := NewWriter("svc").Write([]byte("not json"))
 	require.NoError(t, err)
 
 	records := exp.snapshot()
@@ -89,7 +89,7 @@ func TestOTLPWriterEmitsMalformedLinesAsText(t *testing.T) {
 func TestOTLPWriterIgnoresInvalidTraceIDs(t *testing.T) {
 	exp := installRecordingProvider(t)
 
-	_, err := NewOTLPWriter("svc").Write([]byte(`{"level":"info","message":"m","trace_id":"zz","span_id":"yy"}`))
+	_, err := NewWriter("svc").Write([]byte(`{"level":"info","message":"m","trace_id":"zz","span_id":"yy"}`))
 	require.NoError(t, err)
 
 	records := exp.snapshot()
@@ -100,7 +100,7 @@ func TestOTLPWriterIgnoresInvalidTraceIDs(t *testing.T) {
 func TestSetupOTLPReturnsHandleAndWriter(t *testing.T) {
 	restoreGlobalLoggerProvider(t)
 
-	handle, writer := SetupOTLP(t.Context(), "svc", "127.0.0.1:1")
+	handle, writer := Setup(t.Context(), "svc", "127.0.0.1:1")
 	require.NotNil(t, handle)
 	require.NotNil(t, writer)
 	assert.Same(t, handle.provider, otel.GetLoggerProvider())
@@ -110,20 +110,20 @@ func TestSetupOTLPReturnsHandleAndWriter(t *testing.T) {
 	assert.NoError(t, handle.Close(ctx))
 }
 
-// TestInitLogProviderNeverFailsOnEmptyArguments: InitLogProvider and
-// SetupOTLP keep their documented never-fail behavior. An empty service name
-// or endpoint (which NewLogProvider rejects) still yields a working,
-// globally registered provider, as before NewLogProvider existed.
+// TestInitLogProviderNeverFailsOnEmptyArguments: InitProvider and
+// Setup keep their documented never-fail behavior. An empty service name
+// or endpoint (which NewProvider rejects) still yields a working,
+// globally registered provider, as before NewProvider existed.
 func TestInitLogProviderNeverFailsOnEmptyArguments(t *testing.T) {
 	t.Run("empty service name exports to the collector", func(t *testing.T) {
 		restoreGlobalLoggerProvider(t)
 		collector := startFakeCollector(t)
 
-		handle := InitLogProvider(t.Context(), "", collector.addr)
+		handle := InitProvider(t.Context(), "", collector.addr)
 		require.NotNil(t, handle)
 		require.Same(t, handle.provider, otel.GetLoggerProvider())
 
-		_, err := NewOTLPWriter("svc").Write([]byte(`{"level":"info","message":"no name"}`))
+		_, err := NewWriter("svc").Write([]byte(`{"level":"info","message":"no name"}`))
 		require.NoError(t, err)
 		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 		defer cancel()
@@ -137,16 +137,16 @@ func TestInitLogProviderNeverFailsOnEmptyArguments(t *testing.T) {
 		restoreGlobalLoggerProvider(t)
 
 		// Nothing is emitted and the exporter connects lazily: no traffic.
-		handle := InitLogProvider(t.Context(), "svc", "")
+		handle := InitProvider(t.Context(), "svc", "")
 		require.NotNil(t, handle)
 		assert.Same(t, handle.provider, otel.GetLoggerProvider())
 		assert.NoError(t, handle.Close(t.Context()))
 	})
 
-	t.Run("SetupOTLP with empty arguments", func(t *testing.T) {
+	t.Run("Setup with empty arguments", func(t *testing.T) {
 		restoreGlobalLoggerProvider(t)
 
-		handle, writer := SetupOTLP(t.Context(), "", "")
+		handle, writer := Setup(t.Context(), "", "")
 		require.NotNil(t, writer)
 		assert.Same(t, handle.provider, otel.GetLoggerProvider())
 		assert.NoError(t, handle.Close(t.Context()))
@@ -154,7 +154,7 @@ func TestInitLogProviderNeverFailsOnEmptyArguments(t *testing.T) {
 }
 
 func BenchmarkOTLPWriterWrite(b *testing.B) {
-	w := &OTLPWriter{logger: noop.NewLoggerProvider().Logger("bench")}
+	w := &Writer{logger: noop.NewLoggerProvider().Logger("bench")}
 	line := []byte(`{"level":"info","message":"request served","time":"2026-11-03T10:00:00.123456789Z","request_id":"rid-42","status":200}`)
 	b.ReportAllocs()
 	for b.Loop() {

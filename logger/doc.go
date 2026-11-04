@@ -32,10 +32,10 @@
 //
 // # OTLP
 //
-// logger/otlp.NewLogProvider creates the OTLP/gRPC log exporter (TLS by default) and
-// registers it as the global OTel LoggerProvider; otlp.NewOTLPWriter then turns
+// logger/otlp.NewProvider creates the OTLP/gRPC log exporter (TLS by default) and
+// registers it as the global OTel LoggerProvider; otlp.NewWriter then turns
 // each log line into an OTel log record. Pass the writer to Init or
-// Config.OTLPWriter and defer otlp.LogProviderHandle.Close.
+// Config.OTLPWriter and defer otlp.Provider.Close.
 //
 // # Concurrency
 //

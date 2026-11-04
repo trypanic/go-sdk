@@ -19,14 +19,14 @@ import (
 	"github.com/trypanic/go-sdk/logger"
 )
 
-// New builds a Hertz-backed httpserver.HTTPServer using the compatibility
+// New builds a Hertz-backed httpserver.Server using the compatibility
 // profile (every built-in middleware on, audit redacted by default,
 // 404/405 for unknown routes/methods, wall-clock Reply timestamp).
 func New(cfg httpserver.ServerConfig) *Server {
 	return NewWithOptions(cfg, httpserver.DefaultServerOptions())
 }
 
-// NewWithOptions builds a Hertz-backed httpserver.HTTPServer with explicit
+// NewWithOptions builds a Hertz-backed httpserver.Server with explicit
 // middleware switches. Pass DefaultServerOptions() and override fields for
 // fine-grained control.
 func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) *Server {

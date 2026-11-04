@@ -38,7 +38,7 @@ func TestLogLineTimestampHasSubSecondPrecision(t *testing.T) {
 
 func TestLoggerToOTLPKeepsSubSecondTimestamp(t *testing.T) {
 	exp := installRecordingProvider(t)
-	l := New(Config{Env: Prod, Writer: &bytes.Buffer{}, OTLPWriter: otlp.NewOTLPWriter("svc")})
+	l := New(Config{Env: Prod, Writer: &bytes.Buffer{}, OTLPWriter: otlp.NewWriter("svc")})
 
 	before := time.Now()
 	l.Info("to otlp")

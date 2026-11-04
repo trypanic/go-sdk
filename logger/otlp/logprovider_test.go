@@ -67,14 +67,14 @@ func restoreGlobalLoggerProvider(t *testing.T) {
 func TestNewLogProviderRejectsInvalidConfig(t *testing.T) {
 	cases := []struct {
 		name string
-		cfg  LogProviderConfig
+		cfg  Config
 	}{
-		{name: "missing service name", cfg: LogProviderConfig{Endpoint: "127.0.0.1:4317", Insecure: true}},
-		{name: "missing endpoint", cfg: LogProviderConfig{ServiceName: "svc", Insecure: true}},
-		{name: "insecure with TLS config", cfg: LogProviderConfig{
+		{name: "missing service name", cfg: Config{Endpoint: "127.0.0.1:4317", Insecure: true}},
+		{name: "missing endpoint", cfg: Config{ServiceName: "svc", Insecure: true}},
+		{name: "insecure with TLS config", cfg: Config{
 			ServiceName: "svc", Endpoint: "127.0.0.1:4317", Insecure: true, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12},
 		}},
-		{name: "negative timeout", cfg: LogProviderConfig{
+		{name: "negative timeout", cfg: Config{
 			ServiceName: "svc", Endpoint: "127.0.0.1:4317", Insecure: true, Timeout: -time.Second,
 		}},
 	}
@@ -83,7 +83,7 @@ func TestNewLogProviderRejectsInvalidConfig(t *testing.T) {
 			restoreGlobalLoggerProvider(t)
 			before := otel.GetLoggerProvider()
 
-			handle, err := NewLogProvider(t.Context(), tc.cfg)
+			handle, err := NewProvider(t.Context(), tc.cfg)
 
 			require.Error(t, err)
 			assert.Nil(t, handle)
@@ -97,7 +97,7 @@ func TestNewLogProviderAppliesHeadersAndExports(t *testing.T) {
 	restoreGlobalLoggerProvider(t)
 	collector := startFakeCollector(t)
 
-	handle, err := NewLogProvider(t.Context(), LogProviderConfig{
+	handle, err := NewProvider(t.Context(), Config{
 		ServiceName: "svc",
 		Endpoint:    collector.addr,
 		Insecure:    true,
@@ -108,7 +108,7 @@ func TestNewLogProviderAppliesHeadersAndExports(t *testing.T) {
 	require.NotNil(t, handle)
 	assert.Same(t, handle.provider, otel.GetLoggerProvider())
 
-	_, err = NewOTLPWriter("svc").Write([]byte(`{"level":"info","message":"shipped"}`))
+	_, err = NewWriter("svc").Write([]byte(`{"level":"info","message":"shipped"}`))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -125,14 +125,14 @@ func TestNewLogProviderUsesTLSUnlessInsecure(t *testing.T) {
 	restoreGlobalLoggerProvider(t)
 	collector := startFakeCollector(t) // plaintext only
 
-	handle, err := NewLogProvider(t.Context(), LogProviderConfig{
+	handle, err := NewProvider(t.Context(), Config{
 		ServiceName: "svc",
 		Endpoint:    collector.addr,
 		Timeout:     500 * time.Millisecond,
 	})
 	require.NoError(t, err)
 
-	_, err = NewOTLPWriter("svc").Write([]byte(`{"level":"info","message":"tls only"}`))
+	_, err = NewWriter("svc").Write([]byte(`{"level":"info","message":"tls only"}`))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
@@ -145,7 +145,7 @@ func TestNewLogProviderUsesTLSUnlessInsecure(t *testing.T) {
 
 func TestLogProviderHandleCloseReportsErrors(t *testing.T) {
 	restoreGlobalLoggerProvider(t)
-	handle, err := NewLogProvider(t.Context(), LogProviderConfig{
+	handle, err := NewProvider(t.Context(), Config{
 		ServiceName: "svc", Endpoint: "127.0.0.1:1", Insecure: true,
 	})
 	require.NoError(t, err)
@@ -160,7 +160,7 @@ func TestLogProviderHandleCloseReportsErrors(t *testing.T) {
 }
 
 func TestLogProviderHandleNilSafe(t *testing.T) {
-	var handle *LogProviderHandle
+	var handle *Provider
 	assert.NoError(t, handle.Close(t.Context()))
 	handle.Shutdown(t.Context())
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/trypanic/go-sdk/logger"
 )
 
-// hertzContext implements httpserver.HTTPContext over Hertz's RequestContext.
+// hertzContext implements httpserver.Context over Hertz's RequestContext.
 // ctx is the request context the handler received (never nil: every
 // constructor copies the ctx Hertz passes in); it carries the logger and
 // the active span used when an error reply is logged.

@@ -31,7 +31,7 @@ var errBodyTooLarge = errors.New("response body exceeds the configured limit")
 // non-retriable errorkit.ERR_EXTERNAL_INVALID_RESPONSE. A non-positive n
 // restores DefaultMaxResponseBytes.
 func WithMaxResponseBytes(n int64) Option {
-	return func(h *HTTPRequest) { h.maxResponseBytes = normalizeMaxResponseBytes(n) }
+	return func(h *Request) { h.maxResponseBytes = normalizeMaxResponseBytes(n) }
 }
 
 func normalizeMaxResponseBytes(n int64) int64 {

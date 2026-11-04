@@ -13,7 +13,7 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-// Server is the Hertz-backed httpserver.HTTPServer.
+// Server is the Hertz-backed httpserver.Server.
 type Server struct {
 	engine    *server.Hertz
 	config    httpserver.ServerConfig
@@ -64,7 +64,7 @@ func (s *Server) DELETE(endpoint string, handler httpserver.HandlerFunc) {
 func (s *Server) wrapMiddleware(mw httpserver.MiddlewareFunc) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: s.replyOpts}
-		next := func(ctx context.Context, _ httpserver.HTTPContext) { c.Next(ctx) }
+		next := func(ctx context.Context, _ httpserver.Context) { c.Next(ctx) }
 		mw(ctx, hctx, next)
 	}
 }

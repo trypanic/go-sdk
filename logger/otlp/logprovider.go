@@ -17,9 +17,9 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-// LogProviderHandle wraps the SDK LoggerProvider so main can defer a clean
+// Provider wraps the SDK LoggerProvider so main can defer a clean
 // shutdown without importing the SDK directly.
-type LogProviderHandle struct {
+type Provider struct {
 	provider *log.LoggerProvider
 }
 
@@ -28,7 +28,7 @@ type LogProviderHandle struct {
 // cause, so errors.Is(err, context.DeadlineExceeded) works). Give ctx its own
 // timeout: Close blocks until the flush finishes or ctx is done. A nil
 // handle is a no-op.
-func (h *LogProviderHandle) Close(ctx context.Context) error {
+func (h *Provider) Close(ctx context.Context) error {
 	if h == nil || h.provider == nil {
 		return nil
 	}
@@ -43,14 +43,14 @@ func (h *LogProviderHandle) Close(ctx context.Context) error {
 
 // Shutdown is Close for callers that cannot handle the error: it prints the
 // error to stderr. Prefer Close.
-func (h *LogProviderHandle) Shutdown(ctx context.Context) {
+func (h *Provider) Shutdown(ctx context.Context) {
 	if err := h.Close(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "logger: LoggerProvider shutdown error: %v\n", err)
 	}
 }
 
-// LogProviderConfig configures NewLogProvider.
-type LogProviderConfig struct {
+// Config configures NewProvider.
+type Config struct {
 	// ServiceName is stamped on every record as the service.name resource
 	// attribute. Use the same value as your trace provider so backends
 	// correlate logs with traces. Required.
@@ -78,7 +78,7 @@ type LogProviderConfig struct {
 	Timeout time.Duration
 }
 
-func (cfg LogProviderConfig) validate() error {
+func (cfg Config) validate() error {
 	var reason string
 	switch {
 	case cfg.ServiceName == "":
@@ -93,11 +93,11 @@ func (cfg LogProviderConfig) validate() error {
 		return nil
 	}
 	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
-		errorkit.WithReason("logger: invalid LogProviderConfig: %s", reason),
+		errorkit.WithReason("logger: invalid Config: %s", reason),
 	)
 }
 
-func (cfg LogProviderConfig) exporterOptions() []otlploggrpc.Option {
+func (cfg Config) exporterOptions() []otlploggrpc.Option {
 	var opts []otlploggrpc.Option
 	if cfg.Endpoint != "" {
 		opts = append(opts, otlploggrpc.WithEndpoint(cfg.Endpoint))
@@ -118,8 +118,8 @@ func (cfg LogProviderConfig) exporterOptions() []otlploggrpc.Option {
 	return opts
 }
 
-// NewLogProvider creates an OTLP/gRPC LoggerProvider from cfg, registers it
-// as the global OTel LoggerProvider (so NewOTLPWriter resolves it) and
+// NewProvider creates an OTLP/gRPC LoggerProvider from cfg, registers it
+// as the global OTel LoggerProvider (so NewWriter resolves it) and
 // returns its handle. Defer handle.Close in main.
 //
 // Errors are *errorkit.AppError: ERR_SYSTEM_CONFIG_INVALID for an invalid
@@ -128,9 +128,9 @@ func (cfg LogProviderConfig) exporterOptions() []otlploggrpc.Option {
 //
 // The exporter connects lazily: an unreachable collector is not reported
 // here; export failures go to the OTel error handler (otel.SetErrorHandler)
-// and the records are dropped. Calling NewLogProvider again replaces the
+// and the records are dropped. Calling NewProvider again replaces the
 // global provider; Close the previous handle yourself.
-func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHandle, error) {
+func NewProvider(ctx context.Context, cfg Config) (*Provider, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -138,11 +138,11 @@ func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHan
 }
 
 // newLogProvider builds and registers the provider. With strict false (the
-// InitLogProvider compatibility path) cfg is not validated and a resource
-// error is printed to stderr and tolerated, as InitLogProvider always did:
+// InitProvider compatibility path) cfg is not validated and a resource
+// error is printed to stderr and tolerated, as InitProvider always did:
 // an empty endpoint uses the exporter default and an empty service name
 // yields an empty service.name.
-func newLogProvider(ctx context.Context, cfg LogProviderConfig, strict bool) (*LogProviderHandle, error) {
+func newLogProvider(ctx context.Context, cfg Config, strict bool) (*Provider, error) {
 	exporter, err := otlploggrpc.New(ctx, cfg.exporterOptions()...)
 	if err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -171,58 +171,58 @@ func newLogProvider(ctx context.Context, cfg LogProviderConfig, strict bool) (*L
 		log.WithResource(res),
 	)
 
-	// Register as the global provider so NewOTLPWriter() can resolve it.
+	// Register as the global provider so NewWriter() can resolve it.
 	otel.SetLoggerProvider(provider)
 
-	return &LogProviderHandle{provider: provider}, nil
+	return &Provider{provider: provider}, nil
 }
 
-// InitLogProvider is NewLogProvider with a plaintext (Insecure) connection
+// InitProvider is NewProvider with a plaintext (Insecure) connection
 // and no headers or timeout, kept for compatibility. It never fails and does
 // not validate its arguments: an empty collectorEndpoint uses the exporter
 // default and an empty serviceName an empty service.name, as before
-// NewLogProvider existed. Only if the exporter cannot be created at all does
+// NewProvider existed. Only if the exporter cannot be created at all does
 // it print the error to stderr and return a handle to a provider that exports
-// nothing. Prefer NewLogProvider, which supports TLS and returns errors.
+// nothing. Prefer NewProvider, which supports TLS and returns errors.
 //
-// Call it BEFORE logger.Init so that NewOTLPWriter can resolve the global
+// Call it BEFORE logger.Init so that NewWriter can resolve the global
 // provider. Defer Shutdown (or Close) to flush on exit.
 //
 // Usage:
 //
-//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	_, cleanup := logger.Init("my-service", version, otlp.NewOTLPWriter("my-service"))
+//	_, cleanup := logger.Init("my-service", version, otlp.NewWriter("my-service"))
 //	defer cleanup.Close()
-func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle {
-	handle, err := newLogProvider(ctx, LogProviderConfig{
+func InitProvider(ctx context.Context, serviceName, collectorEndpoint string) *Provider {
+	handle, err := newLogProvider(ctx, Config{
 		ServiceName: serviceName,
 		Endpoint:    collectorEndpoint,
 		Insecure:    true,
 	}, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "logger: could not create OTLP log provider: %v — logs will not be exported\n", err)
-		return &LogProviderHandle{provider: log.NewLoggerProvider()}
+		return &Provider{provider: log.NewLoggerProvider()}
 	}
 	return handle
 }
 
-// SetupOTLP bundles the OTLP boilerplate so callers cannot easily get the
-// order wrong. It calls InitLogProvider, then constructs an OTLPWriter
+// Setup bundles the OTLP boilerplate so callers cannot easily get the
+// order wrong. It calls InitProvider, then constructs an Writer
 // against that provider. Returns the handle (caller must defer Shutdown)
 // and the writer ready to pass to logger.Init or logger.New.
 //
-// Like InitLogProvider it uses a plaintext connection and reports setup
-// errors only on stderr; for TLS, headers or errors use NewLogProvider
-// followed by NewOTLPWriter.
+// Like InitProvider it uses a plaintext connection and reports setup
+// errors only on stderr; for TLS, headers or errors use NewProvider
+// followed by NewWriter.
 //
 // Usage:
 //
-//	handle, writer := otlp.SetupOTLP(ctx, "my-service", "otel-collector:4317")
+//	handle, writer := otlp.Setup(ctx, "my-service", "otel-collector:4317")
 //	defer handle.Shutdown(ctx)
 //	_, cleanup := logger.Init("my-service", "1.0.0", writer)
 //	defer cleanup.Close()
-func SetupOTLP(ctx context.Context, serviceName, collectorEndpoint string) (*LogProviderHandle, *OTLPWriter) {
-	handle := InitLogProvider(ctx, serviceName, collectorEndpoint)
-	return handle, NewOTLPWriter(serviceName)
+func Setup(ctx context.Context, serviceName, collectorEndpoint string) (*Provider, *Writer) {
+	handle := InitProvider(ctx, serviceName, collectorEndpoint)
+	return handle, NewWriter(serviceName)
 }

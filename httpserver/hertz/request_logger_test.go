@@ -29,7 +29,7 @@ func requestLoggerServer(t *testing.T, useSDK bool) *Server {
 	} else {
 		s.engine.Use(RequestLoggerMiddleware(nil))
 	}
-	s.GET("/work", func(ctx context.Context, c httpserver.HTTPContext) {
+	s.GET("/work", func(ctx context.Context, c httpserver.Context) {
 		logger.CtxOrGlobal(ctx).Info().Msg("working")
 		c.String(http.StatusOK, "ok")
 	})

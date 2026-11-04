@@ -36,4 +36,4 @@ func TestNewWithoutTracingReturnsPlainClient(t *testing.T) {
 
 type stubProvider struct{}
 
-func (s *stubProvider) Execute(context.Context, LLMRequestConfig) (string, error) { return "", nil }
+func (s *stubProvider) Execute(context.Context, RequestConfig) (string, error) { return "", nil }

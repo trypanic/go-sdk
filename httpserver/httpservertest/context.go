@@ -11,7 +11,7 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-// Context implements HTTPContext using an HTTP request and response recorder.
+// Context implements Context using an HTTP request and response recorder.
 // Like an HTTP handler, it is confined to one goroutine. Configure Params and
 // ReplyOptions before calling a handler. Inspect Response afterwards.
 type Context struct {
@@ -86,4 +86,4 @@ func (c *Context) WithMetadata(value any) httpserver.OptionReply {
 }
 func (c *Context) WithData(value any) httpserver.OptionReply { return httpserver.WithDataOpt(value) }
 
-var _ httpserver.HTTPContext = (*Context)(nil)
+var _ httpserver.Context = (*Context)(nil)

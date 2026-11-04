@@ -18,7 +18,7 @@ import (
 
 // redactBody returns the redactor output as a string. It centralizes the
 // nil-safety logic so callers can always call it.
-func (h *HTTPRequest) redactBody(b []byte) string {
+func (h *Request) redactBody(b []byte) string {
 	r := h.redactor
 	if r == nil {
 		r = DefaultBodyRedactor
@@ -30,7 +30,7 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 // included when WithBodyCapture is enabled, and even then it is redacted.
 // The URL, in the payload and inside a wrapped *url.Error, is sanitized by
 // redact.URL so credentials never reach logs or error payloads.
-func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+func (h *Request) buildNetworkError(err error, requestURL string, requestBody []byte) error {
 	// An *errorkit.AppError raised inside the client (for example by a
 	// CheckRedirect policy) already carries the right classification.
 	if inner, ok := errors.AsType[*errorkit.AppError](err); ok {
@@ -134,7 +134,7 @@ func validateURL(rawURL string) error {
 }
 
 // buildHTTPError maps HTTP status codes to structured errors.
-func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
+func (h *Request) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
 	statusCode := res.StatusCode
 	requestURL := redact.URL(res.Request.URL.String())
 	providerErr := parseProviderError(bodyBytes)

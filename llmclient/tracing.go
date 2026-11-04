@@ -10,13 +10,13 @@ import (
 
 // WrapWithTracing adds external.llm.execute client spans. The model is an
 // attribute, so selecting a different model does not create a new span name.
-func WrapWithTracing(inner LLMProvider) LLMProvider {
+func WrapWithTracing(inner Provider) Provider {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
-// WrapWithInstrumenter wraps an LLMProvider with an explicit telemetry instrumenter.
+// WrapWithInstrumenter wraps an Provider with an explicit telemetry instrumenter.
 // Pass nil to skip tracing (returns inner unchanged).
-func WrapWithInstrumenter(inner LLMProvider, instrumenter *telemetry.Instrumenter) LLMProvider {
+func WrapWithInstrumenter(inner Provider, instrumenter *telemetry.Instrumenter) Provider {
 	if instrumenter == nil {
 		return inner
 	}
@@ -24,11 +24,11 @@ func WrapWithInstrumenter(inner LLMProvider, instrumenter *telemetry.Instrumente
 }
 
 type tracingLLMProvider struct {
-	inner        LLMProvider
+	inner        Provider
 	instrumenter *telemetry.Instrumenter
 }
 
-func (t *tracingLLMProvider) Execute(ctx context.Context, reqConfig LLMRequestConfig) (result string, err error) {
+func (t *tracingLLMProvider) Execute(ctx context.Context, reqConfig RequestConfig) (result string, err error) {
 	ctx, span := llmSpan(t.instrumenter, ctx, reqConfig.Model)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Execute(ctx, reqConfig)
@@ -39,4 +39,4 @@ func llmSpan(i *telemetry.Instrumenter, ctx context.Context, model string) (cont
 }
 
 // Unwrap returns the provider enclosed by this decorator.
-func (t *tracingLLMProvider) Unwrap() LLMProvider { return t.inner }
+func (t *tracingLLMProvider) Unwrap() Provider { return t.inner }

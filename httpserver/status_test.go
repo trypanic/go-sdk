@@ -10,7 +10,7 @@ import (
 )
 
 type errorReplyRecorder struct {
-	HTTPContext
+	Context
 	status int
 	reply  *Reply
 }

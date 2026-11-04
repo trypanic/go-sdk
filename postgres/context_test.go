@@ -12,7 +12,7 @@ import (
 func TestConstructorCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	pool, err := NewPostgresClientContext(ctx, Config{DSN: "postgres://user@127.0.0.1:1/db"})
+	pool, err := NewContext(ctx, Config{DSN: "postgres://user@127.0.0.1:1/db"})
 	require.Nil(t, pool)
 	require.ErrorIs(t, err, context.Canceled)
 }
@@ -32,7 +32,7 @@ func TestConstructorCancelsStalledHandshake(t *testing.T) {
 	defer cancel()
 	result := make(chan error, 1)
 	go func() {
-		_, e := NewPostgresClientContext(ctx, Config{DSN: "postgres://user@" + listener.Addr().String() + "/db?sslmode=disable"})
+		_, e := NewContext(ctx, Config{DSN: "postgres://user@" + listener.Addr().String() + "/db?sslmode=disable"})
 		result <- e
 	}()
 	select {

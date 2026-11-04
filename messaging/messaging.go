@@ -26,7 +26,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// PubSub implements Messager backed by RabbitMQ with a topology-driven
+// PubSub implements Broker backed by RabbitMQ with a topology-driven
 // configuration.  It owns a single Publisher (shared, thread-safe) and
 // creates one Subscriber per Subscribe call.
 type PubSub struct {
@@ -137,7 +137,7 @@ func WithDeclareTopology() PubSubOption {
 	return func(p *pubSubBuild) { p.declareTopo = true }
 }
 
-// NewPubSub builds a Messager. The topology comes from WithTopology (used
+// NewPubSub builds a Broker. The topology comes from WithTopology (used
 // as-is) or, failing that, WithTopologyFile (the file is loaded); one of
 // them is required. NewPubSub never reads environment variables: use
 // NewPubSubFromEnv to load the topology from RABBITMQ_TOPOLOGY_FILE.

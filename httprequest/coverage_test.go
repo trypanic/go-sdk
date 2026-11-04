@@ -104,13 +104,13 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	for name, r := range map[string]HTTPRequester{
-		"New":                     New(srv.Client()),
-		"NewHTTPRequestWithRetry": NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2}),
-		"WrapWithTracing":         WrapWithTracing(NewWithoutTracing(srv.Client())),
+	for name, r := range map[string]Requester{
+		"New":                              New(srv.Client()),
+		"NewWithOptions retry and tracing": NewWithOptions(srv.Client(), WithRetryConfig(RetryConfig{MaxRetries: 2}), WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))),
+		"WrapWithTracing":                  WrapWithTracing(NewWithoutTracing(srv.Client())),
 	} {
 		switch client := r.(type) {
-		case *HTTPRequest:
+		case *Request:
 			require.NotNil(t, client.instrumenter, name)
 		case *tracingHTTPRequester:
 			require.NotNil(t, client.instrumenter, name)
@@ -120,7 +120,7 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 		require.NoError(t, r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil), name)
 	}
 
-	inner := NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2})
+	inner := NewWithOptions(srv.Client(), WithRetryConfig(RetryConfig{MaxRetries: 2}), WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})))
 	require.Equal(t, 2, inner.retryConfig.MaxRetries)
 	require.Equal(t, DefaultInitialDelay, inner.retryConfig.InitialDelay)
 	require.Equal(t, DefaultMaxDelay, inner.retryConfig.MaxDelay)

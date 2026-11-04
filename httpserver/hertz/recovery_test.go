@@ -21,7 +21,7 @@ func panickingServer(t *testing.T, enableRecovery bool) *Server {
 	opts.EnableAudit = false
 	opts.EnableRecovery = enableRecovery
 	s := newTestServer(t, opts)
-	s.GET("/boom", func(context.Context, httpserver.HTTPContext) {
+	s.GET("/boom", func(context.Context, httpserver.Context) {
 		panic("boom secret=xyz")
 	})
 	return s

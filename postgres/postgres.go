@@ -11,7 +11,7 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-// Config configures NewPostgresClient. Zero pool-tuning fields keep the pgx
+// Config configures New. Zero pool-tuning fields keep the pgx
 // defaults.
 type Config struct {
 	// DSN is a postgres:// or postgresql:// URL (for example
@@ -26,23 +26,23 @@ type Config struct {
 	MinConns        int32
 }
 
-// PostgresEnvVar is the canonical environment variable name read by
-// NewPostgresClientFromEnv. SDK consumers that want a different variable name
+// DSNEnvVar is the canonical environment variable name read by
+// NewFromEnv. SDK consumers that want a different variable name
 // should read it themselves and assign Config.DSN.
-const PostgresEnvVar = "POSTGRES_DSN"
+const DSNEnvVar = "POSTGRES_DSN"
 
-// NewPostgresClient creates a new pgx connection pool from an explicit Config.
+// New creates a new pgx connection pool from an explicit Config.
 // It does NOT read any environment variable — callers that want env-based
-// fallback should use NewPostgresClientFromEnv.
-func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
-	return NewPostgresClientContext(context.Background(), cfg)
+// fallback should use NewFromEnv.
+func New(cfg Config) (*pgxpool.Pool, error) {
+	return NewContext(context.Background(), cfg)
 }
 
-// NewPostgresClientContext creates and verifies a pool using ctx for setup only.
+// NewContext creates and verifies a pool using ctx for setup only.
 // The returned pool belongs to the caller; canceling ctx later does not close it.
 // Without a deadline, setup defaults to five seconds. ConnectTimeout, when
 // positive, caps setup even when the caller has a later deadline.
-func NewPostgresClientContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
+func NewContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, poolError("connect to database", err)
 	}
@@ -102,22 +102,22 @@ func NewPostgresClientContext(ctx context.Context, cfg Config) (*pgxpool.Pool, e
 	return pool, nil
 }
 
-// NewPostgresClientFromEnv reads POSTGRES_DSN and forwards the rest of cfg
-// (pool tuning fields) to NewPostgresClient. Returns ERR_SYSTEM_CONFIG_INVALID
+// NewFromEnv reads POSTGRES_DSN and forwards the rest of cfg
+// (pool tuning fields) to New. Returns ERR_SYSTEM_CONFIG_INVALID
 // if the env var is unset or empty.
-func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error) {
-	return NewPostgresClientFromEnvContext(context.Background(), cfg)
+func NewFromEnv(cfg Config) (*pgxpool.Pool, error) {
+	return NewFromEnvContext(context.Background(), cfg)
 }
 
-// NewPostgresClientFromEnvContext reads POSTGRES_DSN and uses ctx during setup.
-func NewPostgresClientFromEnvContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
-	cfg.DSN = os.Getenv(PostgresEnvVar)
+// NewFromEnvContext reads POSTGRES_DSN and uses ctx during setup.
+func NewFromEnvContext(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
+	cfg.DSN = os.Getenv(DSNEnvVar)
 	if cfg.DSN == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
-			errorkit.WithReason("%s env var is unset or empty", PostgresEnvVar),
+			errorkit.WithReason("%s env var is unset or empty", DSNEnvVar),
 		)
 	}
-	return NewPostgresClientContext(ctx, cfg)
+	return NewContext(ctx, cfg)
 }
 
 // poolError builds the error returned by the pool constructors. The driver

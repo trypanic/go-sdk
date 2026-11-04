@@ -9,7 +9,7 @@ import (
 // OptionReply sets one field of a Reply; see BuildReply.
 type OptionReply func(*Reply)
 
-// Reply is the JSON envelope written by HTTPContext.Reply. Code and Error
+// Reply is the JSON envelope written by Context.Reply. Code and Error
 // are client-safe: they never carry err.Error() text (see WithErrorOpt).
 type Reply struct {
 	Message   *string `json:"message,omitempty"`
@@ -22,7 +22,7 @@ type Reply struct {
 }
 
 // WithMessageOpt returns an OptionReply that sets Reply.Message.
-// Framework-agnostic equivalent of HTTPContext.WithMessage.
+// Framework-agnostic equivalent of Context.WithMessage.
 func WithMessageOpt(message string) OptionReply {
 	return func(r *Reply) { r.Message = &message }
 }
@@ -42,7 +42,7 @@ const genericErrorMessage = "Internal server error"
 //     its Metadata.Description otherwise.
 //   - any other error: Code is ERR_INTERNAL and Error is a generic message.
 //
-// Log the full error server-side; the Hertz adapter's HTTPContext.WithError
+// Log the full error server-side; the Hertz adapter's Context.WithError
 // does that with trace correlation.
 func WithErrorOpt(err error) OptionReply {
 	return func(r *Reply) {
@@ -121,7 +121,7 @@ func StatusFor(err error) int {
 
 // ReplyError writes a metadata-driven, client-safe error response. A nil error
 // does not write a response. The adapter's WithError hook retains its logging.
-func ReplyError(c HTTPContext, err error) {
+func ReplyError(c Context, err error) {
 	if err == nil {
 		return
 	}

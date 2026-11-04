@@ -313,7 +313,7 @@ Warn level (through `WithLogger` when set) with `ERR_MQ_CHANNEL_ERROR`.
 
 ### Concurrency and Lifecycle
 
-* A `PubSub` (the `Messager` returned by `NewPubSub`/`NewPubSubFromEnv`) is
+* A `PubSub` (the `Broker` returned by `NewPubSub`/`NewPubSubFromEnv`) is
   safe for concurrent use.  Create **one per process** and share it; do not
   build one per request.
 * Its publisher serializes publishes on one AMQP channel; concurrent
@@ -336,17 +336,17 @@ publisher connection.  After `Close`, `Publish` and `Subscribe` fail with
 
 ### Mocking in Tests
 
-`Messager` is the public interface — use it in your function signatures so
+`Broker` is the public interface — use it in your function signatures so
 the real broker is never needed in unit tests:
 
 ```go
-type Messager interface {
+type Broker interface {
     Publish(ctx context.Context, queueName string, payload messaging.Event) error
     Subscribe(ctx context.Context, queueName string, serviceName string, handler messaging.MessageHandler) error
     Close() error
 }
 
-func NewOrderService(bus messaging.Messager) *OrderService { … }
+func NewOrderService(bus messaging.Broker) *OrderService { … }
 ```
 
 ---

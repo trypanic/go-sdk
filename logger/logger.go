@@ -23,10 +23,10 @@ func globalLogger() *zerolog.Logger { return logctx.GlobalLogger() }
 //
 // An optional OTLPWriter ships every log event to an OpenTelemetry
 // collector as well as to the console/stdout writer. The OTLP export uses
-// its own connection, configured by NewLogProvider or InitLogProvider.
+// its own connection, configured by NewProvider or InitProvider.
 //
 // Returns the logger and an io.Closer that does nothing (kept for forward
-// compatibility); the OTLP lifecycle belongs to the LogProviderHandle.
+// compatibility); the OTLP lifecycle belongs to the Provider.
 //
 // Usage without OTLP:
 //
@@ -35,9 +35,9 @@ func globalLogger() *zerolog.Logger { return logctx.GlobalLogger() }
 //
 // Usage with OTLP:
 //
-//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	l, cleanup := logger.Init("my-service", "1.0.0", otlp.NewOTLPWriter("my-service"))
+//	l, cleanup := logger.Init("my-service", "1.0.0", otlp.NewWriter("my-service"))
 //	defer cleanup.Close()
 func Init(appName, version string, otlpWriter ...io.Writer) (*zerolog.Logger, io.Closer) {
 	initMu.Lock()

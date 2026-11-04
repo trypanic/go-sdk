@@ -1,6 +1,6 @@
 # httpservertest
 
-Framework-free `HTTPContext` recorder backed by `net/http/httptest`.
+Framework-free `Context` recorder backed by `net/http/httptest`.
 
 Import `github.com/trypanic/go-sdk/httpserver/httpservertest` in consumer tests. These helpers create
 no network connections and require no infrastructure. The external-package

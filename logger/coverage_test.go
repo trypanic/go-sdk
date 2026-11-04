@@ -164,7 +164,7 @@ func TestInitWithOTLPWriterFansOut(t *testing.T) {
 	t.Setenv("ENVIRONMENT", "production")
 	exp := installRecordingProvider(t)
 
-	l, _ := Init("svc", "1.0.0", otlp.NewOTLPWriter("svc"))
+	l, _ := Init("svc", "1.0.0", otlp.NewWriter("svc"))
 	l.Info().Msg("fan out")
 
 	records := exp.snapshot()

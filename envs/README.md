@@ -9,8 +9,8 @@ Thin wrapper around [`caarlos0/env`](https://github.com/caarlos0/env) that parse
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `Load[T]` | `func[T any]() (T, error)` | Parse environment variables into a new `T` and return it; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
-| `NewLoader` | `func(c any) error` | Parse environment variables into an existing config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
-| `LoadWithOptions` | `func(c any, opts env.Options) error` | Like `NewLoader`, with `caarlos0/env` options (prefix, custom parsers, injected environment map) |
+| `LoadInto` | `func(c any) error` | Parse environment variables into an existing config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `LoadWithOptions` | `func(c any, opts env.Options) error` | Like `LoadInto`, with `caarlos0/env` options (prefix, custom parsers, injected environment map) |
 
 ---
 
@@ -31,7 +31,7 @@ if err != nil {
 
 // Equivalent, filling an existing struct:
 var c Config
-if err := envs.NewLoader(&c); err != nil {
+if err := envs.LoadInto(&c); err != nil {
     return err
 }
 ```
@@ -40,7 +40,7 @@ if err := envs.NewLoader(&c); err != nil {
 
 ## Configuration / Settings
 
-`NewLoader` accepts any pointer to a struct whose fields are annotated with struct tags understood by `caarlos0/env/v11`.
+`LoadInto` accepts any pointer to a struct whose fields are annotated with struct tags understood by `caarlos0/env/v11`.
 
 ### Struct Tag Reference
 
@@ -71,7 +71,7 @@ type RedisConfig struct {
     DB       int    `env:"REDIS_DB"       envDefault:"0"`
 }
 
-// Top-level config composes sub-configs; NewLoader parses all fields recursively.
+// Top-level config composes sub-configs; LoadInto parses all fields recursively.
 type Config struct {
     Server ServerConfig
     Redis  RedisConfig
@@ -89,7 +89,7 @@ func Load[T any]() (T, error)
 ```
 
 Allocates a `T`, parses the environment into it (same rules and errors as
-`NewLoader`) and returns it. On failure it returns the zero `T` (never a
+`LoadInto`) and returns it. On failure it returns the zero `T` (never a
 partially loaded value) and the `ERR_SYSTEM_CONFIG_INVALID` error. `T` must be
 a struct type, not a pointer; any other type fails with
 `ERR_SYSTEM_CONFIG_INVALID`.
@@ -102,7 +102,7 @@ a struct type, not a pointer; any other type fails with
 func LoadWithOptions(c any, opts env.Options) error
 ```
 
-Same as `NewLoader`, but calls `env.ParseWithOptions(c, opts)` from
+Same as `LoadInto`, but calls `env.ParseWithOptions(c, opts)` from
 `caarlos0/env/v11`, so callers can set a `Prefix`, custom parsers (`FuncMap`)
 or an `Environment` map that replaces the process environment. The last one
 lets tests of consumer code avoid mutating the process environment:
@@ -118,10 +118,10 @@ err := envs.LoadWithOptions(&cfg, env.Options{
 
 ---
 
-### `NewLoader`
+### `LoadInto`
 
 ```go
-func NewLoader(c any) error
+func LoadInto(c any) error
 ```
 
 **Parameters**
@@ -162,7 +162,7 @@ import (
 )
 
 cfg := &Config{}
-if err := envs.NewLoader(cfg); err != nil {
+if err := envs.LoadInto(cfg); err != nil {
     if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
         // appErr.ErrCode  == errorkit.ERR_SYSTEM_CONFIG_INVALID
         // appErr.Reason   == "failed to parse environment variables: ..." (no values)
@@ -176,7 +176,7 @@ if err := envs.NewLoader(cfg); err != nil {
 
 ## Real-World Usage
 
-The pattern below shows loading both shared and caller-specific configuration. `envs.NewLoader` is the intended standardised entry point for caller-specific config structs.
+The pattern below shows loading both shared and caller-specific configuration. `envs.LoadInto` is the intended standardised entry point for caller-specific config structs.
 
 ### Caller-specific config alongside shared config
 
@@ -202,7 +202,7 @@ import (
 func main() {
     // Load caller-specific env vars with structured error on failure.
     authConfig := &Auth{}
-    if err := envs.NewLoader(authConfig); err != nil {
+    if err := envs.LoadInto(authConfig); err != nil {
         logger.Panic(err)
     }
 
@@ -212,7 +212,7 @@ func main() {
 
 ### Generic helper pattern
 
-When a caller defines multiple independent config sections, call `NewLoader` once per top-level struct or use a single aggregate struct:
+When a caller defines multiple independent config sections, call `LoadInto` once per top-level struct or use a single aggregate struct:
 
 ```go
 type Config struct {
@@ -222,7 +222,7 @@ type Config struct {
 }
 
 cfg := &Config{}
-if err := envs.NewLoader(cfg); err != nil {
+if err := envs.LoadInto(cfg); err != nil {
     return err
 }
 ```
@@ -231,7 +231,7 @@ if err := envs.NewLoader(cfg); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-- `Load`, `NewLoader` and `LoadWithOptions` have no internal state and are safe to call from multiple goroutines simultaneously, though in practice they are called once at process startup before any concurrent code runs.
+- `Load`, `LoadInto` and `LoadWithOptions` have no internal state and are safe to call from multiple goroutines simultaneously, though in practice they are called once at process startup before any concurrent code runs.
 - The functions read from the process environment at call time (`LoadWithOptions` reads `opts.Environment` instead when it is set). Environment variables must be set before loading (e.g. via a `.env` file loaded by `godotenv`, or injected by the container runtime).
 - There is no `Close` or teardown step — the populated struct is a plain Go value.
 
