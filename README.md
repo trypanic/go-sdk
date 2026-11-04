@@ -175,7 +175,7 @@ Then, from the repository root:
 bash <(curl -fsSL https://moonrepo.dev/install/proto.sh)   # once per machine
 proto trust .prototools   # allow the pinned plugins, env and auto-install
 proto install             # go, python, task, staticcheck, skillshare
-task tools:install        # goimports, pre-commit and semgrep on top
+task tools:install        # pinned goimports, pre-commit, semgrep and git-cliff on top
 ```
 
 Install git hooks:
@@ -198,11 +198,13 @@ task test                  # unit tests per package, in parallel, no external de
 task test:race             # go build + go vet + race-enabled, shuffled tests (CI "test")
 task vuln                  # govulncheck, pinned (CI "vuln"; active toolchain only)
 task tidy:check            # go mod tidy -diff + go mod verify (CI "tidy")
-task check                 # all of the above: the same commands as CI
+task check                 # the same commands as CI: test:race, staticanalysis, vuln, tidy:check, hooks
 task lint                  # golangci-lint, default linters (informational, not in check)
 ```
 
-`task check` covers every blocking CI job except the toolchain matrix: it runs
+`task check` runs each unit test once (in `test:race`; the hooks run with
+`SKIP=go-test,staticanalysis-full` because those steps already ran) and
+covers every blocking CI job except the toolchain matrix: it runs
 with the active Go only (`task tools:check` confirms it is the pinned one).
 `task release:check` (gorelease) stays separate because it needs a clean tree.
 
