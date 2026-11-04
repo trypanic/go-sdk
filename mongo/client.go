@@ -59,9 +59,14 @@ func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetr
 		SetMaxConnIdleTime(cfg.MaxConnIdleTime).
 		SetRetryWrites(*cfg.RetryWrites)
 
+	// mongo.Connect performs no I/O: it fails only when the URI or the
+	// options are invalid, which retrying cannot fix.
 	mongoClient, err := mongo.Connect(clientOpts)
 	if err != nil {
-		return nil, wrapUnavailable(err, "connect")
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("mongo client options are invalid"),
+			errorkit.WithWrapped(err),
+		)
 	}
 
 	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

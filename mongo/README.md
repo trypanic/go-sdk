@@ -148,7 +148,8 @@ Startup behavior is identical across constructors:
 2. `mongo.Connect` builds the driver client (no I/O yet).
 3. A 5-second context pings the primary. On failure the driver client is disconnected
    before the error is returned.
-4. Errors are wrapped with `ERR_DB_MONGO_UNAVAILABLE`.
+4. Invalid URIs or options return `ERR_SYSTEM_CONFIG_INVALID`; a failed ping returns
+   `ERR_DB_MONGO_UNAVAILABLE`.
 
 ---
 
@@ -214,16 +215,25 @@ which is acceptable since the wrapper-level span already covers the SDK API.
 
 ## Error Handling
 
-`mongodb` produces `errorkit.AppError` values for adapter-level failures.
-Connection and ping errors use `ERR_DB_MONGO_UNAVAILABLE`; per-operation errors
-go through `WrapOperationError` which classifies common driver errors:
+`mongodb` produces `errorkit.AppError` values for adapter-level failures. The
+driver error stays wrapped, so `errors.Is`/`errors.As` still reach it.
+Invalid URIs or client options are configuration errors; a failed start-up
+ping is `ERR_DB_MONGO_UNAVAILABLE`; per-operation errors (including
+`Client.Ping` and `Client.Close`) go through `WrapOperationError`:
 
-| Driver condition | errorkit Code |
-|---|---|
-| Connect / ping failure | `ERR_DB_MONGO_UNAVAILABLE` |
-| Generic operation failure | `ERR_DB_MONGO_ERROR` |
-| `mongo.ErrNoDocuments` | `ERR_DB_MONGO_NOT_FOUND` |
-| Decode failure (cursor/SingleResult) | `ERR_DB_MONGO_DECODE_FAILED` |
+| Driver condition | errorkit Code | Retriable |
+|---|---|---|
+| Invalid URI or options in `New*` | `ERR_SYSTEM_CONFIG_INVALID` | no |
+| Start-up ping failure | `ERR_DB_MONGO_UNAVAILABLE` | yes |
+| `mongo.ErrNoDocuments` | `ERR_DB_MONGO_NOT_FOUND` | no |
+| `context.Canceled` | `ERR_DB_MONGO_CANCELED` (HTTP 499) | no |
+| `mongo.IsTimeout` (deadline, network timeout, `MaxTimeMSExpired`) | `ERR_DB_MONGO_TIMEOUT` | yes |
+| `mongo.IsDuplicateKeyError` | `ERR_VALIDATION_DUPLICATE` | no |
+| `mongo.InvalidArgumentError` (e.g. `mongo.ErrNilDocument`) | `ERR_VALIDATION` | no |
+| `mongo.ErrClientDisconnected` (client already closed) | `ERR_SYSTEM_UNEXPECTED` | no |
+| `mongo.IsNetworkError` | `ERR_DB_MONGO_UNAVAILABLE` | yes |
+| Any other operation failure | `ERR_DB_MONGO_ERROR` | yes |
+| Decode failure (cursor/SingleResult) | `ERR_DB_MONGO_DECODE_FAILED` | no |
 
 `SingleResult.Decode` reports the error of the `FindOne` operation itself
 (including `mongo.ErrNoDocuments`) through `WrapOperationError`, and only a
