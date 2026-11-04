@@ -296,14 +296,10 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 	return lastErr
 }
 
-// nextDelay doubles the backoff cap, bounded by max. The actual wait is a
-// random fraction of it (see retryDelay).
-func nextDelay(currentDelay, max time.Duration) time.Duration {
-	d := currentDelay * 2
-	if d > max {
-		return max
-	}
-	return d
+// nextDelay doubles the backoff cap, bounded by maxDelay. The actual wait
+// is a random fraction of it (see retryDelay).
+func nextDelay(currentDelay, maxDelay time.Duration) time.Duration {
+	return min(currentDelay*2, maxDelay)
 }
 
 // executeRequest performs a single HTTP request attempt. For a non-2xx

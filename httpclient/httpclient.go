@@ -134,23 +134,23 @@ func WithKeepAlive(keepAlive time.Duration) ClientOption {
 }
 
 // WithMaxIdleConns sets the maximum idle connections across all hosts.
-func WithMaxIdleConns(max int) ClientOption {
+func WithMaxIdleConns(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxIdleConns = max
+		c.MaxIdleConns = n
 	}
 }
 
 // WithMaxIdleConnsPerHost sets the maximum idle connections per host.
-func WithMaxIdleConnsPerHost(max int) ClientOption {
+func WithMaxIdleConnsPerHost(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxIdleConnsPerHost = max
+		c.MaxIdleConnsPerHost = n
 	}
 }
 
 // WithMaxConnsPerHost sets the maximum total connections per host.
-func WithMaxConnsPerHost(max int) ClientOption {
+func WithMaxConnsPerHost(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxConnsPerHost = max
+		c.MaxConnsPerHost = n
 	}
 }
 
@@ -176,9 +176,9 @@ func WithResponseHeaderTimeout(timeout time.Duration) ClientOption {
 }
 
 // WithMaxRedirects sets the maximum number of redirects to follow.
-func WithMaxRedirects(max int) ClientOption {
+func WithMaxRedirects(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxRedirects = max
+		c.MaxRedirects = n
 	}
 }
 
