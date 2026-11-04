@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime/debug"
 
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,8 +39,14 @@ func recoveryStreamInterceptor(log *logger.Logger) grpc.StreamServerInterceptor 
 	}
 }
 
+// recoveredPanicMessage is the fixed status message sent to the caller for a
+// recovered panic. The panic value and method stay in the server log.
+const recoveredPanicMessage = "internal error"
+
 // recoverToStatus builds the errorkit error for a recovered panic, logs it, and
-// returns the gRPC status error to send back to the caller.
+// returns the gRPC status error to send back to the caller. The panic value is
+// never sent to the caller: the status carries a fixed message plus an
+// ErrorInfo with the errorkit code and the error ID that keys the log entry.
 func recoverToStatus(ctx context.Context, log *logger.Logger, method string, r any) error {
 	appErr := errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
 		errorkit.WithReason("grpc: panic recovered in %s: %v", method, r),
@@ -50,5 +57,13 @@ func recoverToStatus(ctx context.Context, log *logger.Logger, method string, r a
 	} else {
 		logger.ErrorCtx(ctx, appErr, "grpc: panic recovered")
 	}
-	return status.New(codes.Internal, appErr.Error()).Err()
+	st := status.New(codes.Internal, recoveredPanicMessage)
+	if withDetail, derr := st.WithDetails(&errdetails.ErrorInfo{
+		Reason:   string(appErr.Code()),
+		Domain:   defaultErrorDomain,
+		Metadata: map[string]string{"id": appErr.ID},
+	}); derr == nil {
+		st = withDetail
+	}
+	return st.Err()
 }

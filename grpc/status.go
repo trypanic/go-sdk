@@ -10,6 +10,10 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// defaultErrorDomain is the errdetails.ErrorInfo.Domain set on statuses built
+// by this package.
+const defaultErrorDomain = "go-sdk"
+
 // codeFor maps an errorkit error code to the closest gRPC status code.
 func codeFor(c errorkit.ErrorCode) codes.Code {
 	switch c {
@@ -55,7 +59,7 @@ func ToStatus(err error) error {
 		st := status.New(codeFor(appErr.Code()), appErr.Error())
 		if withDetail, derr := st.WithDetails(&errdetails.ErrorInfo{
 			Reason: string(appErr.Code()),
-			Domain: "go-sdk",
+			Domain: defaultErrorDomain,
 		}); derr == nil {
 			st = withDetail
 		}
