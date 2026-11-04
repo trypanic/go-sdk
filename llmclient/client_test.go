@@ -180,3 +180,22 @@ func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
 		t.Fatal("an empty choices list must not be retriable")
 	}
 }
+
+func TestLLMRequestOmitsZeroTuningFields(t *testing.T) {
+	t.Parallel()
+
+	b, err := json.Marshal(LLMRequest{Model: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte("max_tokens")) || bytes.Contains(b, []byte("temperature")) {
+		t.Fatalf("zero tuning fields must be omitted, got %s", b)
+	}
+	b, err = json.Marshal(LLMRequest{Model: "m", MaxTokens: 5, Temperature: 0.5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte(`"max_tokens":5`)) || !bytes.Contains(b, []byte(`"temperature":0.5`)) {
+		t.Fatalf("set tuning fields must be sent, got %s", b)
+	}
+}
