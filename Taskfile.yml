@@ -193,11 +193,14 @@ tasks:
         cmd: echo {{.ITEM}}
 
   deps:outdated:
-    desc: Report available dependency updates, in parallel, for one, several or all packages (read-only)
+    desc: Report available dependency updates (build + test closure) per package, in parallel; without arguments also every module of go.mod and the module graph (read-only)
     deps:
       - for: { var: PACKAGES }
         task: deps:outdated:package
         vars: { PACKAGE: "{{.ITEM}}" }
+    cmds:
+      - task: deps:outdated:module
+        vars: { SCOPED: "{{.CLI_ARGS}}" }
 
   deps:outdated:package:
     internal: true
@@ -205,10 +208,36 @@ tasks:
     silent: true
     cmds:
       - |
-        modules=$(go list -deps -f '{{"{{"}}with .Module{{"}}"}}{{"{{"}}if not .Main{{"}}"}}{{"{{"}}.Path{{"}}"}}{{"{{"}}end{{"}}"}}{{"{{"}}end{{"}}"}}' ./{{.PACKAGE}}/... | sort -u)
+        # -test: test-only requirements (testify, yaml) are updates too.
+        modules=$(go list -deps -test -f '{{"{{"}}with .Module{{"}}"}}{{"{{"}}if not .Main{{"}}"}}{{"{{"}}.Path{{"}}"}}{{"{{"}}end{{"}}"}}{{"{{"}}end{{"}}"}}' ./{{.PACKAGE}}/... | sort -u)
         if [ -z "$modules" ]; then echo "[{{.PACKAGE}}] no external modules"; exit 0; fi
         updates=$(go list -m -u -f '{{"{{"}}if .Update{{"}}"}}{{"{{"}}.Path{{"}}"}} {{"{{"}}.Version{{"}}"}} -> {{"{{"}}.Update.Version{{"}}"}}{{"{{"}}end{{"}}"}}' $modules | sed '/^$/d')
         if [ -z "$updates" ]; then echo "[{{.PACKAGE}}] up to date"; else echo "$updates" | sed 's|^|[{{.PACKAGE}}] |'; fi
+
+  # Whole-module pass: `go list -m -u -retracted all` sees requirements that no
+  # package links (go.mod entries kept for dependencies' tests, graph-only
+  # modules), plus deprecated and retracted versions. Labels:
+  #   linked     - in the build or test closure of an SDK package
+  #   go.mod     - required in go.mod but not linked (consumers inherit it as
+  #                an MVS floor)
+  #   graph-only - only in the module graph; never built into a binary
+  deps:outdated:module:
+    internal: true
+    label: "outdated:module"
+    silent: true
+    cmds:
+      - |
+        [ -n "{{.SCOPED}}" ] && exit 0
+        linked=$(go list -deps -test -f '{{"{{"}}with .Module}}{{"{{"}}if not .Main}}{{"{{"}}.Path}}{{"{{"}}end}}{{"{{"}}end}}' ./... | sort -u)
+        required=$(awk '/^require \(/{r=1;next} r&&/^\)/{r=0} r&&NF{print $1} /^require [^(]/{print $2}' go.mod | sort -u)
+        report=$(go list -m -u -retracted -f '{{"{{"}}if not .Main}}{{"{{"}}if or .Update .Deprecated .Retracted}}{{"{{"}}.Path}} {{"{{"}}.Version}}{{"{{"}}with .Update}} -> {{"{{"}}.Version}}{{"{{"}}end}}{{"{{"}}if .Deprecated}} (deprecated){{"{{"}}end}}{{"{{"}}if .Retracted}} (retracted){{"{{"}}end}}{{"{{"}}end}}{{"{{"}}end}}' all | sed '/^$/d')
+        if [ -z "$report" ]; then echo "[module] every module in the graph is up to date"; exit 0; fi
+        echo "$report" | while read -r path rest; do
+          if printf '%s\n' "$linked" | grep -qxF "$path"; then rank=1; label=linked
+          elif printf '%s\n' "$required" | grep -qxF "$path"; then rank=2; label=go.mod
+          else rank=3; label=graph-only; fi
+          echo "$rank [module:$label] $path $rest"
+        done | sort -s -k1,1n | cut -d' ' -f2-
 
   deps:update:
     desc: Update the deps of one, several or all packages, then verify each package in parallel (task deps:update -- postgres mongo; UPGRADE=-u=patch for patch-only)

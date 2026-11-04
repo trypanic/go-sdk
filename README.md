@@ -212,13 +212,19 @@ Every task below takes an optional list of SDK packages after `--`; without it,
 the task covers all packages (`task packages` lists them).
 
 ```bash
-task deps:outdated                       # available updates, per package, in parallel
+task deps:outdated                       # available updates, per package, in parallel, plus a whole-module pass
 task deps:outdated -- logger mongo       # same, for selected packages
 task deps:update -- postgres             # update one package's dependencies
 task deps:update -- postgres mongo grpc  # update several
 task deps:update                         # update all
 UPGRADE=-u=patch task deps:update        # patch releases only
 ```
+
+`deps:outdated` checks each package's build and test closure. Without
+arguments it also lists every outdated, deprecated or retracted module of the
+module graph, labelled `linked` (built into an SDK package or its tests),
+`go.mod` (required in `go.mod` but not linked; consumers still inherit it as
+a minimum version) or `graph-only` (never built).
 
 All packages share one `go.mod`, so `deps:update` resolves the upgrade in a
 single `go get` call (concurrent `go get` runs would race on `go.mod`), runs
