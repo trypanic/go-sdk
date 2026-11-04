@@ -88,7 +88,7 @@ if [[ "${QG_FULL:-0}" == "1" ]]; then
   STAGED_FILES=()
 else
   MODE="staged"
-  mapfile -t STAGED_FILES < <(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.go$' || true)
+  mapfile -t STAGED_FILES < <(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | grep -E '\.go$' || true)
   if [[ ${#STAGED_FILES[@]} -eq 0 ]]; then
     echo "staticanalysis: no staged .go files, skipping."
     exit 0

@@ -26,8 +26,24 @@ The script never reports `OK` for a tool that did not run: a skipped tool is
 printed as `skipped`, a failed one as `TOOL FAILURE` with the tail of its
 stderr log.
 
-The pre-commit hook calls the same script, but in **staged** mode — only files
-returned by `git diff --cached` are scanned, and only their packages are vetted.
+The pre-commit hook calls the same script, but in **staged** mode — only the
+`.go` files that `git diff --cached --diff-filter=ACMR` returns (added, copied,
+modified or renamed) are scanned, and only their packages are vetted. With
+nothing staged it skips, so `task precommit:run` also runs the manual-stage
+hook `staticanalysis-full` (`QG_FULL=1`) to scan the whole repository:
+
+```bash
+pre-commit run --all-files --hook-stage manual staticanalysis-full
+```
+
+### Scan scope: tests included
+
+Test files are in scope in both modes. [`.semgrepignore`](./.semgrepignore)
+replaces semgrep's built-in ignore list, which skips `*_test.go`: without it
+a full scan skipped every test while a staged scan of the same file reported
+findings. Rules that must not apply to tests exclude them in `.semgrep.yml`
+with `paths.exclude` (for example `defer-rows-close`, which matches test
+fakes syntactically).
 
 ### What the script runs
 

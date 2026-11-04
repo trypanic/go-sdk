@@ -61,12 +61,15 @@ tasks:
       - pre-commit install --install-hooks
 
   precommit:run:
-    desc: Run every pre-commit hook against all tracked files (was moon precommit-run)
+    desc: Run every pre-commit hook against all tracked files, including the full static-analysis scan (manual-stage hook)
     preconditions:
       - sh: command -v pre-commit
         msg: "pre-commit is not installed; run `task tools:install`"
     cmds:
       - pre-commit run --all-files
+      # With nothing staged the commit-time staticanalysis hook skips; the
+      # manual-stage hook scans the whole repo (QG_FULL=1).
+      - pre-commit run --all-files --hook-stage manual staticanalysis-full
 
   staticanalysis:
     desc: Run vet + staticcheck + semgrep on the whole repo (was moon staticanalysis)
