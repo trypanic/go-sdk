@@ -239,7 +239,8 @@ turn it off.
 | `New(cfg)` | Hertz `HTTPServer` with `DefaultServerOptions()` |
 | `NewWithOptions(cfg, opts)` | Hertz `HTTPServer` with explicit options; zero fields backfilled from defaults |
 | `RecoveryHandler` | Panic-recovery handler installed by `EnableRecovery` |
-| `RequestLoggerMiddleware(base *logger.Logger)` | Per-request logger middleware |
+| `RequestLogger(base *logger.Logger)` | Per-request logger as an `httpserver.MiddlewareFunc` (install with `srv.Use`); reuses and echoes `X-Request-ID` |
+| `RequestLoggerMiddleware(base *logger.Logger)` | Same middleware as a Hertz `app.HandlerFunc` |
 
 `Shutdown(ctx)` waits until no request is in flight or `ctx` is done;
 only `ctx` bounds it (Hertz's 5 s cap is lifted) and idle keep-alive

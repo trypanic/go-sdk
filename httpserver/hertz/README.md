@@ -15,7 +15,9 @@ does not.
 | `New(cfg httpserver.ServerConfig) httpserver.HTTPServer` | Hertz-backed server with `httpserver.DefaultServerOptions()`. |
 | `NewWithOptions(cfg, opts httpserver.ServerOptions) httpserver.HTTPServer` | Same with explicit options; zero-valued fields are backfilled from defaults. |
 | `RecoveryHandler(ctx, c, err, stack)` | Panic-recovery handler installed as the outermost middleware when `EnableRecovery` is true. Logs one structured line (with `panic_stack`) via `logger.CtxOrGlobal(ctx)` and aborts with HTTP 500. With `EnableRecovery` false no recovery runs at all (the engine is built with `server.New`, not `server.Default`). |
-| `RequestLoggerMiddleware(base *logger.Logger) app.HandlerFunc` | Injects a per-request logger into ctx. Pass `nil` for `base` to derive from the global logger. |
+| `RequestLogger(base *logger.Logger) httpserver.MiddlewareFunc` | Same as `RequestLoggerMiddleware`, installable with `srv.Use(hertzadapter.RequestLogger(nil))`. |
+| `RequestLoggerMiddleware(base *logger.Logger) app.HandlerFunc` | Injects a per-request logger (`request_id`, `method`, `path`, `remote_addr`) into ctx, for code that holds the Hertz engine. Pass `nil` for `base` to derive from the context or global logger. |
+| `RequestIDHeader` | `"X-Request-ID"`: an inbound value of 1-128 `[A-Za-z0-9._:-]` characters is reused as `request_id`, otherwise a random ID is generated; the ID in use is echoed in the response header. |
 
 ## Defaults from `DefaultServerOptions()`
 
