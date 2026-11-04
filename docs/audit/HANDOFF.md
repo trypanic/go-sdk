@@ -50,10 +50,12 @@ status.
 Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
-- **P4.XP in progress:** `audit/2026-11-XP` in `/tmp/go-sdk-audit-XP`.
-  All nineteen items and followups committed at clean head `6a390d4`,
-  with R-153 last. Author full gates complete; independent loop1 review
-  in progress. Report on XP branch: `validation/P4.XP.md`. Independent review follows the complete XP sequence.
+- **P4.XP DONE:** approved `6a390d4`, merged `55be1c0`; post-merge V1-V5 pass.
+  Review: `reviews/P4.XP-loop1.md`; complete validation: `validation/P4.XP.md`.
+- **R-DEPS IN_PROGRESS:** one sequential remediator, branch
+  `audit/2026-11-DEPS` in `/tmp/go-sdk-audit-DEPS`, after P4.XP approval.
+  Scope: toolchain, tagged-only crypto decision, testcontainers suites,
+  `/v2` module migration, and exact minor XP review followups. Root owns ledger.
 
 ## 2. Pending review details
 
