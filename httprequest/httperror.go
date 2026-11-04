@@ -2,11 +2,14 @@ package httprequest
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/trypanic/go-sdk/errorkit"
@@ -30,6 +33,13 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 // The URL, in the payload and inside a wrapped *url.Error, is sanitized by
 // redact.URL so credentials never reach logs or error payloads.
 func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+	// An *errorkit.AppError raised inside the client (for example by a
+	// CheckRedirect policy) already carries the right classification.
+	var inner *errorkit.AppError
+	if errors.As(err, &inner) {
+		return inner
+	}
+
 	err = redact.URLError(err)
 	payload := map[string]any{
 		"url":            redact.URL(requestURL),
@@ -37,6 +47,15 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 	if h.captureBodies {
 		payload["request_body"] = h.redactBody(requestBody)
+	}
+
+	if isTLSVerificationError(err) {
+		return errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).
+			With(
+				errorkit.WithReason("TLS certificate verification failed"),
+				errorkit.WithWrapped(err),
+				errorkit.WithPayload(payload),
+			)
 	}
 
 	// Check for context errors
@@ -50,7 +69,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	if errors.Is(err, context.Canceled) {
-		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+		return errorkit.NewError(ERR_REQUEST_CANCELED).
 			With(
 				errorkit.WithReason("Request was canceled"),
 				errorkit.WithWrapped(err),
@@ -75,6 +94,45 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 			errorkit.WithReason("Network communication error"),
 			errorkit.WithWrapped(err),
 			errorkit.WithPayload(payload),
+		)
+}
+
+// isTLSVerificationError reports whether err is a certificate verification
+// failure, which a retry cannot fix.
+func isTLSVerificationError(err error) bool {
+	var (
+		verifyErr    *tls.CertificateVerificationError
+		unknownCA    x509.UnknownAuthorityError
+		hostnameErr  x509.HostnameError
+		invalidErr   x509.CertificateInvalidError
+		constraint   x509.ConstraintViolationError
+		insecureAlgo x509.InsecureAlgorithmError
+	)
+	return errors.As(err, &verifyErr) || errors.As(err, &unknownCA) ||
+		errors.As(err, &hostnameErr) || errors.As(err, &invalidErr) ||
+		errors.As(err, &constraint) || errors.As(err, &insecureAlgo)
+}
+
+// validateURL checks a request URL once, before any attempt: it must parse
+// and name an http or https scheme and a host. The error never echoes the
+// raw URL, which may hold credentials.
+func validateURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	reason := ""
+	switch {
+	case err != nil:
+		reason = "request URL cannot be parsed"
+	case u.Scheme != "http" && u.Scheme != "https":
+		reason = "request URL scheme must be http or https"
+	case u.Host == "":
+		reason = "request URL has no host"
+	default:
+		return nil
+	}
+	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).
+		With(
+			errorkit.WithReason("%s", reason),
+			errorkit.WithPayload(map[string]any{"url": redact.URL(rawURL)}),
 		)
 }
 

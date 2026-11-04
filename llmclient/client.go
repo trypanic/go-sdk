@@ -135,8 +135,8 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 	}
 
 	if len(response.Choices) == 0 {
-		return "", errorkit.NewError(httpclient.ERR_EXTERNAL_SERVICE_ERROR).With(
-			errorkit.WithReason("no response from LLM"),
+		return "", errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).With(
+			errorkit.WithReason("LLM response has no choices"),
 		)
 	}
 

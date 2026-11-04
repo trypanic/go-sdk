@@ -234,6 +234,10 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 	rc.MaxRetries = max(rc.MaxRetries, 1)
 	currentDelay := rc.InitialDelay
 
+	if err := validateURL(config.URL); err != nil {
+		return err
+	}
+
 	for attempt := 0; attempt < rc.MaxRetries; attempt++ {
 
 		// Check context before attempt

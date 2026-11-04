@@ -268,9 +268,12 @@ func NewClient(config *ClientConfig) *http.Client {
 		maxRedirects := config.MaxRedirects
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
-				return errorkit.NewError(ERR_EXTERNAL_SERVICE_ERROR).With(
+				appErr := errorkit.NewError(ERR_EXTERNAL_SERVICE_ERROR).With(
 					errorkit.WithReason("stopped after %d redirects", maxRedirects),
 				)
+				// The same redirect chain is followed again on retry.
+				appErr.Metadata.Retriable = false
+				return appErr
 			}
 			return nil
 		}

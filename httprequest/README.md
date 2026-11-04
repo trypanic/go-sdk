@@ -178,12 +178,15 @@ An empty body when JSON decoding is expected (`io.EOF`) is silently treated as s
 
 | Condition                            | errorkit code                      |
 | ------------------------------------ | ---------------------------------- |
+| Invalid URL (unparseable, scheme not `http`/`https`, no host) — checked once, before any attempt | `ERR_SYSTEM_CONFIG_INVALID` |
 | `http.NewRequestWithContext` failure | `ERR_SYSTEM_UNEXPECTED`            |
 | `out` is not a pointer               | `ERR_SYSTEM_UNEXPECTED`            |
 | Body read or parse failure           | `ERR_SYSTEM_UNEXPECTED`            |
 | Success body over the size limit     | `ERR_EXTERNAL_INVALID_RESPONSE`    |
 | `context.DeadlineExceeded`           | `ERR_NETWORK_TIMEOUT`              |
-| `context.Canceled`                   | `ERR_SYSTEM_UNEXPECTED`            |
+| `context.Canceled`                   | `ERR_REQUEST_CANCELED` (HTTP 499, not retriable; `errors.Is(err, context.Canceled)` holds) |
+| `*errorkit.AppError` raised inside the client (e.g. the `httpclient` redirect limit) | returned unchanged |
+| TLS certificate verification failure | `ERR_EXTERNAL_INVALID_RESPONSE` (not retriable) |
 | `net.Error` with `Timeout() == true` | `ERR_NETWORK_TIMEOUT`              |
 | Any other transport error            | `ERR_NETWORK_ERROR`                |
 | HTTP 400                             | `ERR_CLIENT_BAD_REQUEST`           |

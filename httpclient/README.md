@@ -189,7 +189,7 @@ Constructs an `*http.Client` from the given config.
    - `ForceAttemptHTTP2` is `true`.
 5. If `config.TransportWrapper` is non-nil, the base `*http.Transport` is passed through it before being installed on the client. This is the seam for tracing/metrics middleware. The default is no wrapper.
 6. A `CheckRedirect` policy is installed:
-   - `MaxRedirects > 0`: follows up to `MaxRedirects` redirects; exceeding the limit returns `errorkit.ERR_EXTERNAL_SERVICE_ERROR` with a reason string `"stopped after N redirects"`.
+   - `MaxRedirects > 0`: follows up to `MaxRedirects` redirects; exceeding the limit returns `ERR_EXTERNAL_SERVICE_ERROR` with a reason string `"stopped after N redirects"`, marked non-retriable (`Metadata.Retriable == false`) because a retry follows the same chain. `httprequest` returns this error unchanged.
    - `MaxRedirects == 0`: returns `http.ErrUseLastResponse` on the first redirect attempt, causing the caller to receive the redirect response directly.
    - `MaxRedirects < 0`: no `CheckRedirect` is set; Go's default behavior (up to 10 redirects) applies.
 

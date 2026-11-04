@@ -40,6 +40,8 @@ content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
 * `Model` is required; an empty value returns `ERR_VALIDATION_MISSING_FIELD`.
 * When `cfg.Timeout > 0`, `Execute` derives a child context with that deadline
   for the duration of the HTTP call.
+* A response without `choices` returns `ERR_EXTERNAL_INVALID_RESPONSE` (not
+  retriable).
 * The response body is returned verbatim (no markdown / code-fence stripping).
   Callers that need to parse JSON wrapped in code fences must do so
   themselves.

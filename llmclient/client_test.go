@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/httprequest"
 )
 
@@ -135,5 +137,27 @@ func TestExecuteReturnsResponseContentUnchanged(t *testing.T) {
 	}
 	if got != stub.responseText {
 		t.Fatalf("Execute returned %q, want %q (no post-processing)", got, stub.responseText)
+	}
+}
+
+type emptyChoicesRequester struct{}
+
+func (emptyChoicesRequester) Do(context.Context, httprequest.RequestConfig, any) error { return nil }
+
+func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
+	t.Parallel()
+
+	c := NewClient(emptyChoicesRequester{}, Config{Endpoint: "http://llm.example/v1/chat"})
+	_, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m1"})
+
+	appErr, ok := err.(*errorkit.AppError)
+	if !ok {
+		t.Fatalf("want *errorkit.AppError, got %T (%v)", err, err)
+	}
+	if appErr.Code() != httpclient.ERR_EXTERNAL_INVALID_RESPONSE {
+		t.Fatalf("code = %s, want %s", appErr.Code(), httpclient.ERR_EXTERNAL_INVALID_RESPONSE)
+	}
+	if appErr.Metadata.Retriable {
+		t.Fatal("an empty choices list must not be retriable")
 	}
 }
