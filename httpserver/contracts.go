@@ -132,6 +132,15 @@ type RouterGroup interface {
 	// DELETE registers a handler for HTTP DELETE requests.
 	DELETE(endpoint string, handler HandlerFunc)
 
+	// PATCH registers a handler for partial updates.
+	PATCH(endpoint string, handler HandlerFunc)
+	// HEAD registers a handler for response metadata without a body.
+	HEAD(endpoint string, handler HandlerFunc)
+	// OPTIONS registers a handler for supported-method discovery.
+	OPTIONS(endpoint string, handler HandlerFunc)
+	// Handle registers a handler for an explicit HTTP method.
+	Handle(method, endpoint string, handler HandlerFunc)
+
 	// Group creates a sub-group with the given prefix appended to the current prefix.
 	Group(prefix string) RouterGroup
 
@@ -159,6 +168,15 @@ type HTTPServer interface {
 
 	// DELETE registers a handler for HTTP DELETE requests.
 	DELETE(endpoint string, handler HandlerFunc)
+
+	// PATCH registers a handler for partial updates.
+	PATCH(endpoint string, handler HandlerFunc)
+	// HEAD registers a handler for response metadata without a body.
+	HEAD(endpoint string, handler HandlerFunc)
+	// OPTIONS registers a handler for supported-method discovery.
+	OPTIONS(endpoint string, handler HandlerFunc)
+	// Handle registers a handler for an explicit HTTP method.
+	Handle(method, endpoint string, handler HandlerFunc)
 
 	// Group creates a router group with the given prefix.
 	// Useful for organizing routes and applying middleware to specific route sets.

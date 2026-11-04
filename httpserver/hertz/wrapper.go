@@ -141,3 +141,23 @@ func (s *wrapperHertzServer) Shutdown(ctx context.Context) error {
 	}
 	return nil
 }
+
+// PATCH registers an HTTP PATCH route.
+func (s *wrapperHertzServer) PATCH(endpoint string, handler httpserver.HandlerFunc) {
+	s.engine.PATCH(endpoint, s.wrapHandler(handler))
+}
+
+// HEAD registers an HTTP HEAD route.
+func (s *wrapperHertzServer) HEAD(endpoint string, handler httpserver.HandlerFunc) {
+	s.engine.HEAD(endpoint, s.wrapHandler(handler))
+}
+
+// OPTIONS registers an HTTP OPTIONS route.
+func (s *wrapperHertzServer) OPTIONS(endpoint string, handler httpserver.HandlerFunc) {
+	s.engine.OPTIONS(endpoint, s.wrapHandler(handler))
+}
+
+// Handle registers a route for an explicit HTTP method.
+func (s *wrapperHertzServer) Handle(method, endpoint string, handler httpserver.HandlerFunc) {
+	s.engine.Handle(method, endpoint, s.wrapHandler(handler))
+}

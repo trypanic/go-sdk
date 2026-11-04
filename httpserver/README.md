@@ -280,3 +280,10 @@ surfaced verbatim.
   HTTP 200 behavior is no longer the default.
 - Audit body capture is OFF by default; enabling it requires an explicit
   `BodyRedactor` policy.
+
+### HTTP methods
+
+`HTTPServer` and `RouterGroup` directly support `PATCH`, `HEAD`, `OPTIONS`,
+and `Handle(method, path, handler)` alongside GET/POST/PUT/DELETE. Custom
+implementations must implement these methods in v2. Group prefixes and
+middleware apply equally to every method.
