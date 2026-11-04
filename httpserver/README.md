@@ -33,7 +33,7 @@ import (
 )
 
 func main() {
-    srv := hertzadapter.New(httpserver.ServerConfig{
+    srv := hertzadapter.NewServer(httpserver.ServerConfig{
         Host: "0.0.0.0",
         Port: 8080,
     })

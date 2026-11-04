@@ -30,9 +30,9 @@ constructors never do.
 | Constructor | Returns | Tracing |
 |---|---|---|
 | `NewClient(httpRequest, cfg)` | `*Client` | None |
-| `New(httpRequest, cfg)` | `Provider` | Wraps with the global OTel tracer |
-| `NewWithoutTracing(httpRequest, cfg)` | `Provider` | None |
-| `NewWithInstrumenter(httpRequest, cfg, instr)` | `Provider` | Explicit instrumenter (`nil` skips tracing) |
+| `New(httpRequest, cfg)` | `*Client` | Integrated global OTel tracer |
+| `NewWithoutTracing(httpRequest, cfg)` | `*Client` | None |
+| `NewWithInstrumenter(httpRequest, cfg, instr)` | `*Client` | Explicit instrumenter (`nil` skips tracing) |
 | `WrapWithInstrumenter(provider, instr)` | `Provider` | Wraps an existing provider |
 
 `Config` and `Client` never print the API key: `String`, `GoString`
@@ -47,9 +47,10 @@ returned value is safe for concurrent `Execute` calls.
 ```go
 // One requester for the process: a single attempt over a client tuned for
 // slow first bytes (see httpclient.SetupForLLM).
-requester := httprequest.NewHTTPRequestWithRetry(
+requester := httprequest.NewWithOptions(
     httpclient.NewClient(httpclient.SetupForLLM()),
-    httprequest.RetryConfig{MaxRetries: 1},
+    httprequest.WithRetryConfig(httprequest.RetryConfig{MaxRetries: 1}),
+    httprequest.WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})),
 )
 provider := llmclient.New(requester, cfg)
 

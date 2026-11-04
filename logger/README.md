@@ -407,12 +407,12 @@ Stores `l` in `ctx` so it can be retrieved later via `Ctx` or `CtxOrGlobal`. Thi
 
 ### Web framework adapters
 
-The core `logger` package has **no web framework dependency**. Per-request middleware that injects a request-scoped logger lives in adapter packages alongside each web server. For example, the SDK ships a Hertz adapter inside the `httpserver` package:
+The core `logger` package has **no web framework dependency**. Per-request middleware that injects a request-scoped logger lives in adapter packages alongside each web server. For example, the SDK ships a Hertz adapter in `httpserver/hertz`:
 
 ```go
-import "github.com/trypanic/go-sdk/httpserver"
+import "github.com/trypanic/go-sdk/httpserver/hertz"
 
-engine.Use(hertz.RequestLogger(nil)) // nil = use global logger as base
+server.Use(hertz.RequestLogger(nil)) // nil = use global logger as base
 ```
 
 In your own project you can write a similar middleware in three lines: build a child `zerolog.Logger` with `request_id` / `method` / `path` / `remote_addr` and call `l.WithContext(ctx)`. Downstream handlers retrieve the enriched logger via `logger.Ctx(ctx)` or `logger.CtxOrGlobal(ctx)`.
@@ -447,6 +447,8 @@ func main() {
 ---
 
 ### Bootstrap With OTLP
+
+Import `github.com/trypanic/go-sdk/logger/otlp` for the exporter API.
 
 The OTLP path needs the log provider before the logger writer, and they must share the same service name. Use `Setup` to bundle the order safely:
 
@@ -592,7 +594,7 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 
 ## Lifecycle / Concurrency Notes
 
-- **Global logger** — `Init` sets a package-level `*zerolog.Logger` and `zerolog.log.Logger`. Both are safe for concurrent use after `Init` returns. Do not call `Init` concurrently or after the service has started handling requests.
+- **Global logger** — `Init` serializes initialization and atomically publishes the SDK logger. Concurrent SDK logging is supported. Direct use of zerolog process globals remains a startup configuration concern; configure them before outside code reads them concurrently.
 - **`*otlp.Writer`** — `Write` is called by zerolog on every log event. zerolog guarantees exactly one `Write` call per event with a complete JSON line. `otlp.Writer` itself holds no mutable state and is safe for concurrent use.
 - **`Provider`** — `Close` (or `Shutdown`) should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
 - **Context loggers** — Loggers stored in a context via `WithLogger` (or any framework adapter that calls `(*zerolog.Logger).WithContext`) are `zerolog.Logger` values copied by value. They are safe for concurrent use.

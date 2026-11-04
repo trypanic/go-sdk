@@ -1,5 +1,3 @@
-// Package envs provides a thin wrapper around caarlos0/env for loading
-// service configuration from environment variables into typed structs.
 package envs
 
 import (

@@ -5,8 +5,8 @@
 // Import it as github.com/trypanic/go-sdk/mongo; the package identifier is
 // mongo.
 //
-// New connects, pings the primary and returns a ClientPort that opens one
-// span per collection operation; NewWithoutTracing and NewWithInstrumenter
+// New connects, pings the primary and returns a concrete Client that opens one
+// client span per collection operation; NewWithoutTracing and NewWithInstrumenter
 // choose the tracing. Each option comes from the Config field, else the URI,
 // else an SDK default.
 //

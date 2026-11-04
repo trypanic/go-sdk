@@ -655,3 +655,17 @@ failures. `NewError`, registry and factory constructors retain their existing
 stack behavior; global stack-depth configuration does not affect this explicit
 constructor. The `validators` package uses it for invalid user input, while
 configuration errors (such as reversed numeric bounds) retain a stack.
+
+### Additional adapter codes
+
+These codes are registered by importing their owning package:
+
+| Code | Owner | HTTP status | Retriable | Meaning |
+| --- | --- | --- | --- | --- |
+| ERR_REQUEST_CANCELED | httprequest | 499 | no | Caller canceled the HTTP request |
+| ERR_DB_MONGO_CANCELED | mongo | 499 | no | Caller canceled the MongoDB operation |
+| ERR_MQ_CLOSED | messaging | 503 | no | Messaging client is closed |
+| ERR_DB_POSTGRES_ENCODE_FAILED | postgres | 500 | no | JSON argument cannot be encoded before the query |
+
+The four `ERR_EXTERNAL_*` codes are registered by `errorkit` itself; importing
+`httpclient` is unnecessary to construct or classify them.

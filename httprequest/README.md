@@ -12,10 +12,10 @@ Package `httprequest` wraps `net/http` with automatic retries (exponential backo
 | `Request`             | Struct    | Concrete implementation of `Requester`             |
 | `RequestConfig`           | Struct    | All parameters needed to build one `http.Request`      |
 | `RetryConfig`             | Struct    | Controls max retries, initial delay, and delay ceiling |
-| `New`                     | Function  | Creates an `Request` with default retry settings (auto-traced via global tracer) |
+| `New`                     | Function  | Creates a `Request` with default retry settings (auto-traced via global tracer) |
 | `NewWithoutTracing`       | Function  | Creates a plain `Requester` with no tracing wrapper |
-| `NewWithInstrumenter`     | Function  | Creates an `Requester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
-| `NewWithOptions`          | Function  | Builds an `Requester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
+| `NewWithInstrumenter`     | Function  | Creates a `Requester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
+| `NewWithOptions`          | Function  | Builds a `Requester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
 | `WrapWithInstrumenter`    | Function  | Wraps an existing `Requester` with an explicit instrumenter |
 | `BodyRedactor`            | Type      | `func([]byte) []byte` — policy applied to bodies in error payloads and audit logs |
 | `DefaultBodyRedactor`     | Function  | Replaces any non-empty body with the literal `[REDACTED]` |
@@ -128,10 +128,10 @@ The single-method interface used throughout the codebase. Accept this interface 
 ### `New`
 
 ```go
-func New(client *http.Client) Requester
+func New(client *http.Client) *Request
 ```
 
-Returns an `Requester` (an `*Request` wrapped with tracing through the global OTel tracer) with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
+Returns a concrete `*Request` with tracing through the global OTel tracer with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
 
 ---
 

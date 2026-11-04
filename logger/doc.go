@@ -40,5 +40,7 @@
 // # Concurrency
 //
 // Loggers are safe for concurrent use; the exporter has its own lifecycle.
-// Init is not: call it before logging starts.
+// Init serializes initialization and atomically publishes the SDK logger, so
+// concurrent SDK logging is supported. Configure zerolog process globals at
+// startup before using those globals directly outside the SDK.
 package logger

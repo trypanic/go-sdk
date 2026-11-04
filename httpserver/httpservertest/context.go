@@ -1,4 +1,3 @@
-// Package httpservertest provides a framework-free handler recorder.
 package httpservertest
 
 import (
@@ -30,8 +29,14 @@ func NewContext(req *http.Request) *Context {
 	}
 	return &Context{Request: req, Response: httptest.NewRecorder(), Params: make(map[string]string)}
 }
+
+// Param returns a configured path parameter.
 func (c *Context) Param(key string) string { return c.Params[key] }
+
+// Query returns the first query value.
 func (c *Context) Query(key string) string { return c.Request.URL.Query().Get(key) }
+
+// BindJSON decodes the request body and reports read or JSON failures.
 func (c *Context) BindJSON(out any) error {
 	body := c.GetBody()
 	if c.Err != nil {
@@ -39,6 +44,8 @@ func (c *Context) BindJSON(out any) error {
 	}
 	return json.Unmarshal(body, out)
 }
+
+// GetBody reads and restores the request body; read failures are recorded in Err.
 func (c *Context) GetBody() []byte {
 	if c.Request.Body == nil {
 		return nil
@@ -51,7 +58,11 @@ func (c *Context) GetBody() []byte {
 	c.Request.Body = io.NopCloser(bytes.NewReader(body))
 	return body
 }
+
+// GetHeader returns a request header.
 func (c *Context) GetHeader(key string) string { return c.Request.Header.Get(key) }
+
+// JSON records JSON; encoding failures set Err and an empty HTTP 500 response.
 func (c *Context) JSON(status int, data any) {
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -63,27 +74,45 @@ func (c *Context) JSON(status int, data any) {
 	c.Response.WriteHeader(status)
 	_, _ = c.Response.Write(body)
 }
+
+// String records a text response.
 func (c *Context) String(status int, message string) {
 	c.SetHeader("Content-Type", "text/plain; charset=utf-8")
 	c.Response.WriteHeader(status)
 	_, _ = c.Response.WriteString(message)
 }
-func (c *Context) Status(status int)           { c.Response.WriteHeader(status) }
+
+// Status records the HTTP response status.
+func (c *Context) Status(status int) { c.Response.WriteHeader(status) }
+
+// SetHeader sets a response header.
 func (c *Context) SetHeader(key, value string) { c.Response.Header().Set(key, value) }
+
+// Redirect records a redirect status and Location header.
 func (c *Context) Redirect(status int, location []byte) {
 	c.SetHeader("Location", string(location))
 	c.Status(status)
 }
+
+// Reply builds and records the SDK reply envelope.
 func (c *Context) Reply(status int, opts ...httpserver.OptionReply) {
 	c.JSON(status, httpserver.BuildReply(c.ReplyOptions, opts...))
 }
+
+// WithMessage returns the shared message reply option.
 func (c *Context) WithMessage(message string) httpserver.OptionReply {
 	return httpserver.WithMessageOpt(message)
 }
+
+// WithError returns a client-safe error option without logging.
 func (c *Context) WithError(err error) httpserver.OptionReply { return httpserver.WithErrorOpt(err) }
+
+// WithMetadata returns the shared metadata reply option.
 func (c *Context) WithMetadata(value any) httpserver.OptionReply {
 	return httpserver.WithMetadataOpt(value)
 }
+
+// WithData returns the shared data reply option.
 func (c *Context) WithData(value any) httpserver.OptionReply { return httpserver.WithDataOpt(value) }
 
 var _ httpserver.Context = (*Context)(nil)

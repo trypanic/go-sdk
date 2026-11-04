@@ -1,6 +1,3 @@
-// Package httpserver provides a framework-agnostic HTTP interface for Go.
-// It defines common interfaces that can be implemented by various HTTP frameworks
-// (Gin, Echo, Hertz, etc.), enabling framework-independent handlers and middleware.
 package httpserver
 
 import (

@@ -54,24 +54,28 @@ type TracedProcedure[T any] struct {
 	instrumenter *telemetry.Instrumenter
 }
 
+// QueryRow delegates to the wrapped procedure within a classified client span.
 func (t *TracedProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (result T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.QueryRow(ctx, query, args...)
 }
 
+// Query delegates to the wrapped procedure within a classified client span.
 func (t *TracedProcedure[T]) Query(ctx context.Context, query string, args ...any) (result []T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Query(ctx, query, args...)
 }
 
+// QueryRowJSON delegates to the wrapped procedure within a classified client span.
 func (t *TracedProcedure[T]) QueryRowJSON(ctx context.Context, query string, jsonArg any, args ...any) (result T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.QueryRowJSON(ctx, query, jsonArg, args...)
 }
 
+// QueryJSON delegates to the wrapped procedure within a classified client span.
 func (t *TracedProcedure[T]) QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) (result []T, err error) {
 	ctx, span := t.pgSpan(ctx, query)
 	defer func() { telemetry.End(span, err) }()

@@ -9,7 +9,7 @@
 // Config.Timeout (DefaultTimeout when zero). Execute is a POST, which
 // httprequest does not resend once it may have reached the provider.
 //
-// New wraps the client with tracing through the global OTel tracer (span
-// "llm.<model>"); NewWithoutTracing and NewWithInstrumenter follow the SDK
+// New returns a concrete client with tracing through the global OTel tracer
+// (span "external.llm.execute"); NewWithoutTracing and NewWithInstrumenter follow the SDK
 // constructor triplet. A Client is safe for concurrent use.
 package llmclient

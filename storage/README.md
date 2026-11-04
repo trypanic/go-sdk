@@ -181,9 +181,11 @@ file, the open uses `O_NOFOLLOW` (on Unix), and the opened file is the one
 no data: `List` reports the key as absent, and `Append` replaces the link with
 a regular file through the atomic rename, leaving the link's target untouched. The data is synced to
 disk, the temporary file is renamed onto the final path, and the directory is
-synced so the rename survives a crash. Any failure leaves the target file
-untouched and removes the temporary file. A file therefore always starts
-with at least one complete line.
+synced so the rename survives a crash. Failures before a successful rename
+leave the target untouched and remove the temporary file. If directory fsync
+fails after rename, the new file is already visible but crash durability is
+unconfirmed; the returned error does not imply rollback. A newly replaced file
+always starts with at least one complete line.
 
 Later items are appended as a single write of one line followed by `fsync`;
 `Append` returns only after the sync. A crash in the middle of an append can

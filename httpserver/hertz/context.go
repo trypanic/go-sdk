@@ -1,8 +1,3 @@
-// Package hertz is the Hertz adapter for go-sdk/httpserver.
-//
-// Consumers that import this package get the Hertz framework as a transitive
-// dependency. The core go-sdk/httpserver package is framework-agnostic and
-// pulls no Hertz code; choose this adapter explicitly.
 package hertz
 
 import (

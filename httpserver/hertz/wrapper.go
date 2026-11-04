@@ -37,26 +37,35 @@ func (s *Server) trackInFlight(ctx context.Context, c *app.RequestContext) {
 	c.Next(ctx)
 }
 
+// Group creates a router group under prefix.
 func (s *Server) Group(prefix string) httpserver.RouterGroup {
 	g := s.engine.Group(prefix)
 	return &hertzRouterGroup{group: g, server: s}
 }
 
+// Use installs global middleware in registration order.
 func (s *Server) Use(middleware ...httpserver.MiddlewareFunc) {
 	for _, mw := range middleware {
 		s.engine.Use(s.wrapMiddleware(mw))
 	}
 }
 
+// GET registers an HTTP GET route.
 func (s *Server) GET(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.GET(endpoint, s.wrapHandler(handler))
 }
+
+// POST registers an HTTP POST route.
 func (s *Server) POST(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.POST(endpoint, s.wrapHandler(handler))
 }
+
+// PUT registers an HTTP PUT route.
 func (s *Server) PUT(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.PUT(endpoint, s.wrapHandler(handler))
 }
+
+// DELETE registers an HTTP DELETE route.
 func (s *Server) DELETE(endpoint string, handler httpserver.HandlerFunc) {
 	s.engine.DELETE(endpoint, s.wrapHandler(handler))
 }

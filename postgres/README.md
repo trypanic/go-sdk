@@ -5,9 +5,9 @@ Package `postgres` provides:
 1. A pgx/v5 connection-pool factory with explicit DSN handling and pool tuning.
 2. A generic stored-procedure runner that scans rows into `T` via `pgx.RowToStructByNameLax`
    for structs or `pgx.RowTo` for scalars.
-3. An optional, opt-in tracing wrapper that creates one span per stored-procedure call.
+3. A traced stored-procedure constructor and explicit wrappers that create one client span per call.
 
-The package itself does **not** install pgx tracing on the pool — telemetry is opt-in.
+The package itself does **not** install pgx tracing on the pool — driver-level telemetry is opt-in.
 Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx tracing](#adding-pgx-tracing)).
 
 ## Table of Contents

@@ -1,4 +1,3 @@
-// Package messagingtest provides callback-based messaging test doubles.
 package messagingtest
 
 import (
@@ -17,12 +16,17 @@ type Broker struct {
 	CloseFunc     func() error
 }
 
+// Publish delegates to the configured callback.
 func (m *Broker) Publish(ctx context.Context, queue string, event messaging.Event) error {
 	return m.PublishFunc(ctx, queue, event)
 }
+
+// Subscribe delegates to the configured callback.
 func (m *Broker) Subscribe(ctx context.Context, queue, service string, handler messaging.MessageHandler) error {
 	return m.SubscribeFunc(ctx, queue, service, handler)
 }
+
+// Close delegates to the configured callback.
 func (m *Broker) Close() error { return m.CloseFunc() }
 
 var _ messaging.Broker = (*Broker)(nil)

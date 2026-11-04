@@ -2,9 +2,8 @@
 
 Package `mongo` exposes a small, framework-agnostic interface (`ClientPort`,
 `Collection`) over the official MongoDB Go driver. Connection setup applies safe
-defaults, performs a fail-fast ping, and normalizes errors to `errorkit`. Tracing
-is **opt-in** via a wrapper that emits one span per collection operation; the
-package itself imports no telemetry package by default.
+defaults, performs a fail-fast ping, and normalizes errors to `errorkit`. Default constructors integrate one client span per collection operation.
+Use NewWithoutTracing or a nil explicit instrumenter to disable tracing.
 
 ## Table of Contents
 
@@ -154,12 +153,16 @@ The package itself reads no environment variables — callers wire env loading.
 | `New(ctx, cfg)` | Auto-traced via the global OTel tracer (compatibility) |
 | `NewWithoutTracing(ctx, cfg)` | No tracing wrapper |
 | `NewWithInstrumenter(ctx, cfg, instrumenter)` | Explicit instrumenter; pass `nil` to disable |
-| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` (from `NewWithoutTracing`; `New` already wraps) |
+| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` (from `NewWithoutTracing`; `New` already traces) |
 
-Startup behavior is identical across constructors:
+Each connecting constructor returns `(*Client, error)` and accepts optional
+`ClientOption` values. `NewFromClient` borrows an existing driver client and
+does not connect, ping, or take lifecycle ownership.
+
+Startup behavior for the connecting constructors:
 
 1. Options are resolved: `Config` field, then URI, then SDK default (see [Defaults](#defaults)).
-2. `mongo.Connect` builds the driver client (no I/O yet).
+2. The upstream driver builds its client and starts connection monitoring.
 3. The primary is pinged with a timeout of `max(5s, ServerSelectionTimeout)` (the
    effective value from `Config` or the URI); an earlier deadline on `ctx` still applies.
    On failure the driver client is disconnected (bounded to 5 s, even if `ctx` is already
@@ -350,7 +353,7 @@ needed because the interface is not bound to `*mongo.Database`.
 | `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
 | `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for collection operations |
 
-The package has **no `otelmongo` import**. Tracing is wrapper-level and opt-in.
+The package has **no `otelmongo` import**. SDK operation tracing is integrated by default; driver command tracing is an explicit caller choice.
 
 ### Concrete adapters and escape hatches (v2)
 
