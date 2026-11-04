@@ -220,8 +220,9 @@ A non-positive duration keeps the default.
 
 The package logs only diagnostics it does not return to the caller:
 publisher and subscriber reconnects, the publisher's single in-call retry,
-failed acks/nacks and teardown failures.  They go to the `WithLogger` logger
-(else the logger stored in the `ctx`, else the global one) at **Warn** level,
+failed acks/nacks and teardown failures at **Warn** level, and recovered
+handler panics at **Error** level with a `stack` field.  They go to the
+`WithLogger` logger (else the logger stored in the `ctx`, else the global one),
 with structured fields (`queue`, `exchange`, `routing_key`, `error`,
 `retry_in` as a duration string) and the `trace_id`/`span_id` of the active
 span.
@@ -408,7 +409,7 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | `Publish` fails after all retries | Error returned to the caller |
 | Broker nacks a message or cannot route it | `ERR_MQ_PUBLISH_FAILED` (retried per queue config) |
 | Handler returns an error | Message retried per queue config; after exhaustion it is Nacked → DLQ |
-| Handler panics | The panic is recovered and recorded (with its stack) on the process span; the message is not retried and is Nacked without requeue → DLQ |
+| Handler panics | The panic is recovered, recorded (with its stack) on the process span and logged at Error level with its stack; the message is not retried and is Nacked without requeue → DLQ |
 | Connection drops during `Subscribe` | Automatic reconnect with exponential backoff |
 | Context cancelled | Subscriber exits cleanly, connection is closed via `defer`; a message being processed is Nacked with requeue (not dead-lettered) and no further retry or backoff wait happens |
 | `Close` called | Active subscriptions stop as if their `ctx` were cancelled; later `Publish`/`Subscribe` calls fail with `ERR_MQ_CLOSED` |

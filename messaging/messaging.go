@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -480,6 +481,9 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 				panicErr := fmt.Errorf("messaging: handler panicked: %v", r)
 				procSpan.RecordError(panicErr, trace.WithStackTrace(true))
 				procSpan.SetStatus(codes.Error, "handler panicked")
+				errorEvent(procCtx, p.log).Err(panicErr).Str("queue", queueName).
+					Str("stack", string(debug.Stack())).
+					Msg("messaging: handler panicked; message dead-lettered")
 				err = backoff.Permanent(panicErr)
 			}
 		}()

@@ -126,3 +126,22 @@ func TestHandleDeliveryReportsShutdownNackFailure(t *testing.T) {
 
 	assert.Contains(t, logs.String(), "nack failed")
 }
+
+// C5-004: a recovered handler panic is also logged at Error level, with its
+// stack, through the injected logger.
+func TestHandleDeliveryLogsHandlerPanic(t *testing.T) {
+	t.Parallel()
+
+	p, _, logs := newObservedPubSub()
+	ack := &fakeAcknowledger{}
+
+	p.handleDelivery(context.Background(), "q", newTestDelivery(ack), QueueTopology{Name: "q"},
+		func(context.Context, Message) error { panic("poison") })
+
+	lines := logLines(t, logs)
+	require.Len(t, lines, 1)
+	assert.Equal(t, "error", lines[0]["level"])
+	assert.Equal(t, "q", lines[0]["queue"])
+	assert.Contains(t, lines[0]["error"], "poison")
+	assert.Contains(t, lines[0]["stack"], "TestHandleDeliveryLogsHandlerPanic", "the stack points at the panicking handler")
+}

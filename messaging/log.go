@@ -17,3 +17,12 @@ func warnEvent(ctx context.Context, l *logger.Logger) *zerolog.Event {
 	}
 	return logger.WithTrace(ctx, zl.Warn())
 }
+
+// errorEvent is warnEvent at Error level.
+func errorEvent(ctx context.Context, l *logger.Logger) *zerolog.Event {
+	zl := logger.CtxOrGlobal(ctx)
+	if l != nil {
+		zl = l.Zerolog()
+	}
+	return logger.WithTrace(ctx, zl.Error())
+}
