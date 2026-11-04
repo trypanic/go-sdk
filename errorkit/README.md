@@ -71,8 +71,11 @@ func main() {
     // Pretty-print for debugging (auto-detects TTY colors)
     fmt.Println(err.Pretty())
 
-    // JSON output for HTTP responses / structured logging
+    // Full JSON (stack, payload, wrapped error) for logs only
     fmt.Println(err.PrettyJSON())
+
+    // Client-safe JSON for HTTP responses
+    fmt.Println(err.PublicJSON())
 }
 ```
 
@@ -202,8 +205,11 @@ output := errorkit.NewStackFormatter().FormatPlain(err)
 // Always colored ANSI output
 output := errorkit.NewStackFormatter().FormatColored(err)
 
-// Structured JSON — ideal for HTTP responses and log aggregation
+// Structured JSON with stack, payload and wrapped error — logs only
 output := err.PrettyJSON()
+
+// Client-safe JSON — use this for HTTP/RPC response bodies
+output := err.PublicJSON()
 
 // Write directly to any io.Writer
 err.WriteTo(os.Stderr)
@@ -239,6 +245,34 @@ err.WriteTo(logFile)
 ```
 
 `reason`, `payload`, `trace_id`, and `wrapped` are omitted when empty. `Timestamp` lives on the `AppError` struct but is not serialized by `PrettyJSON`.
+
+`PrettyJSON` exposes the stack trace (package, function and file names), the
+payload and the wrapped error text. Never send it to a client.
+
+### Client-safe responses
+
+`PublicJSON()` (or `Public()`, which returns the `PublicError` struct for
+embedding in your own envelope) emits only the code, a message, the error ID
+and the trace ID:
+
+```json
+{"code":"ERR_VALIDATION_MISSING_FIELD","message":"field 'email' is required","id":"01HV8F3KJ2XQDT8JQMZR4Y5WN"}
+```
+
+The message is the `Reason` only for client-error classes
+(`Metadata.HTTPStatus` 4xx), where the reason describes the caller's own
+input. For every other class it is `Metadata.Description` (or the standard
+HTTP status text when the description is empty), so internal reasons such as
+driver errors or hostnames never reach the client. The stack trace, payload
+and wrapped error are never included.
+
+```go
+func writeError(w http.ResponseWriter, appErr *errorkit.AppError) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(appErr.Metadata.HTTPStatus)
+    _, _ = w.Write([]byte(appErr.PublicJSON()))
+}
+```
 
 ### Color control
 

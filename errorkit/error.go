@@ -171,7 +171,8 @@ func WithTraceID(traceID string) ErrorOption {
 // They never print to console.
 // Use them for:
 // - Manual debugging: fmt.Println(err.Pretty())
-// - HTTP responses: w.Write([]byte(err.PrettyJSON()))
+// - Logs and monitoring: err.PrettyJSON()
+// - HTTP responses: w.Write([]byte(err.PublicJSON())) (see public.go)
 // - Logger integration: logger.WithErrorKit()
 
 // Pretty returns a human-readable formatted string.
@@ -186,8 +187,9 @@ func (e *AppError) Pretty() string {
 	return formatter.Format(e)
 }
 
-// PrettyJSON returns the error formatted as JSON.
-// Use for HTTP responses or structured logging.
+// PrettyJSON returns the error formatted as JSON, including the stack trace,
+// payload and wrapped error text. Use it for logs and monitoring only: it
+// exposes internal details and must not be sent to clients (use PublicJSON).
 // This method DOES NOT print - it only returns a string.
 func (e *AppError) PrettyJSON() string {
 	if e == nil {
