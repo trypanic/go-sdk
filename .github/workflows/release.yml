@@ -4,9 +4,12 @@
 #    "release PR" open that bumps .release-please-manifest.json and prepends
 #    the next entry to CHANGELOG.md.
 # 2. Merging that PR creates the vX.Y.Z tag and the GitHub Release.
-# 3. The assets job smoke-checks the tagged tree, attaches a CycloneDX SBOM, a
-#    reproducible source archive and checksums, and warms the Go module proxy
-#    so the version shows up on pkg.go.dev right away.
+# 3. The assets job smoke-checks the tagged tree (go.mod/go.sum tidy and
+#    verified, build, vet, tests), attaches a CycloneDX SBOM, a reproducible
+#    source archive and checksums, warms the Go module proxy so the version
+#    shows up on pkg.go.dev right away, and records a signed SLSA build
+#    provenance attestation for every asset listed in checksums.txt
+#    (verify: gh attestation verify <asset> --repo trypanic/go-sdk).
 #
 # The gate is ci.yml, not this workflow: it runs on the release PR branch and
 # must be green (required status checks on main) before the PR is merged. By
@@ -65,6 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write # keyless signing of the provenance attestation
+      attestations: write
     env:
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || needs.release-please.outputs.tag_name }}
       GH_TOKEN: ${{ github.token }}
@@ -91,6 +96,8 @@ jobs:
       # Smoke check only: the gate ran in ci.yml before the release PR merged.
       - name: Smoke-check tagged tree
         run: |
+          go mod verify
+          go mod tidy -diff
           go build ./...
           go vet ./...
           go test -short ./...
@@ -109,3 +116,10 @@ jobs:
 
       - name: Warm the Go module proxy
         run: GOPROXY=https://proxy.golang.org go list -m "github.com/${GITHUB_REPOSITORY}@${TAG}"
+
+      # Last, so a failure here (e.g. attestations unavailable for the
+      # repository's plan) never blocks the asset upload or the proxy warm-up.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/checksums.txt

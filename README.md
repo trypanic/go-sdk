@@ -252,9 +252,17 @@ from [Conventional Commits](https://www.conventionalcommits.org) (enforced by a
    module checks gate the release, before any tag exists.
 3. Merging the release PR creates the tag and the GitHub Release.
 4. The [`release`](./.github/workflows/release.yml) workflow then smoke-checks
-   the tagged tree and attaches a CycloneDX SBOM, a source archive and
-   `checksums.txt`, and warms the Go module proxy. It can be re-run for an
-   existing tag with `workflow_dispatch`.
+   the tagged tree (`go mod verify`, `go mod tidy -diff`, build, vet, tests),
+   attaches a CycloneDX SBOM, a source archive and `checksums.txt`, warms the
+   Go module proxy, and records a signed build provenance attestation for
+   each asset. It can be re-run for an existing tag with `workflow_dispatch`.
+
+Verify a downloaded asset against the workflow that built it:
+
+```bash
+sha256sum -c checksums.txt --ignore-missing
+gh attestation verify go-sdk-vX.Y.Z.src.tar.gz --repo trypanic/go-sdk
+```
 
 Before merging a release PR:
 
