@@ -10,6 +10,14 @@ import (
 // BuildURL constructs a URL by combining a base URL, path, and query parameters.
 // Returns an error if the base URL or path is malformed.
 //
+// path is always treated as a URL path, never as URL syntax: it cannot change
+// the scheme, host, query or fragment of base. A missing leading slash is
+// added, and path is appended to the path of base (a trailing slash on base
+// is not doubled). path may contain percent-escapes. A path that contains
+// '?' or '#', a "." or ".." segment (also when percent-encoded) or an
+// invalid escape is rejected with ERR_VALIDATION_INVALID_FORMAT. The query of
+// base is kept; params are merged into it and win on equal keys.
+//
 // Example:
 //
 //	url, err := BuildURL("https://api.example.com", "/users", map[string]string{
@@ -37,22 +45,10 @@ func BuildURL(base, path string, params map[string]string) (*url.URL, error) {
 			)
 	}
 
-	// If path is provided, combine with base
 	if path != "" {
-		// Parse the combined URL
-		fullURL, err := url.Parse(base + path)
-		if err != nil {
-			return nil, errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).
-				With(
-					errorkit.WithReason("Invalid URL format after combining base and path"),
-					errorkit.WithWrapped(err),
-					errorkit.WithPayload(map[string]string{
-						"base_url": base,
-						"path":     path,
-					}),
-				)
+		if err := appendPath(baseURL, base, path); err != nil {
+			return nil, err
 		}
-		baseURL = fullURL
 	}
 
 	// Add query parameters if provided
@@ -131,4 +127,50 @@ func JoinPath(base string, segments ...string) (string, error) {
 	}
 	u.Path = strings.Join(parts, "/")
 	return u.String(), nil
+}
+
+// appendPath appends path to the path of u in place, following the rules
+// documented on BuildURL.
+func appendPath(u *url.URL, base, path string) error {
+	invalid := func(reason string, cause error) error {
+		opts := []errorkit.ErrorOption{
+			errorkit.WithReason("%s", reason),
+			errorkit.WithPayload(map[string]string{
+				"base_url": base,
+				"path":     path,
+			}),
+		}
+		if cause != nil {
+			opts = append(opts, errorkit.WithWrapped(cause))
+		}
+		return errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(opts...)
+	}
+
+	if strings.ContainsAny(path, "?#") {
+		return invalid("Path must not contain a query or fragment", nil)
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	rawPath := strings.TrimRight(u.EscapedPath(), "/") + path
+	decoded, err := url.PathUnescape(rawPath)
+	if err != nil {
+		return invalid("Path contains an invalid escape sequence", err)
+	}
+	if hasDotSegment(decoded) {
+		return invalid("Path must not contain dot segments", nil)
+	}
+	u.Path = decoded
+	u.RawPath = rawPath
+	return nil
+}
+
+// hasDotSegment reports whether p, split on '/', has a "." or ".." segment.
+func hasDotSegment(p string) bool {
+	for seg := range strings.SplitSeq(p, "/") {
+		if seg == "." || seg == ".." {
+			return true
+		}
+	}
+	return false
 }

@@ -56,15 +56,30 @@ func BuildURL(base, path string, params map[string]string) (*url.URL, error)
 
 Constructs a `*url.URL` by:
 1. Validating that `base` is non-empty.
-2. Parsing `base` with `url.Parse` to verify it is a well-formed URL.
-3. If `path` is non-empty, concatenating `base + path` and parsing the result.
-4. Encoding each entry from `params` into the query string using `url.Values.Set`.
+2. Parsing `base` once with `url.Parse` to verify it is a well-formed URL.
+3. If `path` is non-empty, appending it to the path of `base` as a **path**
+   (never as URL syntax).
+4. Merging each entry from `params` into the query string of `base` using `url.Values.Set`.
+
+**Path rules:**
+- `path` can never change the scheme, host, query or fragment of `base`.
+  `BuildURL("https://api.good.com", "@evil.com/x", nil)` yields
+  `https://api.good.com/@evil.com/x`.
+- A missing leading slash is added: `"users"` is treated as `"/users"`.
+- `path` is appended to the path of `base`; a trailing slash on `base` is not
+  doubled (`"https://api.com/v1/"` + `"/users"` → `"https://api.com/v1/users"`).
+  A trailing slash on `path` is kept.
+- `path` may contain percent-escapes (`"/files/a%2Fb"` is kept as is).
+- `path` is rejected with `ERR_VALIDATION_INVALID_FORMAT` when it contains
+  `?` or `#`, a `.` or `..` segment (also percent-encoded, e.g. `%2e%2e`), or
+  an invalid escape sequence. Pass query values through `params` instead.
 
 **Edge cases:**
 - `path` may be an empty string; the base URL is returned unchanged.
 - `params` may be `nil` or empty; no query string is appended.
+- A query string on `base` (API keys, signed URLs) is kept; `params` are
+  merged into it and win on equal keys.
 - Query parameters are URL-encoded by `url.Values.Encode`, which sorts keys lexicographically.
-- The function does not join paths with a separator; if `base` has no trailing slash and `path` has no leading slash, the strings are concatenated directly (e.g., `"https://api.com"` + `"/v1"` → `"https://api.com/v1"`).
 
 **Error conditions:**
 
@@ -72,7 +87,9 @@ Constructs a `*url.URL` by:
 |---|---|
 | `base` is an empty string | `ERR_VALIDATION_MISSING_FIELD` — reason: `"Base URL is required"` |
 | `base` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid base URL format"`, payload: `{"base_url": base}` |
-| `base + path` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid URL format after combining base and path"`, payload: `{"base_url": base, "path": path}` |
+| `path` contains `?` or `#` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path must not contain a query or fragment"`, payload: `{"base_url": base, "path": path}` |
+| `path` contains an invalid escape sequence | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path contains an invalid escape sequence"`, payload as above |
+| `path` contains a `.` or `..` segment | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path must not contain dot segments"`, payload as above |
 
 ---
 
