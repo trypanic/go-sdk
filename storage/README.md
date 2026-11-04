@@ -74,6 +74,23 @@ _, _ = fs.Append("k", &b)       // file now: ["first", "second"]
 list, ok, err := fs.List("k")   // → &["first","second"], true, nil
 ```
 
+### Permissions
+
+Stored items may contain personal data or tokens, so by default only the
+owning account can read them: `NewFileStorage` creates `baseDir` with
+`DefaultDirMode` (`0o700`) and writes files with `DefaultFileMode` (`0o600`).
+Override them with options:
+
+```go
+fs, err := storage.NewFileStorage[Event]("./data",
+    storage.WithDirMode(0o750),  // applied when the directory is created; umask applies
+    storage.WithFileMode(0o640), // applied exactly to every storage file
+)
+```
+
+An existing `baseDir` keeps its permissions. Files written before this
+default changed keep their old mode until the next write of the key.
+
 ### Errors
 
 Every method returns a typed `*errorkit.AppError`; filesystem causes are

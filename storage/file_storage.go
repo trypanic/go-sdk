@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,17 +32,51 @@ const MaxFileKeyLength = (255 - len(".json")) / 2
 // per host: writes are atomic, so several instances on one directory never
 // corrupt a file, but their read-modify-write cycles are not coordinated.
 type FileStorage[T any] struct {
-	baseDir string
-	mu      sync.RWMutex
+	baseDir  string
+	fileMode fs.FileMode
+	mu       sync.RWMutex
+}
+
+// Default permissions: stored items may hold personal data or tokens, so
+// only the owning account can read them.
+const (
+	DefaultDirMode  fs.FileMode = 0o700
+	DefaultFileMode fs.FileMode = 0o600
+)
+
+// FileStorageOption configures NewFileStorage.
+type FileStorageOption func(*fileStorageConfig)
+
+type fileStorageConfig struct {
+	dirMode  fs.FileMode
+	fileMode fs.FileMode
+}
+
+// WithDirMode sets the permissions of baseDir when NewFileStorage creates
+// it (default DefaultDirMode). The process umask applies, and an existing
+// directory keeps its permissions.
+func WithDirMode(mode fs.FileMode) FileStorageOption {
+	return func(c *fileStorageConfig) { c.dirMode = mode.Perm() }
+}
+
+// WithFileMode sets the permissions of the storage files (default
+// DefaultFileMode). They are applied exactly, regardless of the umask.
+func WithFileMode(mode fs.FileMode) FileStorageOption {
+	return func(c *fileStorageConfig) { c.fileMode = mode.Perm() }
 }
 
 // NewFileStorage creates a FileStorage rooted at baseDir, creating it if
-// missing.
-func NewFileStorage[T any](baseDir string) (*FileStorage[T], error) {
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+// missing. Directories are created DefaultDirMode and files written
+// DefaultFileMode unless WithDirMode or WithFileMode says otherwise.
+func NewFileStorage[T any](baseDir string, opts ...FileStorageOption) (*FileStorage[T], error) {
+	cfg := fileStorageConfig{dirMode: DefaultDirMode, fileMode: DefaultFileMode}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	if err := os.MkdirAll(baseDir, cfg.dirMode); err != nil {
 		return nil, ioError("failed to create storage directory", err)
 	}
-	return &FileStorage[T]{baseDir: baseDir}, nil
+	return &FileStorage[T]{baseDir: baseDir, fileMode: cfg.fileMode}, nil
 }
 
 // Append adds item to the list at key, creating the file if necessary.
@@ -226,15 +261,16 @@ func (fs *FileStorage[T]) writeUnsafe(filename string, slice []T) error {
 			errorkit.WithWrapped(err),
 		)
 	}
-	if err := writeFileAtomic(fs.baseDir, filename, jsonData); err != nil {
+	if err := writeFileAtomic(fs.baseDir, filename, jsonData, fs.fileMode); err != nil {
 		return ioError("failed to write storage file", err)
 	}
 	return nil
 }
 
 // writeFileAtomic writes data to a unique temp file in dir and renames it
-// onto filename. The temp file is removed on every failure path.
-func writeFileAtomic(dir, filename string, data []byte) (err error) {
+// onto filename with the given permissions. The temp file is removed on
+// every failure path.
+func writeFileAtomic(dir, filename string, data []byte, mode fs.FileMode) (err error) {
 	tmp, err := os.CreateTemp(dir, tempFilePattern)
 	if err != nil {
 		return err
@@ -245,6 +281,14 @@ func writeFileAtomic(dir, filename string, data []byte) (err error) {
 			_ = os.Remove(tmpName)
 		}
 	}()
+
+	// CreateTemp always uses 0o600; apply the configured mode exactly.
+	if mode != 0o600 {
+		if err = tmp.Chmod(mode); err != nil {
+			_ = tmp.Close()
+			return err
+		}
+	}
 
 	if _, err = tmp.Write(data); err != nil {
 		_ = tmp.Close()
