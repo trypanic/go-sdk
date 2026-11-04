@@ -265,14 +265,34 @@ func NewOrderService(bus messaging.Messager) *OrderService { … }
 
 ## Custom Topology
 
-Any JSON file that matches the schema in **`schemas/rabbit-topology.json`** can
-be used. Supply it via `WithTopologyFile` (or `WithTopology` for tests):
+Any JSON file with the shape of `Topology` (fields of `Exchange`,
+`QueueTopology`, `Binding`, `DLXConfig` and `RetryConfig`) can be used.
+Supply it via `WithTopologyFile` (or `WithTopology` for tests):
 
 ```go
 pubsub, err := messaging.NewPubSub(amqpURL,
     messaging.WithTopologyFile("/config/my-topology.json"),
 )
 ```
+
+### Validation
+
+Topologies are validated when they are loaded (`LoadTopologyFrom*`) and when
+`NewPubSub` receives one through `WithTopology`; call `Topology.Validate()` to
+check one yourself.  Every problem is reported in one
+`ERR_SYSTEM_CONFIG_INVALID` error.  A topology is rejected when:
+
+* the JSON has an **unknown field** (e.g. a typo such as `"prefech"`) or
+  trailing data;
+* an exchange or queue name is empty or declared twice, or an exchange has no
+  `type`;
+* a binding names an undeclared queue or exchange, has no routing keys (use
+  `[""]` for a fanout exchange), or a queue has **more than one binding**;
+* a queue's `dlx.exchange` is not declared;
+* `prefetch`, `ttl` or `maxLength` is negative;
+* a `retry` block has `maxAttempts < 1`, a negative delay,
+  `maxDelay < initialDelay`, or `backoffMultiplier < 1` (an omitted multiplier
+  is `0` and therefore rejected).
 
 ---
 
@@ -292,7 +312,7 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | `ERR_MQ_PUBLISH_FAILED` | Publishing a message fails, the broker nacks it, or returns it as unroutable | yes |
 | `ERR_MQ_TIMEOUT` | The caller's `ctx` deadline ends a `Publish` (waiting, dialing or waiting for the confirm) | yes |
 | `ERR_MQ_CLOSED` | `Publish` or `Subscribe` is called after `Close` | **no** |
-| `ERR_SYSTEM_CONFIG_INVALID` | A queue, binding or exchange is missing from the topology | no |
+| `ERR_SYSTEM_CONFIG_INVALID` | The topology is invalid (see [Validation](#validation)), or a queue, binding or exchange is missing from it | no |
 
 ## Error Handling Summary
 

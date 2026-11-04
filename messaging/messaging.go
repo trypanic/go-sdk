@@ -147,6 +147,9 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 func resolveTopology(b *pubSubBuild) (*Topology, error) {
 	switch {
 	case b.topology != nil:
+		if err := b.topology.Validate(); err != nil {
+			return nil, err
+		}
 		return b.topology, nil
 	case b.topologyPath != "":
 		return LoadTopologyFromFile(b.topologyPath)
@@ -461,11 +464,14 @@ func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) 
 		}
 		return err
 	}
+	// Topology.Validate rejects MaxAttempts < 1; clamp anyway so a value that
+	// bypassed validation cannot wrap to an unbounded uint64.
+	attempts := max(retry.MaxAttempts, 1)
 	bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
 		InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,
 		MaxInterval:     time.Duration(retry.MaxDelay) * time.Millisecond,
 		Multiplier:      retry.BackoffMult,
-		MaxRetries:      uint64(retry.MaxAttempts),
+		MaxRetries:      uint64(attempts),
 	})
 	return backoff.Retry(fn, backoff.WithContext(bo, ctx))
 }
