@@ -6,6 +6,16 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
+// Backoff is a stateful retry schedule. Create one per operation; it is not
+// safe for concurrent use. NextBackOff returns Stop when the budget is spent.
+type Backoff interface {
+	NextBackOff() time.Duration
+	Reset()
+}
+
+// Stop indicates that no further retry should be attempted.
+const Stop time.Duration = -1
+
 // MaxRetriesLimit is the upper bound applied to
 // ExponentialBackoffConfig.MaxRetries. Larger values (for example an int -1
 // converted to uint64) are capped to it so a bad configuration cannot retry
@@ -50,7 +60,7 @@ func DefaultExponentialBackoffConfig() ExponentialBackoffConfig {
 // DefaultExponentialBackoffConfig (MaxInterval is never set below
 // InitialInterval), MaxRetries is clamped to [1, MaxRetriesLimit], and a
 // negative MaxElapsedTime is treated as zero (no elapsed-time limit).
-func NewExponentialBackoff(config ExponentialBackoffConfig) backoff.BackOff {
+func NewExponentialBackoff(config ExponentialBackoffConfig) Backoff {
 	config = sanitize(config)
 
 	expBackoff := backoff.NewExponentialBackOff()

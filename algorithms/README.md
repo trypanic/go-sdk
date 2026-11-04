@@ -26,7 +26,7 @@ backoff policies on top of `github.com/cenkalti/backoff/v4`.
 | `ExponentialBackoffConfig` | Holds the tuning parameters for an exponential backoff policy |
 | `MaxRetriesLimit` | Upper bound (1000) applied to `MaxRetries` |
 | `DefaultExponentialBackoffConfig` | Returns a ready-to-use default configuration (1 s → 30 s, ×2, 5 total attempts) |
-| `NewExponentialBackoff` | Constructs a `backoff.BackOff` value ready to pass to `backoff.Retry` |
+| `NewExponentialBackoff` | Constructs a `algorithms.Backoff` value ready to pass to `backoff.Retry` |
 
 ---
 
@@ -139,10 +139,10 @@ Use this as a starting point when the caller does not need to override individua
 ### NewExponentialBackoff
 
 ```go
-func NewExponentialBackoff(config ExponentialBackoffConfig) backoff.BackOff
+func NewExponentialBackoff(config ExponentialBackoffConfig) Backoff
 ```
 
-Constructs a `backoff.BackOff` by:
+Constructs a `algorithms.Backoff` by:
 
 1. Replacing invalid config values (see [Configuration](#configuration)) and creating a
    `*backoff.ExponentialBackOff` with `InitialInterval`, `MaxInterval`, `Multiplier` and
@@ -153,7 +153,7 @@ Constructs a `backoff.BackOff` by:
 3. Wrapping it with `backoff.WithMaxRetries(expBackoff, config.MaxRetries-1)` to bound
    the total number of attempts.
 
-The returned value satisfies the `backoff.BackOff` interface and is intended to be passed
+The returned value satisfies the `algorithms.Backoff` interface and is intended to be passed
 directly to `backoff.Retry`.
 
 **Edge cases.** `MaxRetries` of `0` is treated as `1`: the initial call is the only
@@ -191,7 +191,7 @@ func executeWithRetry(fn func() error, retry *RetryConfig) error {
 ```
 
 When `retry` is `nil`, the function body executes exactly once with no backoff overhead.
-A new `backoff.BackOff` is allocated per call, so concurrent publish and subscribe
+A new `algorithms.Backoff` is allocated per call, so concurrent publish and subscribe
 goroutines do not share state.
 
 ---
@@ -199,10 +199,10 @@ goroutines do not share state.
 ## Lifecycle / Concurrency Notes
 
 - `NewExponentialBackoff` allocates a new `*backoff.ExponentialBackOff` on every call.
-  The returned `backoff.BackOff` is **not safe for concurrent use**; the cenkalti/backoff
+  The returned `algorithms.Backoff` is **not safe for concurrent use**; the cenkalti/backoff
   library maintains mutable internal state (current interval, attempt count) that is
   updated on each call to `NextBackOff`.
-- Create a new `backoff.BackOff` for each independent retry sequence. Do not share an
+- Create a new `algorithms.Backoff` for each independent retry sequence. Do not share an
   instance across goroutines or reuse one after a retry loop completes.
 - The package itself has no global state and requires no shutdown procedure.
 
@@ -213,3 +213,8 @@ goroutines do not share state.
 | Package | Role |
 |---|---|
 | `github.com/cenkalti/backoff/v4` | Provides `ExponentialBackOff`, `WithMaxRetries`, and the `BackOff` interface consumed by `backoff.Retry` |
+
+The public schedule contract is SDK-owned: `Backoff` exposes `NextBackOff` and
+`Reset`; compare the returned duration with `algorithms.Stop` to detect exhaustion.
+The upstream implementation is an internal detail; structural compatibility still
+allows passing the result to retry loops expecting those two methods.
