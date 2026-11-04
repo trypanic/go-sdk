@@ -2,6 +2,8 @@ package storage
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -139,21 +141,23 @@ func TestClear(t *testing.T) {
 	}
 }
 
-// Thread-safety smoke test.
+// Thread-safety test: 100 concurrent writers, and every append must land
+// exactly once (C4-023: the test used to accept any non-empty list).
 func TestConcurrentAccess(t *testing.T) {
 	ms := NewMemory[int]()
 
+	const writers = 100
 	var wg sync.WaitGroup
-	wg.Add(100)
-
-	for i := 0; i < 100; i++ {
-		go func(i int) {
-			defer wg.Done()
-			_ = ms.Put("single", &i)
-			_, _ = ms.Append("list", &i)
-		}(i)
+	for i := range writers {
+		wg.Go(func() {
+			if err := ms.Put("single", &i); err != nil {
+				t.Errorf("Put: %v", err)
+			}
+			if _, err := ms.Append("list", &i); err != nil {
+				t.Errorf("Append: %v", err)
+			}
+		})
 	}
-
 	wg.Wait()
 
 	if _, ok, _ := ms.Get("single"); !ok {
@@ -163,13 +167,31 @@ func TestConcurrentAccess(t *testing.T) {
 	if !ok {
 		t.Fatalf("list missing after concurrent writes")
 	}
-	if len(*list) == 0 {
-		t.Fatalf("expected appended list to have elements")
+	assertEachOnce(t, *list, writers)
+}
+
+// assertEachOnce checks that items holds exactly the values 0..n-1, each once.
+func assertEachOnce(t *testing.T, items []int, n int) {
+	t.Helper()
+	if len(items) != n {
+		t.Fatalf("got %d items, want exactly %d", len(items), n)
+	}
+	seen := make(map[int]bool, n)
+	for _, v := range items {
+		if v < 0 || v >= n || seen[v] {
+			t.Fatalf("unexpected or duplicate item %d in %v", v, items)
+		}
+		seen[v] = true
 	}
 }
 
 func TestNewFileStorage_InvalidPath_ReturnsAppError(t *testing.T) {
-	_, err := NewFileStorage[int]("/dev/null/invalid")
+	// A path below a regular file cannot be created on any OS.
+	file := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	_, err := NewFileStorage[int](filepath.Join(file, "sub"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

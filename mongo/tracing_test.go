@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -158,5 +159,39 @@ func TestTracingClientPortTracesPingAndClose(t *testing.T) {
 	}
 	if len(names) != 2 || names[0] != "mongo.ping" || names[1] != "mongo.close" {
 		t.Fatalf("spans = %v, want [mongo.ping mongo.close]", names)
+	}
+}
+
+// TestTracingCollectionSpanNames asserts the documented span name
+// "mongo.<collection>.<operation>" for every Collection method (C4-020: the
+// tracing tests checked only the wrapper type).
+func TestTracingCollectionSpanNames(t *testing.T) {
+	t.Parallel()
+
+	instrumenter, exporter := newRecordingInstrumenter()
+	coll := WrapWithInstrumenter(&stubClientPort{}, instrumenter).Collection("orders")
+	ctx := t.Context()
+
+	_, _ = coll.InsertOne(ctx, nil)
+	_, _ = coll.InsertMany(ctx, nil)
+	_, _ = coll.Find(ctx, nil)
+	_ = coll.FindOne(ctx, nil)
+	_, _ = coll.BulkWrite(ctx, nil)
+	_, _ = coll.ReplaceOne(ctx, nil, nil)
+	_, _ = coll.CountDocuments(ctx, nil)
+	_, _ = coll.UpdateOne(ctx, nil, nil)
+	_, _ = coll.DeleteOne(ctx, nil)
+
+	want := []string{
+		"mongo.orders.insertOne", "mongo.orders.insertMany", "mongo.orders.find", "mongo.orders.findOne",
+		"mongo.orders.bulkWrite", "mongo.orders.replaceOne", "mongo.orders.countDocuments",
+		"mongo.orders.updateOne", "mongo.orders.deleteOne",
+	}
+	var got []string
+	for _, span := range exporter.GetSpans() {
+		got = append(got, span.Name)
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("span names\n got  %v\n want %v", got, want)
 	}
 }

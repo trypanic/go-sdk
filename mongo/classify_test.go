@@ -76,3 +76,19 @@ func TestNewConfigErrorIsConfigInvalid(t *testing.T) {
 		t.Fatal("configuration errors must not be retriable")
 	}
 }
+
+func TestWrapDecodeError(t *testing.T) {
+	t.Parallel()
+
+	if WrapDecodeError(nil, "find") != nil {
+		t.Fatal("WrapDecodeError(nil) must be nil")
+	}
+	cause := errors.New("cannot decode 32-bit integer into a string type")
+	appErr := requireCode(t, WrapDecodeError(cause, "find"), ERR_DB_MONGO_DECODE_FAILED)
+	if appErr.Metadata.Retriable || appErr.Metadata.HTTPStatus != 500 {
+		t.Fatalf("decode failure: retriable=%v http=%d, want false/500", appErr.Metadata.Retriable, appErr.Metadata.HTTPStatus)
+	}
+	if !errors.Is(appErr, cause) {
+		t.Fatalf("cause not wrapped: %v", appErr)
+	}
+}
