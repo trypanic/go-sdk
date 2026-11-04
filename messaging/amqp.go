@@ -103,12 +103,12 @@ func (p *Publisher) open(ctx context.Context) (publisherLink, error) {
 
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		abandon(conn)
 		return publisherLink{}, mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
 
 	if err := ch.Confirm(false); err != nil {
-		conn.Close()
+		abandon(conn)
 		return publisherLink{}, mqError(ERR_MQ_CHANNEL_ERROR, "failed to enable publisher confirms", err)
 	}
 	// Publishes run one at a time and each one drains this channel, so one
@@ -122,13 +122,13 @@ func (p *Publisher) open(ctx context.Context) (publisherLink, error) {
 			false, // noWait
 			nil,
 		); err != nil {
-			conn.Close()
+			abandon(conn)
 			return publisherLink{}, mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 		}
 	}
 	if p.declare != nil {
 		if err := declareQueues(ch, p.declare); err != nil {
-			conn.Close()
+			abandon(conn)
 			return publisherLink{}, err
 		}
 	}
@@ -205,7 +205,9 @@ func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 	old := p.conn
 	p.mu.Unlock()
 	if old != nil && !old.IsClosed() {
-		old.Close()
+		if err := old.Close(); err != nil {
+			logger.Warn("publisher: closing the previous connection failed: %v", err)
+		}
 	}
 
 	l, err := p.open(ctx)
@@ -460,7 +462,7 @@ func (s *Subscriber) connect() error {
 
 	ch, err := conn.Channel()
 	if err != nil {
-		conn.Close()
+		abandon(conn)
 		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
 
@@ -469,7 +471,7 @@ func (s *Subscriber) connect() error {
 		s.exchange.Name, s.exchange.Type, s.exchange.Durable, s.exchange.AutoDelete,
 		false, false, nil,
 	); err != nil {
-		conn.Close()
+		abandon(conn)
 		return mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 	}
 
@@ -480,14 +482,14 @@ func (s *Subscriber) connect() error {
 		false, // noWait
 		s.queueArgs,
 	); err != nil {
-		conn.Close()
+		abandon(conn)
 		return mqError(ERR_MQ_QUEUE_ERROR, "failed to declare queue", err)
 	}
 
 	// Bind using the exact routing keys from the topology — never a wildcard.
 	for _, rk := range s.routingKeys {
 		if err := ch.QueueBind(s.queue.Name, rk, s.exchange.Name, false, nil); err != nil {
-			conn.Close()
+			abandon(conn)
 			return mqError(ERR_MQ_QUEUE_ERROR, "failed to bind queue", err)
 		}
 	}
@@ -497,7 +499,7 @@ func (s *Subscriber) connect() error {
 		prefetch = DefaultPrefetch // 0 would mean unlimited
 	}
 	if err := ch.Qos(prefetch, 0, false); err != nil {
-		conn.Close()
+		abandon(conn)
 		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to set QoS", err)
 	}
 
@@ -510,7 +512,9 @@ func (s *Subscriber) connect() error {
 // It is called by PubSub when the delivery channel closes unexpectedly.
 func (s *Subscriber) Reconnect() error {
 	if s.conn != nil && !s.conn.IsClosed() {
-		s.conn.Close()
+		if err := s.conn.Close(); err != nil {
+			logger.Warn("subscriber: closing the previous connection failed: %v", err)
+		}
 	}
 	return s.connect()
 }
@@ -532,8 +536,13 @@ func (s *Subscriber) Consume() (<-chan amqp.Delivery, error) {
 	return msgs, nil
 }
 
-// Close gracefully closes the channel and connection. Both are always attempted.
+// Close gracefully closes the channel and connection. Both are always
+// attempted. A connection that is already closed (the broker dropped it) has
+// nothing left to release, so Close returns nil.
 func (s *Subscriber) Close() error {
+	if s.conn != nil && s.conn.IsClosed() {
+		return nil
+	}
 	var errs []error
 	if s.channel != nil {
 		if err := s.channel.Close(); err != nil {
@@ -552,6 +561,12 @@ func (s *Subscriber) Close() error {
 		)
 	}
 	return nil
+}
+
+// abandon closes a connection whose setup failed. The setup error is the
+// one returned to the caller, so the close error is deliberately dropped.
+func abandon(conn amqpConnection) {
+	_ = conn.Close()
 }
 
 // mqError builds the AppError for a failed AMQP operation. An access-refused

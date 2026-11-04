@@ -54,7 +54,7 @@ func TestPublishWithCancelledCtxDoesNotDial(t *testing.T) {
 
 	err := p.Publish(ctx, "q", Event{})
 
-	requireAppError(t, err)
+	_ = requireAppError(t, err)
 	assert.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, 0, b.dialCount())
 }

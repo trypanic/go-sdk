@@ -303,7 +303,7 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 // exponential backoff automatically.  Returns when ctx is cancelled, Close
 // is called, or an unrecoverable error occurs. After Close it fails with
 // ERR_MQ_CLOSED.
-func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) error {
+func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) (err error) {
 	life := p.lifetime()
 	if life.Err() != nil {
 		return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("pubsub is closed"))
@@ -341,7 +341,17 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 	if err := sub.connect(); err != nil {
 		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to create subscriber")
 	}
-	defer sub.Close()
+	defer func() {
+		// A connection left half-open must not hide behind a nil return.
+		if closeErr := sub.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
+				return
+			}
+			p.warn(ctx, asAppError(closeErr, ERR_MQ_CONNECTION_FAILED, "subscriber close failed"),
+				"messaging: subscriber close failed for queue "+queueName)
+		}
+	}()
 
 	msgs, err := sub.Consume()
 	if err != nil {
@@ -459,12 +469,21 @@ func (p *PubSub) reportSettleFailure(ctx context.Context, span trace.Span, queue
 		span.RecordError(appErr)
 		span.SetStatus(codes.Error, op+" failed")
 	}
-	msg := fmt.Sprintf("messaging: %s failed for queue %s; the broker will redeliver the message", op, queueName)
+	p.warn(ctx, appErr, fmt.Sprintf("messaging: %s failed for queue %s; the broker will redeliver the message", op, queueName))
+}
+
+// warn logs appErr at Warn level through the WithLogger logger, or the
+// ctx/global logger when none was injected.
+func (p *PubSub) warn(ctx context.Context, appErr error, msg string) {
+	var ae *errorkit.AppError
+	if !errors.As(appErr, &ae) {
+		ae = errorkit.NewError(ERR_MQ_ERROR).With(errorkit.WithWrapped(appErr))
+	}
 	if p.log != nil {
-		p.log.WarnCtx(ctx, appErr, msg)
+		p.log.WarnCtx(ctx, ae, msg)
 		return
 	}
-	logger.WarnCtx(ctx, appErr, msg)
+	logger.WarnCtx(ctx, ae, msg)
 }
 
 // Close stops every Subscribe call of this PubSub (each returns nil once its
