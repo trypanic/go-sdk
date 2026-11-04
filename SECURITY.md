@@ -14,8 +14,17 @@ task staticanalysis
 
 This invokes [`scripts/staticanalysis.sh`](./scripts/staticanalysis.sh) with `QG_FULL=1`
 (scans `./...`). It writes per-tool reports and grouped fix-plans under
-`.staticanalysis/`. Exit code is `1` if any tool produces an `ERROR`-severity
-finding, `0` otherwise.
+`.staticanalysis/`. Exit codes:
+
+| Code | Meaning                                                                 |
+|------|-------------------------------------------------------------------------|
+| `0`  | Every enabled tool ran and none produced an `ERROR`-severity finding.  |
+| `1`  | At least one `ERROR`-severity finding.                                  |
+| `2`  | A tool failed: it crashed, exited with an unexpected code, produced no parsable output, or is not installed. A missing tool counts as a failure unless its `QG_SKIP_*` knob is set. `jq` is always required. |
+
+The script never reports `OK` for a tool that did not run: a skipped tool is
+printed as `skipped`, a failed one as `TOOL FAILURE` with the tail of its
+stderr log.
 
 The pre-commit hook calls the same script, but in **staged** mode — only files
 returned by `git diff --cached` are scanned, and only their packages are vetted.
@@ -34,6 +43,9 @@ authentication is used** — `SEMGREP_APP_TOKEN` is not set, no Semgrep Platform
 features are required, and **there is no Semgrep MCP server configured**. The
 Docker variant uses the configured rule packs (`.semgrep.yml`, `p/golang`,
 `p/gosec`, `p/secrets`); the local CLI fallback uses `.semgrep.yml` only.
+The fallback runs when Docker is unavailable or its run fails. The path that
+produced the result is printed on the semgrep line and recorded as `runner`
+in `report.semgrep.json` and in `plan.semgrep.md`.
 
 ### Outputs (`.staticanalysis/`)
 
@@ -41,7 +53,7 @@ Docker variant uses the configured rule packs (`.semgrep.yml`, `p/golang`,
 |-------------------------|------------------------------------------------------------------|
 | `report.<tool>.json`    | Normalized findings (severity / path / line / check\_id / msg). |
 | `plan.<tool>.md`        | Findings grouped by file as a fix-list.                          |
-| `<tool>.stderr.log`     | Captured tool stderr (debugging).                                |
+| `<tool>.stderr.log`     | Captured tool stderr (debugging); always written.                |
 
 ### Environment knobs
 
@@ -51,7 +63,7 @@ Docker variant uses the configured rule packs (`.semgrep.yml`, `p/golang`,
 | `QG_SKIP_VET=1`      | Skip `go vet`.                                          |
 | `QG_SKIP_SC=1`       | Skip `staticcheck`.                                     |
 | `QG_SKIP_SEMGREP=1`  | Skip `semgrep`.                                         |
-| `QG_VERBOSE=1`       | Stream tool stderr to terminal instead of log files.    |
+| `QG_VERBOSE=1`       | Also print tool stderr to the terminal after each tool. |
 | `QG_OUT_DIR=path`    | Override output directory (default `.staticanalysis`).  |
 
 ## Why three tools
@@ -169,7 +181,7 @@ Re-generate the plan files manually at any time:
 ```bash
 task staticanalysis            # whole repo
 bash scripts/staticanalysis.sh               # staged files only
-QG_VERBOSE=1 bash scripts/staticanalysis.sh  # stream tool stderr live
+QG_VERBOSE=1 bash scripts/staticanalysis.sh  # also print tool stderr
 ```
 
 ## Bypassing hooks (don't)

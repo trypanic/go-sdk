@@ -12,7 +12,8 @@
 #   QG_SKIP_VET=1      — skip go vet
 #   QG_SKIP_SC=1       — skip staticcheck
 #   QG_SKIP_SEMGREP=1  — skip semgrep
-#   QG_VERBOSE=1       — stream tool stderr live (default: log to .staticanalysis/<tool>.stderr.log)
+#   QG_VERBOSE=1       — also print tool stderr to the terminal (it is always
+#                        logged to .staticanalysis/<tool>.stderr.log)
 #
 # Outputs (all under .staticanalysis/):
 #   .staticanalysis/report.<tool>.json   findings
@@ -21,9 +22,20 @@
 #
 # Override location with QG_OUT_DIR=path.
 #
-# Exit codes: 0 clean, 1 ERROR-severity finding(s) in any tool.
+# Exit codes:
+#   0  clean (no ERROR-severity finding, every enabled tool ran)
+#   1  ERROR-severity finding(s) in any tool
+#   2  a tool failed (crashed, exited with an unexpected code, produced no
+#      parsable output) or a required tool is missing. A tool that is not
+#      installed is a failure unless its QG_SKIP_* knob is set; jq is always
+#      required.
 
 set -euo pipefail
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "staticanalysis: jq is required (sudo apt install jq / brew install jq)." >&2
+  exit 2
+fi
 
 OUT_DIR="${QG_OUT_DIR:-.staticanalysis}"
 mkdir -p "${OUT_DIR}"
@@ -55,6 +67,10 @@ trap cleanup_scratch EXIT
 VET_ERRORS=0; VET_TOTAL=0
 SC_ERRORS=0; SC_TOTAL=0
 SG_ERRORS=0; SG_TOTAL=0
+
+# Tool failures (crash, unexpected exit code, missing tool). Any -> exit 2.
+TOOL_FAILURES=()
+SG_RUNNER="none"
 
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 TTY=0; [[ -t 1 ]] && TTY=1
@@ -140,16 +156,18 @@ step_start() {
 # ---------- helpers -----------------------------------------------------------
 
 wrap_report() {
-  local tool="$1" findings_file="$2"
+  local tool="$1" findings_file="$2" runner="${3:-}"
   jq -n \
     --slurpfile findings "${findings_file}" \
     --arg tool "${tool}" \
     --arg mode "${MODE}" \
     --arg ts "${TS}" \
+    --arg runner "${runner}" \
     '
     ($findings[0] // []) as $all
     | {
         tool: $tool, generated_at: $ts, mode: $mode,
+        runner: (if $runner == "" then null else $runner end),
         summary: {
           total:    ($all | length),
           errors:   ($all | map(select(.severity == "ERROR"))   | length),
@@ -172,6 +190,9 @@ write_plan() {
     echo "# ${tool} plan (${MODE})"
     echo
     echo "- Generated: $(jq -r '.generated_at' "${report}")"
+    if [[ "$(jq -r '.runner // ""' "${report}")" != "" ]]; then
+      echo "- Runner: $(jq -r '.runner' "${report}")"
+    fi
     echo "- Findings: **${total}** (errors=${errors}, warnings=${warns}, info=${infos})"
     echo "- Report: \`${report}\`"
     echo
@@ -193,13 +214,24 @@ write_plan() {
   } > "${plan}"
 }
 
-# stderr_redirect TARGET_LOG → returns the shell redirection target.
-# In verbose mode, leak stderr to terminal; otherwise pipe to log file.
-stderr_target() {
-  if [[ "${QG_VERBOSE:-0}" == "1" ]]; then
-    echo "/dev/stderr"
-  else
-    echo "$1"
+# Tool stderr always goes to its log file (go vet writes its diagnostics
+# there, so the log is also its raw report). QG_VERBOSE=1 echoes it afterwards.
+show_stderr() {
+  local log="$1"
+  if [[ "${QG_VERBOSE:-0}" == "1" && -s "${log}" ]]; then
+    cat "${log}" >&2
+  fi
+}
+
+# tool_failed STEP NAME REASON [LOG] records the failure and prints the tail
+# of the tool's stderr so the cause is visible without opening the log.
+tool_failed() {
+  local n="$1" name="$2" reason="$3" log="${4:-}"
+  TOOL_FAILURES+=("${name}: ${reason}")
+  step_done "$n" "$name" "$FAIL_MARK" "TOOL FAILURE: ${reason}"
+  if [[ -n "${log}" && -s "${log}" && "${QG_VERBOSE:-0}" != "1" ]]; then
+    echo "  last lines of ${log}:" >&2
+    tail -n 5 "${log}" | sed 's/^/    /' >&2
   fi
 }
 
@@ -221,14 +253,17 @@ run_vet() {
     step_done 1 "go-vet" "$SKIP_MARK" "skipped"
     return 0
   fi
+  if ! command -v go >/dev/null 2>&1; then
+    tool_failed 1 "go-vet" "go is not installed (QG_SKIP_VET=1 to skip)"
+    return 0
+  fi
   step_start 1 "go-vet"
 
-  local err_target
-  err_target="$(stderr_target "${VET_ERR_LOG}")"
   set +e
-  GOCACHE="${GOCACHE:-/tmp/go-build-cache}" go vet "${GO_PKGS[@]}" >"${VET_RAW}" 2>"${err_target}"
+  GOCACHE="${GOCACHE:-/tmp/go-build-cache}" go vet "${GO_PKGS[@]}" >"${VET_RAW}" 2>"${VET_ERR_LOG}"
   local rc=$?
   set -e
+  show_stderr "${VET_ERR_LOG}"
   # vet emits diagnostics on stderr; treat captured log as the raw report too.
   [[ -s "${VET_ERR_LOG}" && ! -s "${VET_RAW}" ]] && cp "${VET_ERR_LOG}" "${VET_RAW}"
 
@@ -265,6 +300,12 @@ run_vet() {
 
   VET_ERRORS=$(jq '.summary.errors' "${VET_REPORT}")
   VET_TOTAL=$(jq '.summary.total'  "${VET_REPORT}")
+  # go vet exits 1 for diagnostics and for build/load errors. A non-zero exit
+  # without a single parsed diagnostic means it did not analyse anything.
+  if [[ "${rc}" -ne 0 && "${VET_TOTAL}" -eq 0 ]]; then
+    tool_failed 1 "go-vet" "exit ${rc} without parsable diagnostics" "${VET_ERR_LOG}"
+    return 0
+  fi
   local mark="$OK_MARK"; [[ "${VET_ERRORS}" -gt 0 ]] && mark="$FAIL_MARK"
   step_done 1 "go-vet" "$mark" "$(detail_str "$VET_TOTAL" "$VET_ERRORS" "$rc")"
 }
@@ -277,17 +318,31 @@ run_staticcheck() {
     return 0
   fi
   if ! command -v staticcheck >/dev/null 2>&1; then
-    step_done 2 "staticcheck" "$SKIP_MARK" "not installed"
+    tool_failed 2 "staticcheck" "not installed (proto install; QG_SKIP_SC=1 to skip)"
     return 0
   fi
   step_start 2 "staticcheck"
 
-  local err_target
-  err_target="$(stderr_target "${SC_ERR_LOG}")"
   set +e
-  XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/staticanalysis-cache}" staticcheck -f json "${GO_PKGS[@]}" >"${SC_RAW}" 2>"${err_target}"
+  XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/staticanalysis-cache}" staticcheck -f json "${GO_PKGS[@]}" >"${SC_RAW}" 2>"${SC_ERR_LOG}"
   local rc=$?
   set -e
+  show_stderr "${SC_ERR_LOG}"
+
+  # staticcheck exits 0 when clean and 1 when it reports problems (as JSON
+  # lines on stdout). Anything else, or 1 with no output, is a crash.
+  if [[ "${rc}" -ne 0 && "${rc}" -ne 1 ]]; then
+    tool_failed 2 "staticcheck" "unexpected exit ${rc}" "${SC_ERR_LOG}"
+    return 0
+  fi
+  if [[ "${rc}" -eq 1 && ! -s "${SC_RAW}" ]]; then
+    tool_failed 2 "staticcheck" "exit 1 without findings on stdout" "${SC_ERR_LOG}"
+    return 0
+  fi
+  if [[ -s "${SC_RAW}" ]] && ! jq -s '.' "${SC_RAW}" >/dev/null 2>&1; then
+    tool_failed 2 "staticcheck" "output is not valid JSON" "${SC_ERR_LOG}"
+    return 0
+  fi
 
   local findings_tmp
   findings_tmp="$(mktemp)"
@@ -324,16 +379,25 @@ run_semgrep() {
     step_done 3 "semgrep" "$SKIP_MARK" "skipped"
     return 0
   fi
+
+  local have_docker=0 have_cli=0
+  docker info >/dev/null 2>&1 && have_docker=1
+  command -v semgrep >/dev/null 2>&1 && have_cli=1
+  if [[ "${have_docker}" == "0" && "${have_cli}" == "0" ]]; then
+    tool_failed 3 "semgrep" "neither Docker nor the semgrep CLI is available (task tools:install; QG_SKIP_SEMGREP=1 to skip)"
+    return 0
+  fi
   step_start 3 "semgrep"
 
-  local err_target
-  err_target="$(stderr_target "${SG_ERR_LOG}")"
-  [[ "${QG_VERBOSE:-0}" != "1" ]] && : >"${SG_ERR_LOG}"
+  : >"${SG_ERR_LOG}"
   rm -f "${SG_REPORT}" "${SG_RAW}"
 
+  # semgrep (without --error) exits 0 whether or not it finds something;
+  # any other exit code, or no JSON report, is a failed run.
+  local rc=0 attempts=""
   set +e
-  local rc=0
-  if docker info >/dev/null 2>/dev/null; then
+  if [[ "${have_docker}" == "1" ]]; then
+    echo "--- semgrep via docker (semgrep/semgrep; .semgrep.yml p/golang p/gosec p/secrets)" >>"${SG_ERR_LOG}"
     docker run --rm -v "${PWD}:/src" -w /src semgrep/semgrep semgrep scan \
       --config=.semgrep.yml \
       --config=p/golang \
@@ -343,13 +407,18 @@ run_semgrep() {
       --quiet \
       --metrics=off \
       --output "${SG_RAW}" \
-      "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${err_target}"
+      "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${SG_ERR_LOG}"
     rc=$?
-  else
-    rc=127
+    if [[ "${rc}" -eq 0 && -s "${SG_RAW}" ]] && jq -e '.results' "${SG_RAW}" >/dev/null 2>&1; then
+      SG_RUNNER="docker semgrep/semgrep (.semgrep.yml p/golang p/gosec p/secrets)"
+    else
+      attempts="docker rc=${rc}"
+      rm -f "${SG_RAW}"
+    fi
   fi
 
-  if [[ ! -s "${SG_RAW}" && -x "$(command -v semgrep 2>/dev/null)" ]]; then
+  if [[ "${SG_RUNNER}" == "none" && "${have_cli}" == "1" ]]; then
+    echo "--- semgrep via local CLI ($(command -v semgrep); .semgrep.yml)" >>"${SG_ERR_LOG}"
     HOME="${QG_SEMGREP_HOME:-/tmp/staticanalysis-semgrep-home}" semgrep scan \
       --config=.semgrep.yml \
       --json \
@@ -357,41 +426,50 @@ run_semgrep() {
       --metrics=off \
       --disable-version-check \
       --output "${SG_RAW}" \
-      "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${err_target}"
+      "${SEMGREP_TARGETS[@]}" >/dev/null 2>>"${SG_ERR_LOG}"
     rc=$?
+    if [[ "${rc}" -eq 0 && -s "${SG_RAW}" ]] && jq -e '.results' "${SG_RAW}" >/dev/null 2>&1; then
+      SG_RUNNER="local semgrep CLI (.semgrep.yml)"
+    else
+      attempts="${attempts:+${attempts}, }cli rc=${rc}"
+      rm -f "${SG_RAW}"
+    fi
   fi
   set -e
+  show_stderr "${SG_ERR_LOG}"
 
-  local findings_tmp normalized_tmp
-  findings_tmp="$(mktemp)"
-  normalized_tmp="$(mktemp)"
-
-  if [[ ! -s "${SG_RAW}" ]]; then
-    echo "[]" > "${findings_tmp}"
-    wrap_report "semgrep" "${findings_tmp}" > "${SG_REPORT}"
-  else
-    jq '
-      [ .results[] | {
-          severity: .extra.severity,
-          path: .path,
-          line: .start.line,
-          column: .start.col,
-          check_id: .check_id,
-          message: (.extra.message // "")
-        }
-      ]
-    ' "${SG_RAW}" > "${findings_tmp}"
-    wrap_report "semgrep" "${findings_tmp}" > "${normalized_tmp}"
-    cat "${normalized_tmp}" > "${SG_REPORT}"
+  if [[ "${SG_RUNNER}" == "none" ]]; then
+    tool_failed 3 "semgrep" "no runner produced a report (${attempts})" "${SG_ERR_LOG}"
+    return 0
   fi
+
+  local findings_tmp
+  findings_tmp="$(mktemp)"
+  jq '
+    [ .results[] | {
+        severity: .extra.severity,
+        path: .path,
+        line: .start.line,
+        column: .start.col,
+        check_id: .check_id,
+        message: (.extra.message // "")
+      }
+    ]
+  ' "${SG_RAW}" > "${findings_tmp}"
+  wrap_report "semgrep" "${findings_tmp}" "${SG_RUNNER}" > "${SG_REPORT}"
+  rm -f "${findings_tmp}"
 
   write_plan "semgrep" "${SG_REPORT}" "${SG_PLAN}"
   SG_ERRORS=$(jq '.summary.errors' "${SG_REPORT}")
   SG_TOTAL=$(jq '.summary.total'  "${SG_REPORT}")
-  rm -f "${findings_tmp}" "${normalized_tmp}"
+  local scan_errors
+  scan_errors=$(jq '(.errors // []) | length' "${SG_RAW}")
 
   local mark="$OK_MARK"; [[ "${SG_ERRORS}" -gt 0 ]] && mark="$FAIL_MARK"
-  step_done 3 "semgrep" "$mark" "$(detail_str "$SG_TOTAL" "$SG_ERRORS" "$rc")"
+  step_done 3 "semgrep" "$mark" "$(detail_str "$SG_TOTAL" "$SG_ERRORS" "$rc") via ${SG_RUNNER}${attempts:+ after failed ${attempts}}"
+  if [[ "${scan_errors}" -gt 0 ]]; then
+    echo "  semgrep reported ${scan_errors} scan error(s) (e.g. unparsable files); see ${SG_ERR_LOG}" >&2
+  fi
 }
 
 # ---------- run all -----------------------------------------------------------
@@ -404,6 +482,13 @@ TOTAL_ERRORS=$((VET_ERRORS + SC_ERRORS + SG_ERRORS))
 TOTAL_FINDINGS=$((VET_TOTAL + SC_TOTAL + SG_TOTAL))
 
 echo
+if [[ ${#TOOL_FAILURES[@]} -gt 0 ]]; then
+  printf "staticanalysis: %d tool failure(s); the gate did not run completely:\n" "${#TOOL_FAILURES[@]}" >&2
+  printf "  - %s\n" "${TOOL_FAILURES[@]}" >&2
+  printf "staticanalysis: %d findings, %d errors from the tools that ran. FAILED.\n" \
+    "${TOTAL_FINDINGS}" "${TOTAL_ERRORS}"
+  exit 2
+fi
 if [[ "${TOTAL_ERRORS}" -gt 0 ]]; then
   printf "staticanalysis: %d findings, %d errors. Commit blocked.\n" \
     "${TOTAL_FINDINGS}" "${TOTAL_ERRORS}"
