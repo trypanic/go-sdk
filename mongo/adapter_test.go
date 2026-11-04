@@ -136,7 +136,7 @@ func TestCursorAdapterAllRejectsNonSlice(t *testing.T) {
 	t.Parallel()
 
 	var out namedDoc
-	requireCode(t, newCursor(t, nil, nil).All(t.Context(), &out), ERR_DB_MONGO_DECODE_FAILED)
+	_ = requireCode(t, newCursor(t, nil, nil).All(t.Context(), &out), ERR_DB_MONGO_DECODE_FAILED)
 }
 
 // TestCursorAdapterStreams covers C4-021: Cursor exposed only All, so every
@@ -174,7 +174,7 @@ func TestCursorAdapterStreamErrors(t *testing.T) {
 			t.Fatal("Next = false, want a document")
 		}
 		var doc namedDoc
-		requireCode(t, cursor.Decode(&doc), ERR_DB_MONGO_DECODE_FAILED)
+		_ = requireCode(t, cursor.Decode(&doc), ERR_DB_MONGO_DECODE_FAILED)
 	})
 
 	t.Run("iteration failure", func(t *testing.T) {

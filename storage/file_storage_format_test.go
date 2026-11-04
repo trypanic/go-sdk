@@ -126,7 +126,7 @@ func TestFileStorageLegacyCorruptAndEmptyFiles(t *testing.T) {
 			store, dir := newIntFileStorage(t)
 			writeFixture(t, filepath.Join(dir, legacyFileNameForKey("k")), content)
 			_, _, err := store.List("k")
-			requireCode(t, err, ERR_STORAGE_CORRUPTED)
+			_ = requireCode(t, err, ERR_STORAGE_CORRUPTED)
 		})
 	}
 }
@@ -212,10 +212,10 @@ func TestFileStorageCorruptLines(t *testing.T) {
 			store, dir := newIntFileStorage(t)
 			writeFixture(t, filepath.Join(dir, fileNameForKey("k")), content)
 			_, _, err := store.List("k")
-			requireCode(t, err, ERR_STORAGE_CORRUPTED)
+			_ = requireCode(t, err, ERR_STORAGE_CORRUPTED)
 			v := 4
 			_, err = store.Append("k", &v)
-			requireCode(t, err, ERR_STORAGE_CORRUPTED)
+			_ = requireCode(t, err, ERR_STORAGE_CORRUPTED)
 		})
 	}
 }
@@ -249,5 +249,5 @@ func TestFileStorageGarbledOnlyLineIsCorrupt(t *testing.T) {
 	store, dir := newIntFileStorage(t)
 	writeFixture(t, filepath.Join(dir, fileNameForKey("k")), "not-json\n")
 	_, _, err := store.List("k")
-	requireCode(t, err, ERR_STORAGE_CORRUPTED)
+	_ = requireCode(t, err, ERR_STORAGE_CORRUPTED)
 }

@@ -129,7 +129,7 @@ func TestRetryAfterIsHonored(t *testing.T) {
 			)
 			err := NewWithOptions(client, WithRetryConfig(rc)).Do(t.Context(), getReq, nil)
 
-			requireAppError(t, err, errorkit.ERR_CLIENT_RATE_LIMIT, true)
+			_ = requireAppError(t, err, errorkit.ERR_CLIENT_RATE_LIMIT, true)
 			require.Empty(t, tr.gaps(), "a retry before the advertised window fails by design")
 		})
 	})
@@ -146,7 +146,7 @@ func TestRetryAfterIsHonored(t *testing.T) {
 			start := time.Now()
 			err := NewWithOptions(client, WithRetryConfig(rc)).Do(ctx, getReq, nil)
 
-			requireAppError(t, err, errorkit.ERR_CLIENT_RATE_LIMIT, true)
+			_ = requireAppError(t, err, errorkit.ERR_CLIENT_RATE_LIMIT, true)
 			require.Empty(t, tr.gaps())
 			require.Zero(t, time.Since(start), "Do returns the upstream error at once instead of sleeping into a timeout")
 		})

@@ -51,7 +51,7 @@ func TestConstructionContextDoesNotOwnPubSubLifetime(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	pubsub, err := newPubSubContext(ctx, "amqp://fake", broker.dial, WithTopology(testTopology()))
 	require.NoError(t, err)
-	defer pubsub.Close()
+	t.Cleanup(func() { require.NoError(t, pubsub.Close()) })
 	cancel()
 	require.NoError(t, pubsub.Publish(t.Context(), "q", Event{}))
 }

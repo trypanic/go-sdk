@@ -86,7 +86,7 @@ func TestCancellationDuringBackoffWait(t *testing.T) {
 		start := time.Now()
 		err := r.Do(ctx, getReq, nil)
 
-		requireAppError(t, err, ERR_REQUEST_CANCELED, false)
+		_ = requireAppError(t, err, ERR_REQUEST_CANCELED, false)
 		require.Equal(t, time.Second, time.Since(start), "the wait ends when ctx is canceled")
 		require.Empty(t, tr.gaps(), "no attempt after cancellation")
 	})

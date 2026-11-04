@@ -19,7 +19,11 @@ func TestInitConcurrentWithSDKLogging(t *testing.T) {
 		zlog.Logger = previousZlog
 	})
 	_, cleanup := Init("test", "1")
-	defer cleanup.Close()
+	t.Cleanup(func() {
+		if err := cleanup.Close(); err != nil {
+			t.Errorf("close logger: %v", err)
+		}
+	})
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for range 25 {

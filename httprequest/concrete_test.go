@@ -9,8 +9,10 @@ import (
 	"github.com/trypanic/go-sdk/telemetry"
 )
 
+var _ func(*http.Client) *httprequest.Request = httprequest.New
+
 func TestConcreteRequesterAndUnwrap(t *testing.T) {
-	var requester *httprequest.Request = httprequest.New(&http.Client{})
+	requester := httprequest.New(&http.Client{})
 	wrapped := httprequest.WrapWithInstrumenter(requester, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 	unwrappable, ok := wrapped.(interface {
 		Unwrap() httprequest.Requester

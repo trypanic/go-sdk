@@ -11,8 +11,10 @@ import (
 	"github.com/trypanic/go-sdk/httpserver/hertz"
 )
 
+var _ func(httpserver.ServerConfig) *hertz.Server = hertz.NewEngine
+
 func TestEngineEscapeHatch(t *testing.T) {
-	var srv *hertz.Server = hertz.NewEngine(httpserver.ServerConfig{})
+	srv := hertz.NewEngine(httpserver.ServerConfig{})
 	srv.Engine().GET("/raw", func(_ context.Context, c *app.RequestContext) { c.String(200, "raw") })
 	response := ut.PerformRequest(srv.Engine().Engine, "GET", "/raw", nil).Result()
 	require.Equal(t, "raw", string(response.Body()))

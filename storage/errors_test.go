@@ -42,7 +42,7 @@ func TestStorageErrorCodes(t *testing.T) {
 		t.Run(name+".Append(nil) is a validation error", func(t *testing.T) {
 			t.Parallel()
 			_, err := newStore(t).Append("k", nil)
-			requireCode(t, err, errorkit.ERR_VALIDATION_MISSING_FIELD)
+			_ = requireCode(t, err, errorkit.ERR_VALIDATION_MISSING_FIELD)
 		})
 	}
 
@@ -64,10 +64,10 @@ func TestStorageErrorCodes(t *testing.T) {
 		// more is rejected everywhere.
 		tooLong := strings.Repeat("k", legacyMaxFileKeyLength+1)
 		_, err = fs.Append(tooLong, &v)
-		requireCode(t, err, errorkit.ERR_VALIDATION)
+		_ = requireCode(t, err, errorkit.ERR_VALIDATION)
 		_, _, err = fs.List(tooLong)
-		requireCode(t, err, errorkit.ERR_VALIDATION)
-		requireCode(t, fs.Delete(tooLong), errorkit.ERR_VALIDATION)
+		_ = requireCode(t, err, errorkit.ERR_VALIDATION)
+		_ = requireCode(t, fs.Delete(tooLong), errorkit.ERR_VALIDATION)
 	})
 
 	t.Run("longest accepted FileStorage key works", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestStorageErrorCodes(t *testing.T) {
 			t.Fatal("corruption must not be retriable")
 		}
 		_, err = fs.GetAll()
-		requireCode(t, err, ERR_STORAGE_CORRUPTED)
+		_ = requireCode(t, err, ERR_STORAGE_CORRUPTED)
 	})
 
 	t.Run("permission denied is ERR_STORAGE_ACCESS_DENIED", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestStorageErrorCodes(t *testing.T) {
 		}
 
 		_, err = fs.Append("k", &v)
-		requireCode(t, err, ERR_STORAGE_ACCESS_DENIED)
-		requireCode(t, fs.Delete("k"), ERR_STORAGE_ACCESS_DENIED)
+		_ = requireCode(t, err, ERR_STORAGE_ACCESS_DENIED)
+		_ = requireCode(t, fs.Delete("k"), ERR_STORAGE_ACCESS_DENIED)
 	})
 }

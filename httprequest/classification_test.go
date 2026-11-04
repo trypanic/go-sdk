@@ -54,7 +54,7 @@ func TestInvalidURLIsRejectedBeforeAnyAttempt(t *testing.T) {
 
 			err := r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: rawURL}, nil)
 
-			requireAppError(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID, false)
+			_ = requireAppError(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID, false)
 			require.Zero(t, rt.trips.Load(), "an invalid URL must not be sent or retried")
 		})
 	}
@@ -102,7 +102,7 @@ func TestTLSVerificationFailureIsNotRetried(t *testing.T) {
 
 	err := r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil)
 
-	requireAppError(t, err, httpclient.ERR_EXTERNAL_INVALID_RESPONSE, false)
+	_ = requireAppError(t, err, httpclient.ERR_EXTERNAL_INVALID_RESPONSE, false)
 	require.Equal(t, int32(1), dials.Load())
 }
 
@@ -138,7 +138,7 @@ func TestCanceledContextIsNotAServerError(t *testing.T) {
 		err := NewWithOptions(srv.Client(), fastRetry(RetryConfig{})).
 			Do(ctx, RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil)
 
-		requireAppError(t, err, ERR_REQUEST_CANCELED, false)
+		_ = requireAppError(t, err, ERR_REQUEST_CANCELED, false)
 		require.True(t, errors.Is(err, context.Canceled))
 	})
 }
