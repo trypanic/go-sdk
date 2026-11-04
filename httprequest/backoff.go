@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
+	sharedbackoff "github.com/trypanic/go-sdk/v2/internal/backoff"
 )
 
 // fullJitter returns a random delay in [0, d] ("full jitter"), so clients

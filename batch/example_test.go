@@ -3,7 +3,7 @@ package batch_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/batch"
+	"github.com/trypanic/go-sdk/v2/batch"
 )
 
 func ExampleChunk() {

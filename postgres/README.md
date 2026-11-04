@@ -61,7 +61,7 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/postgres" // package identifier: postgres
+    "github.com/trypanic/go-sdk/v2/postgres" // package identifier: postgres
 )
 
 pool, err := postgres.New(postgres.Config{
@@ -357,8 +357,8 @@ freely across goroutines.
 |---|---|
 | `github.com/jackc/pgx/v5` | PostgreSQL driver and row scanning utilities |
 | `github.com/jackc/pgx/v5/pgxpool` | Connection pool |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
-| `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for stored-procedure calls |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/telemetry` | Optional tracing wrapper for stored-procedure calls |
 
 The package has **no dependency on `otelpgx`** or any other pgx tracer. Callers that want
 driver-level tracing wire it up themselves.

@@ -27,9 +27,9 @@ import (
     "syscall"
     "time"
 
-    "github.com/trypanic/go-sdk/httpserver"
-    hertzadapter "github.com/trypanic/go-sdk/httpserver/hertz"
-    "github.com/trypanic/go-sdk/logger"
+    "github.com/trypanic/go-sdk/v2/httpserver"
+    hertzadapter "github.com/trypanic/go-sdk/v2/httpserver/hertz"
+    "github.com/trypanic/go-sdk/v2/logger"
 )
 
 func main() {

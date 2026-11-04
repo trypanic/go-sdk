@@ -32,7 +32,7 @@ The SDK is a single Go module; every package shares the module's version.
 
 The latest release is the newest `vX.Y.Z` tag
 ([releases](https://github.com/trypanic/go-sdk/releases),
-[pkg.go.dev](https://pkg.go.dev/github.com/trypanic/go-sdk?tab=versions)).
+[pkg.go.dev](https://pkg.go.dev/github.com/trypanic/go-sdk/v2?tab=versions)).
 
 Fixes are released only on the latest major version. When `v2.0.0` is
 published (module path `github.com/trypanic/go-sdk/v2`), `v1` stops receiving

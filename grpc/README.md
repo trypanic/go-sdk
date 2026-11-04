@@ -11,12 +11,12 @@ All four call modes — **unary, server-streaming, client-streaming, and
 bidirectional-streaming** — get the same wiring. You register your generated
 service stubs and the cross-cutting concerns apply to every method.
 
-Import path is `github.com/trypanic/go-sdk/grpc`; the package identifier is
+Import path is `github.com/trypanic/go-sdk/v2/grpc`; the package identifier is
 `grpc`, which collides with upstream `google.golang.org/grpc`. **Alias it** when
 you import both:
 
 ```go
-import sdkgrpc "github.com/trypanic/go-sdk/grpc"
+import sdkgrpc "github.com/trypanic/go-sdk/v2/grpc"
 ```
 
 ## Codegen
@@ -269,7 +269,7 @@ import (
     "syscall"
     "time"
 
-    sdkgrpc "github.com/trypanic/go-sdk/grpc"
+    sdkgrpc "github.com/trypanic/go-sdk/v2/grpc"
     pb "your/gen/echo"
 )
 
@@ -325,7 +325,7 @@ import (
     "io"
     "time"
 
-    sdkgrpc "github.com/trypanic/go-sdk/grpc"
+    sdkgrpc "github.com/trypanic/go-sdk/v2/grpc"
     pb "your/gen/echo"
 )
 

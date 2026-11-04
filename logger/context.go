@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/rs/zerolog"
-	"github.com/trypanic/go-sdk/internal/logctx"
+	"github.com/trypanic/go-sdk/v2/internal/logctx"
 )
 
 // Ctx extracts the logger from the context.

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/mongo"
-	"github.com/trypanic/go-sdk/mongo/mongotest"
+	"github.com/trypanic/go-sdk/v2/mongo"
+	"github.com/trypanic/go-sdk/v2/mongo/mongotest"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 

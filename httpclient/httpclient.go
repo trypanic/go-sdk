@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Default configuration values for production use

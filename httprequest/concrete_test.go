@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 var _ func(*http.Client) *httprequest.Request = httprequest.New

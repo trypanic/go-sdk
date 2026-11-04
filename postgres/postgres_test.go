@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {

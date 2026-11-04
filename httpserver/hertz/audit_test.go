@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 // auditLines returns the decoded inbound audit entries found in logs.

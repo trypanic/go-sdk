@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func requireCode(t *testing.T, err error, want errorkit.ErrorCode) *errorkit.AppError {

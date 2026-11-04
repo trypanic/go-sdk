@@ -3,7 +3,7 @@ package hertz
 import (
 	"testing"
 
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 // Compile-time assertion: Hertz adapter satisfies the SDK Server

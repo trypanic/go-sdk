@@ -26,7 +26,7 @@ vars:
   GOLANGCI_LINT_VERSION: v2.15.0
   # Top-level SDK packages (first path segment of every package in the module).
   ALL_PACKAGES:
-    sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
+    sh: go list -f '{{"{{"}}.ImportPath{{"}}"}} {{"{{"}}.Module.Path{{"}}"}}' ./... | awk '{path=substr($1,length($2)+2); split(path,parts,"/"); if(parts[1] != "") print parts[1]}' | sort -u | tr '\n' ' '
   # Packages selected on the command line (`task <name> -- a b`), or all of them.
   PACKAGES: '{{if .CLI_ARGS}}{{.CLI_ARGS}}{{else}}{{.ALL_PACKAGES}}{{end}}'
   # Upgrade policy passed to `go get`: "-u" (minor + patch) or "-u=patch".
@@ -190,8 +190,12 @@ tasks:
   release:check:
     desc: Diff the public API against the last tag and suggest the next semver version (gorelease)
     vars:
-      BASE:
-        sh: git describe --tags --abbrev=0 --match 'v[0-9]*'
+      DEFAULT_RELEASE_BASE:
+        sh: |
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          module=$(git show "$tag:go.mod" | awk '$1 == "module" {print $2}')
+          printf '%s@%s\n' "$module" "$tag"
+      RELEASE_VERSION: '{{.RELEASE_VERSION | default ""}}'
     cmds:
       # gorelease refuses a dirty tree. Task hides precondition output, so the
       # check is a command: it prints the offending paths (e.g. a stray .moon/).
@@ -202,7 +206,7 @@ tasks:
           printf '%s\n' "$dirty" >&2
           exit 1
         fi
-      - go run golang.org/x/exp/cmd/gorelease@{{.GORELEASE_VERSION}} -base={{.BASE}}
+      - go run golang.org/x/exp/cmd/gorelease@{{.GORELEASE_VERSION}} -base={{.BASE | default .DEFAULT_RELEASE_BASE}}{{if .RELEASE_VERSION}} -version={{.RELEASE_VERSION}}{{end}}
 
   # ------------------------------------------------------------ dependencies
 

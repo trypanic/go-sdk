@@ -6,8 +6,8 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/internal/logctx"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/logctx"
 )
 
 // WithTrace enriches a zerolog.Event with trace_id and span_id from

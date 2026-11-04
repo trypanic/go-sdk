@@ -3,7 +3,7 @@ package hertz
 import (
 	"github.com/cloudwego/hertz/pkg/route"
 
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 type hertzRouterGroup struct {

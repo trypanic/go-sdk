@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsEncodingError(t *testing.T) {

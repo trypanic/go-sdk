@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Config configures New. Zero pool-tuning fields keep the pgx

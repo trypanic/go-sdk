@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/trypanic/go-sdk/envs"
+	"github.com/trypanic/go-sdk/v2/envs"
 )
 
 func ExampleLoadWithOptions() {

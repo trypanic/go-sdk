@@ -17,7 +17,7 @@ Thin wrapper around [`caarlos0/env`](https://github.com/caarlos0/env) that parse
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/envs"
+import "github.com/trypanic/go-sdk/v2/envs"
 
 type Config struct {
     Host string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
@@ -157,8 +157,8 @@ func LoadInto(c any) error
 ```go
 import (
     "errors"
-    "github.com/trypanic/go-sdk/errorkit"
-    "github.com/trypanic/go-sdk/envs"
+    "github.com/trypanic/go-sdk/v2/errorkit"
+    "github.com/trypanic/go-sdk/v2/envs"
 )
 
 cfg := &Config{}
@@ -195,8 +195,8 @@ type Auth struct {
 package main
 
 import (
-    "github.com/trypanic/go-sdk/envs"
-    "github.com/trypanic/go-sdk/logger"
+    "github.com/trypanic/go-sdk/v2/envs"
+    "github.com/trypanic/go-sdk/v2/logger"
 )
 
 func main() {
@@ -242,4 +242,4 @@ if err := envs.LoadInto(cfg); err != nil {
 | Package | Role |
 |---|---|
 | `github.com/caarlos0/env/v11` | Parses environment variables into annotated Go structs |
-| `github.com/trypanic/go-sdk/errorkit` | Wraps parse failures as structured `AppError` with code `ERR_SYSTEM_CONFIG_INVALID` |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Wraps parse failures as structured `AppError` with code `ERR_SYSTEM_CONFIG_INVALID` |

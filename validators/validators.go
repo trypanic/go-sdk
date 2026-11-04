@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // DateLayout is the date format (YYYY-MM-DD) used by IsValidDatePointer and

@@ -3,7 +3,7 @@ package marshal_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/marshal"
+	"github.com/trypanic/go-sdk/v2/marshal"
 )
 
 func ExampleNoEscapeNoNewline() {

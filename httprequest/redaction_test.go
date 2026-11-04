@@ -15,8 +15,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 var leakedSecrets = []string{"p4ssw0rd", "SECRET123", "sk-live-ABCDEF"}

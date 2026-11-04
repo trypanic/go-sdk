@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // StoredProcedurer runs a stored-procedure call and scans the result into T.

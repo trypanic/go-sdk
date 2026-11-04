@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // newExampleInstrumenter returns an Instrumenter backed by an in-memory

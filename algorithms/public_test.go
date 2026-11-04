@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/algorithms"
+	"github.com/trypanic/go-sdk/v2/algorithms"
 )
 
 var _ func(algorithms.ExponentialBackoffConfig) algorithms.Backoff = algorithms.NewExponentialBackoff

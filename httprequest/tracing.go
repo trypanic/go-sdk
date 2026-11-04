@@ -8,7 +8,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // WrapWithTracing adds bounded external.http.<host>.<method> client spans.

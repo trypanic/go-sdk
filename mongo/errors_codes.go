@@ -1,6 +1,6 @@
 package mongo
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // MongoDB Error Codes

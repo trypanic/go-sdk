@@ -3,8 +3,8 @@ package validators_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/validators"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/validators"
 )
 
 func ExampleIsWithinRange() {

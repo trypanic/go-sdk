@@ -3,7 +3,7 @@ package stringutils_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/stringutils"
+	"github.com/trypanic/go-sdk/v2/stringutils"
 )
 
 func ExampleNormalizeText() {

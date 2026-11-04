@@ -9,9 +9,9 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/postgres"
 )
 
 const internalDetail = `pq: relation "users" does not exist (host=db-primary.internal)`

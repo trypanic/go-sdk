@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/postgres"
 )
 
 func ExampleNewContext() {

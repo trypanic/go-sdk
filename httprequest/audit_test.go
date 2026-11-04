@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 func TestSanitizeHTTPHeadersMasksCredentialHeaders(t *testing.T) {

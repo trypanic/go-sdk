@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/trypanic/go-sdk/storage"
+	"github.com/trypanic/go-sdk/v2/storage"
 )
 
 func ExampleFileStorage() {

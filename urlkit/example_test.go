@@ -3,7 +3,7 @@ package urlkit_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/urlkit"
+	"github.com/trypanic/go-sdk/v2/urlkit"
 )
 
 func ExampleBuildURL() {

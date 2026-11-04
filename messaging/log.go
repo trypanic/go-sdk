@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/rs/zerolog"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // warnEvent starts a Warn event on l, the WithLogger logger, or on the

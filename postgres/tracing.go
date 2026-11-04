@@ -6,7 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // reProcName extracts an unquoted, optionally schema-qualified routine from

@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
 )
 
 // With MaxConcurrentStreams = 1, a second stream on the same connection does

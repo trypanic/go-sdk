@@ -1,7 +1,7 @@
 package httpserver
 
 import (
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // OptionReply sets one field of a Reply; see BuildReply.

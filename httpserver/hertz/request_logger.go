@@ -8,8 +8,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/rs/zerolog"
 
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // RequestIDHeader carries the request ID in and out: an inbound value is

@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/trypanic/go-sdk/internal/logctx"
+	"github.com/trypanic/go-sdk/v2/internal/logctx"
 )
 
 // global is the shared atomic SDK logger slot.

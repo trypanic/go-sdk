@@ -160,8 +160,8 @@ When retries are exhausted:
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/logger"
-    "github.com/trypanic/go-sdk/messaging"
+    "github.com/trypanic/go-sdk/v2/logger"
+    "github.com/trypanic/go-sdk/v2/messaging"
 )
 
 // Topology file named by the RABBITMQ_TOPOLOGY_FILE env var.

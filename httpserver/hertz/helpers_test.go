@@ -11,8 +11,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // testOptions returns the default profile without tracing, so tests do not

@@ -16,8 +16,8 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
 )
 
 // echoImpl implements testsvc.Impl. Each method falls back to a default echo

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 //go:noinline
@@ -57,7 +57,7 @@ func TestStackFilePathsAreModuleRelative(t *testing.T) {
 	if len(trace) == 0 {
 		t.Fatal("no frame captured")
 	}
-	const want = "github.com/trypanic/go-sdk/errorkit/stack_test.go"
+	const want = "github.com/trypanic/go-sdk/v2/errorkit/stack_test.go"
 	if got := trace[0].File; got != want {
 		t.Fatalf("File = %q, want %q", got, want)
 	}

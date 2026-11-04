@@ -4,7 +4,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // DefaultMaxResponseBytes is the default cap on a successful response body,

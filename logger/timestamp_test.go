@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/logger/otlp"
+	"github.com/trypanic/go-sdk/v2/logger/otlp"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"

@@ -3,12 +3,12 @@ package mongo_test
 import (
 	"testing"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/v2/mongo"
 	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )

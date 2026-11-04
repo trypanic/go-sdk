@@ -2,7 +2,7 @@
 
 Callback-based `Client`, `Collection`, `Cursor` and `SingleResult` implementations.
 
-Import `github.com/trypanic/go-sdk/mongo/mongotest` in consumer tests. These helpers create
+Import `github.com/trypanic/go-sdk/v2/mongo/mongotest` in consumer tests. These helpers create
 no network connections and require no infrastructure. The external-package
 `*_test.go` files provide executable consumer examples.
 

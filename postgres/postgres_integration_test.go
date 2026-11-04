@@ -16,9 +16,9 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/internal/integrationtest"
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/integrationtest"
+	"github.com/trypanic/go-sdk/v2/postgres"
 )
 
 func TestPostgresIntegration(t *testing.T) {

@@ -1,6 +1,6 @@
 package messaging
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // Message Queue Error Codes (RabbitMQ)

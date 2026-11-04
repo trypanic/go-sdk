@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestValidateDateRange_InvalidDates_ReturnsAppError(t *testing.T) {

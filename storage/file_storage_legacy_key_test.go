@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // TestFileStorageLegacyKeyOf125Bytes covers the R-134 review: earlier

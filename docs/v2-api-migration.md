@@ -1,7 +1,18 @@
 # v2 API migration
 
-The audit intentionally removes compatibility aliases. The module `/v2` suffix
-is applied in the separate dependency phase; the names below are already final.
+The audit intentionally removes compatibility aliases. The module is now
+`github.com/trypanic/go-sdk/v2`. Update the requirement with
+`go get github.com/trypanic/go-sdk/v2@latest` after the v2 release and rewrite
+all SDK imports, including test doubles and `logger/otlp`.
+
+| v1 import (historical) | v2 import |
+| --- | --- |
+| `github.com/trypanic/go-sdk/postgres` | `github.com/trypanic/go-sdk/v2/postgres` |
+| `github.com/trypanic/go-sdk/slices` | `github.com/trypanic/go-sdk/v2/batch` |
+
+The repository URL remains `https://github.com/trypanic/go-sdk`; `/v2` belongs
+to the Go module path. The SDK remains a single module; only the packages a
+binary imports are linked. The approved API names below are final.
 
 | Previous API | Replacement |
 | --- | --- |

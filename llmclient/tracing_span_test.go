@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // spanCapturingRequester records the span active when Do is called.

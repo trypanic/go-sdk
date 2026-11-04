@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
-	"github.com/trypanic/go-sdk/httprequest"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpclient"
+	"github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 type captureRequester struct {

@@ -3,7 +3,7 @@ package llmclient
 import (
 	"os"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Environment variables read by ConfigFromEnv.

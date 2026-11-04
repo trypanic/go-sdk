@@ -13,7 +13,7 @@ import (
 const maxCapturedPCs = 128
 
 // errorkitFuncPrefix is the fully qualified function-name prefix of this
-// package (for example "github.com/trypanic/go-sdk/errorkit."). Frames with
+// package (for example "github.com/trypanic/go-sdk/v2/errorkit."). Frames with
 // this prefix at the top of a captured stack are errorkit internals.
 var errorkitFuncPrefix = func() string {
 	pc, _, _, _ := runtime.Caller(0)

@@ -2,7 +2,7 @@
 
 Framework-free `Context` recorder backed by `net/http/httptest`.
 
-Import `github.com/trypanic/go-sdk/httpserver/httpservertest` in consumer tests. These helpers create
+Import `github.com/trypanic/go-sdk/v2/httpserver/httpservertest` in consumer tests. These helpers create
 no network connections and require no infrastructure. The external-package
 `*_test.go` files provide executable consumer examples.
 

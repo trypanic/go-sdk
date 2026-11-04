@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestDefaultRetryConfigSetInConstructor(t *testing.T) {

@@ -16,9 +16,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/internal/integrationtest"
-	"github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/integrationtest"
+	"github.com/trypanic/go-sdk/v2/mongo"
 )
 
 func TestMongoIntegration(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/postgres"
 )
 
 type item struct {

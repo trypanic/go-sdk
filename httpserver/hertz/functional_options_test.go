@@ -7,9 +7,9 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/common/ut"
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/httpserver/hertz"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver/hertz"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 func TestNewServerDefaultsAndExplicitLogger(t *testing.T) {

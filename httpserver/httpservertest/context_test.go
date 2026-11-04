@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/httpserver/httpservertest"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver/httpservertest"
 )
 
 func TestHandlerWithRecorder(t *testing.T) {

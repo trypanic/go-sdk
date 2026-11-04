@@ -76,3 +76,10 @@ also skips them before Docker access. To verify this guard, run
 and cleanup contexts; clients close before their containers. Keep Ryuk enabled
 for crash cleanup. To repeat the real suites with shuffled ordering, run
 `go test -race -tags integration -run Integration -count=2 -shuffle=on -timeout=10m ./postgres ./mongo ./messaging`.
+
+For a major module-path migration, `task release:check` resolves both the module
+path and version from the previous tag, preserving the cross-major API report.
+Use `task release:check RELEASE_VERSION=v2.0.0` to validate the proposed major
+against that baseline. Separately, `task release:check BASE=none RELEASE_VERSION=v2.0.0`
+validates the initial v2 release without an API comparison; it does not replace
+the historical comparison. Every release check requires a clean working tree.

@@ -14,7 +14,7 @@ String transformation utilities for normalizing identifiers and stripping Markdo
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/stringutils"
+import "github.com/trypanic/go-sdk/v2/stringutils"
 
 // Normalize a field name or category path
 key := stringutils.NormalizeText("Men's Clothing & Accessories")

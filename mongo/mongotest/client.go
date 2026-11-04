@@ -3,7 +3,7 @@ package mongotest
 import (
 	"context"
 
-	"github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/v2/mongo"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )

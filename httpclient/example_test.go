@@ -3,7 +3,7 @@ package httpclient_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/httpclient"
+	"github.com/trypanic/go-sdk/v2/httpclient"
 )
 
 func ExampleNewDefaultClient() {

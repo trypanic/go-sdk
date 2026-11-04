@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/messaging"
-	"github.com/trypanic/go-sdk/messaging/messagingtest"
+	"github.com/trypanic/go-sdk/v2/messaging"
+	"github.com/trypanic/go-sdk/v2/messaging/messagingtest"
 )
 
 func TestConsumerUsesFake(t *testing.T) {

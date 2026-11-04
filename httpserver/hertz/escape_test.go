@@ -7,8 +7,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/httpserver/hertz"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver/hertz"
 )
 
 var _ func(httpserver.ServerConfig) *hertz.Server = hertz.NewEngine

@@ -16,7 +16,7 @@ new import path avoids a collision with the Go standard library.
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/batch"
+import "github.com/trypanic/go-sdk/v2/batch"
 
 a := []string{"apple", "banana", "cherry"}
 b := []string{"banana", "date", "apple"}

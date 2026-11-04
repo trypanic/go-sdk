@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // tempFilePattern names the temp files used for atomic writes. They start

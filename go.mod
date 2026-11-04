@@ -1,4 +1,4 @@
-module github.com/trypanic/go-sdk
+module github.com/trypanic/go-sdk/v2
 
 go 1.26.1
 

@@ -16,7 +16,7 @@ JSON encoding helpers that disable HTML escaping, preventing `<`, `>`, and `&` f
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/marshal"
+import "github.com/trypanic/go-sdk/v2/marshal"
 
 type Payload struct {
     Query string `json:"query"`

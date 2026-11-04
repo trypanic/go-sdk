@@ -1,7 +1,7 @@
 # OTLP log export
 
 Package `otlp` owns the optional gRPC log exporter and JSON writer. Import
-`github.com/trypanic/go-sdk/logger/otlp` explicitly. Core `logger` has no
+`github.com/trypanic/go-sdk/v2/logger/otlp` explicitly. Core `logger` has no
 exporter dependency. The caller owns provider shutdown; writers do not close
 providers. Provider handles and writers are safe for concurrent use.
 

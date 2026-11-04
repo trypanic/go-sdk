@@ -17,7 +17,7 @@ Reusable field-level validation functions compatible with the `go-ozzo/ozzo-vali
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/validators"
+    "github.com/trypanic/go-sdk/v2/validators"
     validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
@@ -207,7 +207,7 @@ All functions are pure and stateless. The returned closure from `IsWithinRange` 
 |---|---|
 | `strings` | Whitespace trimming in `IsAlphanumericWithSpaces` |
 | `time` | Date parsing in `IsValidDatePointer` and `ValidateDateRange` |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
 
 Validation rejections use `errorkit.NewWithoutStack`: metadata, reasons, causes
 and error IDs remain available, but `Trace` is empty. Invalid validator
