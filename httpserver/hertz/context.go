@@ -18,20 +18,13 @@ import (
 )
 
 // hertzContext implements httpserver.HTTPContext over Hertz's RequestContext.
-// ctx is the request context the handler received; it carries the logger
-// and the active span used when an error reply is logged.
+// ctx is the request context the handler received (never nil: every
+// constructor copies the ctx Hertz passes in); it carries the logger and
+// the active span used when an error reply is logged.
 type hertzContext struct {
 	ctx        context.Context
 	requestCtx *app.RequestContext
 	replyOpts  httpserver.ReplyOptions
-}
-
-// context returns the request context, or Background when none was set.
-func (h *hertzContext) context() context.Context {
-	if h.ctx == nil {
-		return context.Background()
-	}
-	return h.ctx
 }
 
 func (h *hertzContext) Param(key string) string {
@@ -90,7 +83,7 @@ func (h *hertzContext) WithError(err error) httpserver.OptionReply {
 		if err == nil {
 			return
 		}
-		ctx := h.context()
+		ctx := h.ctx
 		logReplyError(ctx, err)
 		if r.TraceID == "" {
 			r.TraceID = logger.TraceIDFromCtx(ctx)
@@ -135,7 +128,7 @@ func (h *hertzContext) Reply(status int, options ...httpserver.OptionReply) {
 func (h *hertzContext) PrettyJSON(statusCode int, data any) {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		logReplyError(h.context(), errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		logReplyError(h.ctx, errorkit.NewError(errorkit.ERR_INTERNAL).With(
 			errorkit.WithReason("failed to encode JSON response"),
 			errorkit.WithWrapped(err),
 		))
