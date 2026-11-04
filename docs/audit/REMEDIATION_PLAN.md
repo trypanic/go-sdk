@@ -1421,108 +1421,108 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 
 | Item | Class | Cluster | Title | Approval | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
-| R-001 | approval | C1 | Client-safe error serialization in `errorkit` | PENDING | TODO | |
-| R-002 | approval | C2 | HTTP replies must not carry internal error text | PENDING | TODO | |
+| R-001 | approval | C1 | Client-safe error serialization in `errorkit` | APPROVED | TODO | |
+| R-002 | approval | C2 | HTTP replies must not carry internal error text | APPROVED | TODO | |
 | R-003 | auto | C3 | gRPC recovery returns a fixed message | — | TODO | |
-| R-004 | approval | C3 | `ToStatus` hides internal reasons | PENDING | TODO | |
+| R-004 | approval | C3 | `ToStatus` hides internal reasons | APPROVED | TODO | |
 | R-005 | auto | C4 | Postgres pool errors: wrap the cause, never the raw driver error | — | TODO | |
-| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | PENDING | TODO | |
+| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | APPROVED | TODO | |
 | R-007 | auto | C1 | Wider log redaction in `logger` | — | TODO | |
 | R-008 | auto | C2 | Single, wider sensitive-header list | — | TODO | |
-| R-009 | approval | C6 | `urlkit.BuildURL` treats `path` as a path | PENDING | TODO | |
-| R-010 | approval | C6 | `urlkit.JoinPath` dot segments and scheme | PENDING | TODO | |
+| R-009 | approval | C6 | `urlkit.BuildURL` treats `path` as a path | APPROVED | TODO | |
+| R-010 | approval | C6 | `urlkit.JoinPath` dot segments and scheme | APPROVED | TODO | |
 | R-011 | auto | C3 | gRPC transport credentials (auto part) | — | TODO | |
-| R-012 | approval | C3 | gRPC insecure default (approval part) | PENDING | TODO | |
-| R-013 | approval | C2 | Inbound audit middleware: implement or remove | PENDING | TODO | |
+| R-012 | approval | C3 | gRPC insecure default (approval part) | APPROVED | TODO | |
+| R-013 | approval | C2 | Inbound audit middleware: implement or remove | APPROVED | TODO | |
 | R-014 | auto | C2 | `MaxRetries < 1` must still send one request | — | TODO | |
 | R-015 | auto | C2 | Response decoding without panics | — | TODO | |
-| R-016 | approval | C2 | Idempotency-aware retries | PENDING | TODO | |
-| R-017 | approval | C2 | Hertz `Run()` returns bind errors | PENDING | TODO | |
-| R-018 | approval | C4 | Postgres error classifier | PENDING | TODO | |
-| R-019 | approval | C3 | gRPC code fallback from errorkit metadata | PENDING | TODO | |
-| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | PENDING | TODO | |
-| R-021 | approval | C3 | `ToStatus` maps context errors | PENDING | TODO | |
-| R-022 | approval | C5 | Reliable publishing | PENDING | TODO | |
+| R-016 | approval | C2 | Idempotency-aware retries | APPROVED | TODO | |
+| R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | TODO | |
+| R-018 | approval | C4 | Postgres error classifier | APPROVED | TODO | |
+| R-019 | approval | C3 | gRPC code fallback from errorkit metadata | APPROVED | TODO | |
+| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | TODO | |
+| R-021 | approval | C3 | `ToStatus` maps context errors | APPROVED | TODO | |
+| R-022 | approval | C5 | Reliable publishing | APPROVED | TODO | |
 | R-023 | auto | C5 | Shutdown requeues in-flight messages | — | TODO | |
 | R-024 | auto | C5 | Recover handler panics | — | TODO | |
 | R-025 | auto | C5 | Messaging error codes preserved | — | TODO | |
-| R-025b | approval | C5 | Specific AMQP error codes and reconnect stop | PENDING | TODO | |
-| R-026 | approval | C5 | Topology validation and backoff guards | PENDING | TODO | |
+| R-025b | approval | C5 | Specific AMQP error codes and reconnect stop | APPROVED | TODO | |
+| R-026 | approval | C5 | Topology validation and backoff guards | APPROVED | TODO | |
 | R-027 | auto | C4 | Mongo decode errors per README (auto part) | — | TODO | |
-| R-028 | approval | C4 | Mongo error classification (approval part) | PENDING | TODO | |
-| R-029 | approval | C4 | `FileStorage.Clear` deletes only owned files | PENDING | TODO | |
+| R-028 | approval | C4 | Mongo error classification (approval part) | APPROVED | TODO | |
+| R-029 | approval | C4 | `FileStorage.Clear` deletes only owned files | APPROVED | TODO | |
 | R-030 | auto | C1 | `logger` handles wrapped and nil errors; `RecordError(nil)` | — | TODO | |
 | R-031 | auto | C4 | `FileStorage.Append(nil)` returns an error | — | TODO | |
-| R-031b | approval | C4 | Specific storage error codes | PENDING | TODO | |
-| R-032 | approval | C2 | `httprequest` error classification | PENDING | TODO | |
+| R-031b | approval | C4 | Specific storage error codes | APPROVED | TODO | |
+| R-032 | approval | C2 | `httprequest` error classification | APPROVED | TODO | |
 | R-033 | auto | C6 | `RemoveMarkdownCodeBlock` correctness | — | TODO | |
 | R-034 | auto | C6 | `NewExponentialBackoff` resets before use | — | TODO | |
-| R-035 | approval | C6 | `algorithms` zero config and hidden `MaxElapsedTime` | PENDING | TODO | |
+| R-035 | approval | C6 | `algorithms` zero config and hidden `MaxElapsedTime` | APPROVED | TODO | |
 | R-036 | auto | C6 | `slices.Chunk` clips capacity | — | TODO | |
-| R-037 | approval | C1 | OTLP timestamp precision | PENDING | TODO | |
-| R-038 | approval | C1 | `DetectEnv` defaults and matching | PENDING | TODO | |
+| R-037 | approval | C1 | OTLP timestamp precision | APPROVED | TODO | |
+| R-038 | approval | C1 | `DetectEnv` defaults and matching | APPROVED | TODO | |
 | R-039 | auto | C1 | OTLP log provider configuration and errors | — | TODO | |
 | R-040 | auto | C1 | `errorkit` low-severity correctness | — | TODO | |
 | R-041 | auto | C4 | Postgres DSN normalization | — | TODO | |
 | R-042 | auto | C4 | `WrapWithInstrumenter(nil)` disables tracing | — | TODO | |
-| R-043 | approval | C2 | `Reply` nil data with `omitempty` | PENDING | TODO | |
+| R-043 | approval | C2 | `Reply` nil data with `omitempty` | APPROVED | TODO | |
 | R-044 | auto | C2 | Configurable `/health` path | — | TODO | |
 | R-045 | auto | C6 | Utility low-severity correctness | — | TODO | |
-| R-046 | approval | C6 | `validators` consistency | PENDING | TODO | |
+| R-046 | approval | C6 | `validators` consistency | APPROVED | TODO | |
 | R-047 | auto | C2 | LLM API key masked when printed | — | TODO | |
-| R-047b | approval | C2 | LLM endpoint and key validation | PENDING | TODO | |
+| R-047b | approval | C2 | LLM endpoint and key validation | APPROVED | TODO | |
 | R-048 | auto | C2 | `llmclient` `*FromEnv` constructor | — | TODO | |
-| R-049 | approval | C2 | Response size limits | PENDING | TODO | |
+| R-049 | approval | C2 | Response size limits | APPROVED | TODO | |
 | R-050 | auto | C1 | `logger.New` stops mutating zerolog globals | — | TODO | |
-| R-051 | approval | C1 | `errorkit` globals behind atomics | PENDING | TODO | |
+| R-051 | approval | C1 | `errorkit` globals behind atomics | APPROVED | TODO | |
 | R-052 | auto | C1 | `OverrideMetadata` without lock re-entry | — | TODO | |
 | R-053 | auto | C1 | `InitTracer` synchronization | — | TODO | |
 | R-054 | auto | C4 | Safe `FileStorage` writes | — | TODO | |
-| R-055 | approval | C4 | Storage file permissions | PENDING | TODO | |
+| R-055 | approval | C4 | Storage file permissions | APPROVED | TODO | |
 | R-056 | auto | C2 | Hertz `Shutdown(ctx)` honors the context | — | TODO | |
-| R-057 | approval | C2 | `EnableRecovery` controls recovery | PENDING | TODO | |
-| R-058 | approval | C2 | End-to-end bound on LLM calls | PENDING | TODO | |
+| R-057 | approval | C2 | `EnableRecovery` controls recovery | APPROVED | TODO | |
+| R-058 | approval | C2 | End-to-end bound on LLM calls | APPROVED | TODO | |
 | R-059 | auto | C3 | gRPC `MaxConcurrentStreams` option | — | TODO | |
 | R-060 | auto | C3 | Recovery outermost with raw options | — | TODO | |
 | R-061 | auto | C3 | gRPC client default timeout | — | TODO | |
-| R-062 | approval | C5 | Safe default prefetch | PENDING | TODO | |
+| R-062 | approval | C5 | Safe default prefetch | APPROVED | TODO | |
 | R-063 | auto | C5 | Ack/Nack failures visible | — | TODO | |
 | R-064 | auto | C5 | `Publish` honors ctx; no dial under the mutex | — | TODO | |
-| R-065 | approval | C5 | Terminal `Close` | PENDING | TODO | |
-| R-066 | approval | C5 | Per-key publish retry, single retry layer | PENDING | TODO | |
-| R-067 | approval | X (post-merge) | Cancellable network constructors | PENDING | TODO | |
-| R-068 | approval | C4 | Mongo option precedence | PENDING | TODO | |
+| R-065 | approval | C5 | Terminal `Close` | APPROVED | TODO | |
+| R-066 | approval | C5 | Per-key publish retry, single retry layer | APPROVED | TODO | |
+| R-067 | approval | X (post-merge) | Cancellable network constructors | APPROVED | TODO | |
+| R-068 | approval | C4 | Mongo option precedence | APPROVED | TODO | |
 | R-069 | auto | C4 | Mongo cursor spans and ping budget | — | TODO | |
 | R-070 | auto | C5 | AMQP connection options | — | TODO | |
 | R-071 | auto | C5 | Checked `Close` errors in messaging | — | TODO | |
-| R-072 | approval | C2 | Jittered backoff and `Retry-After` | PENDING | TODO | |
+| R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | TODO | |
 | R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | TODO | |
-| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | PENDING | TODO | |
-| R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | PENDING | TODO | |
-| R-083 | approval | X (post-merge) | One tracing injection story | PENDING | TODO | |
+| R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | TODO | |
+| R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | TODO | |
+| R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | TODO | |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | TODO | |
-| R-085 | approval | C2 (policy text in X) | No log-and-return in library code | PENDING | TODO | |
-| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | PENDING | TODO | |
-| R-087 | approval | X (post-merge) | Adapter escape hatches | PENDING | TODO | |
+| R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
+| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | TODO | |
+| R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | TODO | |
 | R-088 | auto | X (post-merge) | Hertz functional options | — | TODO | |
-| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | PENDING | TODO | |
-| R-090 | approval | X (post-merge) | One internal backoff implementation | PENDING | TODO | |
-| R-091 | approval | X (post-merge) | Published test doubles | PENDING | TODO | |
+| R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | TODO | |
+| R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | TODO | |
+| R-091 | approval | X (post-merge) | Published test doubles | APPROVED | TODO | |
 | R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | TODO | |
-| R-093 | approval | X | Package identifiers (v2) | PENDING | TODO | |
-| R-094 | approval | X | Naming cleanup (v2) | PENDING | TODO | |
+| R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
+| R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | TODO | |
 | R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | TODO | |
 | R-096 | auto | C3 | gRPC `ListenAndServe` | — | TODO | |
-| R-097 | approval | C4 | Mongo result API | PENDING | TODO | |
+| R-097 | approval | C4 | Mongo result API | APPROVED | TODO | |
 | R-100 | auto | C1 | Replace deprecated `otel/log/global` (gate is red) | — | TODO | |
-| R-101 | approval | C1 | Error-chain helpers | PENDING | TODO | |
+| R-101 | approval | C1 | Error-chain helpers | APPROVED | TODO | |
 | R-102 | auto | C1, C2, C3, C4, C5, C6 (each worker does its own part) | Modernization sweeps (Go 1.26 only, after fixes) | — | TODO | |
-| R-103 | approval | C6 | `slices` package details | PENDING | TODO | |
-| R-104 | approval | C6 | `envs` API | PENDING | TODO | |
-| R-105 | approval | C5 | Implicit `RABBITMQ_TOPOLOGY_FILE` read | PENDING | TODO | |
-| R-106 | approval | C5 | Messaging span conventions | PENDING | TODO | |
+| R-103 | approval | C6 | `slices` package details | APPROVED | TODO | |
+| R-104 | approval | C6 | `envs` API | APPROVED | TODO | |
+| R-105 | approval | C5 | Implicit `RABBITMQ_TOPOLOGY_FILE` read | APPROVED | TODO | |
+| R-106 | approval | C5 | Messaging span conventions | APPROVED | TODO | |
 | R-112 | auto | X (post-merge) | Tracing wrappers record failures (auto part) | — | TODO | |
-| R-113 | approval | X (post-merge) | Bounded span names (approval part) | PENDING | TODO | |
+| R-113 | approval | X (post-merge) | Bounded span names (approval part) | APPROVED | TODO | |
 | R-114 | auto | C3 | gRPC public-endpoint tracing option | — | TODO | |
 | R-115 | auto | C3 | gRPC recovery `ErrorInfo` and domain option | — | TODO | |
 | R-120 | auto | C1 | `errorkit`/`logger`/`telemetry` tests | — | TODO | |
@@ -1530,38 +1530,39 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-122 | auto | C2 | Hertz adapter and `llmclient` tests | — | TODO | |
 | R-123 | auto | C3 | gRPC tests and hygiene | — | TODO | |
 | R-124 | auto | C4 | Postgres, Mongo and storage unit tests | — | TODO | |
-| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | PENDING | TODO | |
+| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | APPROVED | TODO | |
 | R-126 | auto | C5 | Messaging unit tests | — | TODO | |
 | R-127 | auto | C6 | Utility package tests | — | TODO | |
 | R-130 | auto | C1 | Cheap redaction path | — | TODO | |
 | R-131 | auto | C1 | Stack capture with `runtime.Callers` | — | TODO | |
-| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | PENDING | TODO | |
+| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | TODO | |
 | R-133 | auto | C2 | No double buffering of decoded responses | — | TODO | |
-| R-134 | approval | C4 | `FileStorage` append cost | PENDING | TODO | |
+| R-134 | approval | C4 | `FileStorage` append cost | APPROVED | TODO | |
 | R-135 | auto | C6 | `NormalizeText` without per-call regexp | — | TODO | |
-| R-140 | approval | X | CI on push and pull request | PENDING | TODO | |
-| R-141 | approval | X | Static-analysis gate runs from a fresh clone | PENDING | TODO | |
-| R-142 | approval | X | Runner fails when its tools fail | PENDING | TODO | |
-| R-143 | approval | X | Release verification before publishing | PENDING | TODO | |
-| R-144 | approval | X | Hook coverage and semgrep test scope | PENDING | TODO | |
-| R-145 | approval | X | Toolchain policy (docs + CI part) | PENDING | TODO | |
-| R-146 | approval | X | Reproducible gate tools | PENDING | TODO | |
-| R-147 | approval | X | Dependabot | PENDING | TODO | |
-| R-148 | approval | X | Dead tooling configuration | PENDING | TODO | |
+| R-140 | approval | X | CI on push and pull request | APPROVED | TODO | |
+| R-141 | approval | X | Static-analysis gate runs from a fresh clone | APPROVED | TODO | |
+| R-142 | approval | X | Runner fails when its tools fail | APPROVED | TODO | |
+| R-143 | approval | X | Release verification before publishing | APPROVED | TODO | |
+| R-144 | approval | X | Hook coverage and semgrep test scope | APPROVED | TODO | |
+| R-145 | approval | X | Toolchain policy (docs + CI part) | APPROVED | TODO | |
+| R-146 | approval | X | Reproducible gate tools | APPROVED | TODO | |
+| R-147 | approval | X | Dependabot | APPROVED | TODO | |
+| R-148 | approval | X | Dead tooling configuration | APPROVED | TODO | |
 | R-149 | auto | X | Ignore `.moon/` | — | TODO | |
-| R-150 | approval | X | Local gates match CI | PENDING | TODO | |
-| R-151 | approval | X | SECURITY.md accuracy and reporting policy | PENDING | TODO | |
+| R-150 | approval | X | Local gates match CI | APPROVED | TODO | |
+| R-151 | approval | X | SECURITY.md accuracy and reporting policy | APPROVED | TODO | |
 | R-152 | approval | X | LICENSE | PENDING | TODO | |
-| R-153 | approval | X (post-merge) | Root documentation corrections | PENDING | TODO | |
+| R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | TODO | |
 | R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | TODO | |
 | R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | TODO | |
-| R-156 | approval | X | Release notes wording and consumer README | PENDING | TODO | |
-| R-157 | approval | X | Release provenance and tidy checks | PENDING | TODO | |
+| R-156 | approval | X | Release notes wording and consumer README | APPROVED | TODO | |
+| R-157 | approval | X | Release provenance and tidy checks | APPROVED | TODO | |
 | R-158 | auto | X | `deps:outdated` sees all requirements | — | TODO | |
-| R-159 | approval | X | Hertz OTel contrib module (deferred) | PENDING | TODO | |
-| R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | PENDING | TODO | |
+| R-159 | approval | X | Hertz OTel contrib module (deferred) | DEFERRED | TODO | |
+| R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | APPROVED | TODO | |
+| R-160 | approval | R-DEPS | Module path `github.com/trypanic/go-sdk/v2` | APPROVED | TODO | |
 
-Totals: 139 items — 63 `auto`, 76 `approval`.
+Totals: 140 items — 63 `auto`, 77 `approval` (G1: all approved except R-152 PENDING, R-159 DEFERRED).
 
 ## 10. Coverage of findings
 
@@ -1750,6 +1751,63 @@ All 181 raw finding IDs (170 unique + 11 merged duplicates) map to at least one 
 | X3-009 | R-159 |
 | X3-010 | R-151, R-DEPS |
 | X3-011 | R-158 |
+## 12. G1 decision and v2 scope (2026-11-04)
+
+The owner approved, in the session chat on 2026-11-04, **every `approval`
+item, including breaking changes**; the next release is **2.0.0**.
+Consequences recorded here so P4 workers apply them consistently:
+
+- **Approval column.** All `approval` items are `APPROVED`, except R-152
+  (licence: the owner must name the licence; `PENDING`) and R-159
+  (deferred, not triggered; `DEFERRED`).
+- **Go semantic import versioning.** A 2.0.0 tag requires the module path
+  `github.com/trypanic/go-sdk/v2`. New item **R-160** (cluster R-DEPS, last)
+  changes `go.mod` and every internal import. Commits that break the API
+  carry a `!` and a `BREAKING CHANGE:` footer so release-please proposes
+  2.0.0; `CHANGELOG.md` and `.release-please-manifest.json` stay untouched
+  (§3).
+- **"v2" parts of recommendations become in scope** (where a finding said
+  "v1: deprecate/add; v2: change"), applied instead of the v1 workaround:
+  - R-012: nil gRPC credentials are an error unless `WithInsecure()`.
+  - R-051: the mutable `errorkit` globals become unexported (setters and
+    getters remain); no `Deprecated:` shims.
+  - R-081: OTLP setup lives only in `logger/otlp`; the `logger` forwarders
+    are removed, so `logger` no longer links gRPC (full X1-001/X3-005 fix).
+  - R-086/R-087: adapters return concrete types; router interfaces gain the
+    missing methods (PATCH/HEAD/OPTIONS/`Handle`) directly.
+  - R-089: `algorithms` returns the SDK-owned `Backoff` interface;
+    `cenkalti/backoff/v4` leaves the public API.
+  - R-093: package identifiers match directories (`postgres` → `package
+    postgres`, `mongo` → `package mongo`); `slices` is renamed to a
+    non-generic, non-colliding name chosen by the worker (not `*util`), or
+    folded into stdlib `slices` where it duplicates it.
+  - R-094: stuttering names and redundant constructors are renamed/removed;
+    colour constants unexported.
+  - R-105: the implicit `RABBITMQ_TOPOLOGY_FILE` fallback is removed in
+    favour of `NewPubSubFromEnv`.
+- **Alternatives chosen** where an item offered options:
+  R-013 implement redacted inbound audit logging; R-082 keep the single
+  module and document the choice (recommendation); R-104 add `Load[T]`;
+  R-141 option (b), commit the runner under `scripts/`; R-142 fix that
+  committed runner; R-148 wire sentrux into `task check` if it runs on the
+  current tree, otherwise remove it (worker reports which); R-151 GitHub
+  private vulnerability reporting; R-145 supported toolchains = latest
+  1.26.x (≥ 1.26.10) and 1.27.x.
+- **Placement.** R-093 and R-094 move to P4.XP (they edit every cluster).
+  Order inside P4.XP: R-092, R-089, R-080, R-081, R-083, R-067, R-086,
+  R-087, R-088, R-090, R-112, R-113, R-020, R-091, R-132, R-093, R-094,
+  R-155, R-153 (last, sole AGENTS.md editor).
+
+### R-160 — Module path `github.com/trypanic/go-sdk/v2`
+- Findings: (v2 consequence of the G1 decision; no finding)
+- Solution: `module github.com/trypanic/go-sdk/v2`; rewrite every internal
+  import and README/AGENTS/llms.txt import path; `BREAKING CHANGE:` footer.
+- Files: go.mod, all `*.go`, all docs · Tests: §6 V2–V8; `go list ./...`
+  shows `/v2`
+- Regression risk: low (mechanical) · Compatibility: **breaking** (new
+  import path) · Effort: M · Depends on: R-DEPS · Cluster: R-DEPS ·
+  Class: **approval**
+
 ## 11. Recommended order inside P4
 
 1. **C1 first item: R-100** (static-analysis gate green again), then R-050.
