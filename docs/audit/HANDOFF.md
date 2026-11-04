@@ -7,6 +7,9 @@ status.
 
 ## 0. Who continues and how to find this file
 
+- **Step-by-step task file for the next orchestrator (with subagents):**
+  [`tasks/continue-audit.md`](../../tasks/continue-audit.md).
+
 - The work continues with **GPT-6.1 Astra** and possibly **Kimi K3.1 Pro**
   (not Claude). Model and effort per role: `audit.md` §8.3 (columns for both
   were added; the Claude columns record how sessions 1 ran).
