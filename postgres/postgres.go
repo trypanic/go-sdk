@@ -11,8 +11,13 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// Config configures NewPostgresClient. Zero pool-tuning fields keep the pgx
+// defaults.
 type Config struct {
-	DSN             string        // Example: database://user:pass@localhost:5432/mydb
+	// DSN is a postgres:// or postgresql:// URL (for example
+	// "postgres://user:pass@localhost:5432/mydb") or a key/value string.
+	// Required.
+	DSN             string
 	MaxConnLifetime time.Duration // e.g. time.Hour
 	MaxConnIdleTime time.Duration // e.g. time.Minute
 	MaxConns        int32

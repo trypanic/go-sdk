@@ -7,12 +7,15 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+// ClientPort is a connected MongoDB client bound to one database.
 type ClientPort interface {
 	Collection(name string) Collection
 	Ping(ctx context.Context) error
 	Close(ctx context.Context) error
 }
 
+// Collection mirrors the *mongo.Collection methods the SDK supports. Errors
+// are classified by WrapOperationError.
 type Collection interface {
 	InsertOne(ctx context.Context, doc any, opts ...options.Lister[options.InsertOneOptions]) (InsertOneResult, error)
 	InsertMany(ctx context.Context, docs any, opts ...options.Lister[options.InsertManyOptions]) (InsertManyResult, error)
@@ -35,10 +38,12 @@ type Collection interface {
 	DeleteOne(ctx context.Context, filter any, opts ...options.Lister[options.DeleteOneOptions]) (DeleteResult, error)
 }
 
+// InsertOneResult reports the _id of the inserted document.
 type InsertOneResult interface {
 	GetInsertedID() any
 }
 
+// InsertManyResult reports the _id of each inserted document, in order.
 type InsertManyResult interface {
 	GetInsertedIDs() []any
 }
@@ -68,6 +73,9 @@ type Cursor interface {
 	Close(ctx context.Context) error
 }
 
+// SingleResult is the document returned by FindOne. Decode reports the
+// operation error (mongo.ErrNoDocuments is ERR_DB_MONGO_NOT_FOUND) or
+// ERR_DB_MONGO_DECODE_FAILED.
 type SingleResult interface {
 	Decode(v any) error
 }
@@ -84,11 +92,13 @@ type BulkWriteResult interface {
 	GetUpsertedIDs() map[int64]any
 }
 
+// UpdateResult reports the counts of an UpdateOne or ReplaceOne operation.
 type UpdateResult interface {
 	GetMatchedCount() int64
 	GetModifiedCount() int64
 }
 
+// DeleteResult reports the number of deleted documents.
 type DeleteResult interface {
 	GetDeletedCount() int64
 }

@@ -53,6 +53,9 @@ _ = ms.Clear()                  // wipes everything
 All methods are guarded by `sync.RWMutex`. Read methods (`Get`, `List`)
 allow concurrent readers; write methods take the exclusive lock.
 
+Always create the store with `NewMemory`: the zero value `MemoryStorage[T]{}`
+has nil maps and panics on the first `Put` or `Append`.
+
 ---
 
 ## FileStorage

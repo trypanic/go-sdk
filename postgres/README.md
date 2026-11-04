@@ -61,7 +61,7 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/database"
+    "github.com/trypanic/go-sdk/postgres" // package identifier: database
 )
 
 pool, err := database.NewPostgresClient(database.Config{
@@ -206,7 +206,7 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 | Constructor | Tracing |
 |---|---|
 | `NewStoredProcedure[T](pool)` | Auto-traced via the global OTel tracer (compatibility) |
-| `WrapWithTracing[T](sp)` | Same — explicit wrap |
+| `WrapWithTracing[T](sp)` | Same — explicit wrap of an untraced `StoredProcedure[T]{Pool: pool}`; do not wrap the result of `NewStoredProcedure` again (two spans per call) |
 | `WrapWithInstrumenter[T](sp, instrumenter)` | Wraps with an explicit `*telemetry.Instrumenter`; pass `nil` to disable tracing entirely |
 
 ### Method Reference

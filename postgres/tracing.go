@@ -21,11 +21,14 @@ var reProcName = regexp.MustCompile(`(?i)\bFROM\s+(\w+)\s*\(`)
 // produced by the otelpgx tracer, making the trace tree immediately readable in
 // observability tools without any instrumentation code in individual repositories.
 //
-// Usage (in bootstrap):
+// Usage (in bootstrap), on an untraced StoredProcedure value:
 //
 //	jobs.NewRepository(
-//	    database.WrapWithTracing(database.NewStoredProcedure[domain.JobEntity](pool)),
+//	    database.WrapWithTracing[domain.JobEntity](database.StoredProcedure[domain.JobEntity]{Pool: pool}),
 //	)
+//
+// NewStoredProcedure already applies this wrapper; wrapping its result again
+// opens two spans with the same name per call.
 func WrapWithTracing[T any](inner StoredProcedurer[T]) StoredProcedurer[T] {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }

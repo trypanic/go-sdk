@@ -24,9 +24,12 @@ import (
 // making the trace tree immediately readable in observability tools without any
 // instrumentation code in individual repositories.
 //
-// Usage (in bootstrap):
+// Usage (in bootstrap), on a client from NewWithoutTracing:
 //
 //	repo.NewRepository(mongodb.WrapWithTracing(mongoClient))
+//
+// New already applies this wrapper; wrapping its result again opens two
+// spans per operation.
 func WrapWithTracing(inner ClientPort) ClientPort {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }

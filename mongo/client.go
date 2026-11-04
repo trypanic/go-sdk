@@ -12,8 +12,14 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
+// Config configures New, NewWithoutTracing and NewWithInstrumenter. A zero
+// field means "not set": the option then comes from the URI, else from the
+// SDK default (see clientOptions and the README "Defaults").
 type Config struct {
-	URI                    string
+	// URI is the connection string; a missing mongodb:// scheme, a leading
+	// '=' and surrounding quotes are corrected.
+	URI string
+	// Database names the database that Collection uses.
 	Database               string
 	ConnectTimeout         time.Duration
 	ServerSelectionTimeout time.Duration
@@ -21,13 +27,13 @@ type Config struct {
 	MinPoolSize            uint64
 	MaxConnIdleTime        time.Duration
 	// RetryWrites controls the MongoDB driver's retryWrites option. nil means
-	// "use the SDK default" (true). Pass a pointer to false to explicitly
-	// disable retry writes; pass a pointer to true to be explicit. The previous
-	// bool default was ambiguous because false could mean "I want it off" or
-	// "I never set it".
+	// "not set": retryWrites from the URI, else the SDK default (true). Pass a
+	// pointer to false to disable retry writes, or to true to force them on.
 	RetryWrites *bool
 }
 
+// Client is the untraced ClientPort returned by NewWithoutTracing (and
+// wrapped by New). It is safe for concurrent use.
 type Client struct {
 	client   *mongo.Client
 	database *mongo.Database

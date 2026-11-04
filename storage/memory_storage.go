@@ -8,6 +8,9 @@ import (
 // MemoryStorage is a generic, thread-safe in-memory store. It implements
 // both KVStorager (Put/Get with overwrite semantics) and AppendLogStorager
 // (Append/List with append semantics) over disjoint internal maps.
+//
+// Create it with NewMemory: the zero value has nil maps and panics on the
+// first Put or Append.
 type MemoryStorage[T any] struct {
 	single map[string]T
 	list   map[string][]T

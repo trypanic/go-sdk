@@ -50,7 +50,7 @@ import (
     "context"
     "log"
 
-    "github.com/trypanic/go-sdk/mongodb"
+    "github.com/trypanic/go-sdk/mongo" // package identifier: mongodb
 )
 
 client, err := mongodb.New(context.Background(), mongodb.Config{
@@ -154,7 +154,7 @@ The package itself reads no environment variables — callers wire env loading.
 | `New(ctx, cfg)` | Auto-traced via the global OTel tracer (compatibility) |
 | `NewWithoutTracing(ctx, cfg)` | No tracing wrapper |
 | `NewWithInstrumenter(ctx, cfg, instrumenter)` | Explicit instrumenter; pass `nil` to disable |
-| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` |
+| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` (from `NewWithoutTracing`; `New` already wraps) |
 
 Startup behavior is identical across constructors:
 

@@ -9,6 +9,9 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// StoredProcedurer runs a stored-procedure call and scans the result into T.
+// The JSON variants marshal jsonArg and pass it as the last positional
+// parameter ($N+1, after args).
 type StoredProcedurer[T any] interface {
 	QueryRow(ctx context.Context, query string, args ...any) (T, error)
 	Query(ctx context.Context, query string, args ...any) ([]T, error)
@@ -16,14 +19,23 @@ type StoredProcedurer[T any] interface {
 	QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) ([]T, error)
 }
 
+// StoredProcedure is the untraced StoredProcedurer. Structs are scanned with
+// pgx.RowToStructByNameLax (by column name), other types with pgx.RowTo. It
+// holds no state besides Pool and is safe for concurrent use.
 type StoredProcedure[T any] struct {
 	Pool Querier
 }
 
+// NewStoredProcedure returns a StoredProcedure on pool wrapped with
+// WrapWithTracing, so every call opens a span with the global tracer. Do not
+// wrap the result again; use WrapWithInstrumenter on a StoredProcedure value
+// to choose the tracer or disable tracing.
 func NewStoredProcedure[T any](pool Querier) StoredProcedurer[T] {
 	return WrapWithTracing(StoredProcedure[T]{Pool: pool})
 }
 
+// QueryRow runs query and scans the single row it returns. No row is
+// ERR_DB_POSTGRES_NOT_FOUND.
 func (s StoredProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (
 	T,
 	error,
@@ -43,6 +55,7 @@ func (s StoredProcedure[T]) QueryRow(ctx context.Context, query string, args ...
 	return result, nil
 }
 
+// Query runs query and scans every row it returns.
 func (s StoredProcedure[T]) Query(ctx context.Context, query string, args ...any) (
 	[]T,
 	error,
@@ -59,6 +72,8 @@ func (s StoredProcedure[T]) Query(ctx context.Context, query string, args ...any
 	return results, nil
 }
 
+// QueryRowJSON is QueryRow with jsonArg marshaled to JSON and appended as
+// the last positional parameter.
 func (s StoredProcedure[T]) QueryRowJSON(
 	ctx context.Context,
 	query string,
@@ -73,6 +88,8 @@ func (s StoredProcedure[T]) QueryRowJSON(
 	return s.QueryRow(ctx, query, queryArgs...)
 }
 
+// QueryJSON is Query with jsonArg marshaled to JSON and appended as the last
+// positional parameter.
 func (s StoredProcedure[T]) QueryJSON(
 	ctx context.Context,
 	query string,
