@@ -1509,8 +1509,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | IN_REVIEW | `9c5f525` |
 | R-091 | approval | X (post-merge) | Published test doubles | APPROVED | IN_REVIEW | `f9ca2e7` |
 | R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | IN_REVIEW | `0eb616c` |
-| R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
-| R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | TODO | |
+| R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | IN_REVIEW | `ce3ebe4` |
+| R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | IN_REVIEW | `0a43004` |
 | R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | DONE | `eda540b` |
 | R-096 | auto | C3 | gRPC `ListenAndServe` | — | DONE | `f6c5e5f` |
 | R-097 | approval | C4 | Mongo result API | APPROVED | DONE | `0fad067` |
