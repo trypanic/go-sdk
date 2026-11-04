@@ -21,6 +21,9 @@ vars:
   PRECOMMIT_VERSION: 4.7.0
   SEMGREP_VERSION: 1.95.0
   GITCLIFF_VERSION: 2.14.2
+  # Same versions as .github/workflows/ci.yml (keep in sync).
+  GOVULNCHECK_VERSION: v1.9.0
+  GOLANGCI_LINT_VERSION: v2.15.0
   # Top-level SDK packages (first path segment of every package in the module).
   ALL_PACKAGES:
     sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
@@ -120,11 +123,37 @@ tasks:
     cmds:
       - go test -short ./{{.PACKAGE}}/...
 
+  test:race:
+    desc: Build, vet and run the race-enabled, shuffled unit tests on the whole module (CI job "test")
+    cmds:
+      - go build ./...
+      - go vet ./...
+      - go test -race -shuffle=on -short ./...
+
+  vuln:
+    desc: Scan reachable vulnerabilities with the pinned govulncheck (CI job "vuln"; covers the active toolchain only)
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+
+  tidy:check:
+    desc: Fail if go.mod/go.sum are not tidy or the module cache does not match go.sum (CI job "tidy"; read-only)
+    cmds:
+      - go mod tidy -diff
+      - go mod verify
+
+  lint:
+    desc: Run golangci-lint with its default linters (informational; not part of check or CI, no config committed)
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run ./...
+
   check:
-    desc: Run the full local gate (unit tests, static analysis, pre-commit hooks)
+    desc: Run the full local gate, the same commands as CI (unit + race tests, static analysis, govulncheck, tidy, pre-commit hooks)
     cmds:
       - task: test
+      - task: test:race
       - task: staticanalysis
+      - task: vuln
+      - task: tidy:check
       - task: precommit:run
 
   # ----------------------------------------------------------------- release

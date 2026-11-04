@@ -123,8 +123,16 @@ task defined in [`Taskfile.yml`](./Taskfile.yml).
 task staticanalysis        # full repo (vet + staticcheck + semgrep)
 task precommit:run         # all pre-commit hooks across the tree
 task test                  # unit tests per package, in parallel, no external deps
-task check                 # all of the above
+task test:race             # go build + go vet + race-enabled, shuffled tests (CI "test")
+task vuln                  # govulncheck, pinned (CI "vuln"; active toolchain only)
+task tidy:check            # go mod tidy -diff + go mod verify (CI "tidy")
+task check                 # all of the above: the same commands as CI
+task lint                  # golangci-lint, default linters (informational, not in check)
 ```
+
+`task check` covers every blocking CI job except the toolchain matrix: it runs
+with the active Go only (`task tools:check` confirms it is the pinned one).
+`task release:check` (gorelease) stays separate because it needs a clean tree.
 
 ## Updating dependencies
 
