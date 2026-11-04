@@ -1,6 +1,9 @@
 package telemetry
 
 import (
+	"errors"
+
+	"github.com/trypanic/go-sdk/errorkit"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -61,4 +64,26 @@ func SetAttrInt64(span Span, key string, value int64) {
 // SetAttrStringSlice sets a string slice attribute on an existing span.
 func SetAttrStringSlice(span Span, key string, values []string) {
 	span.SetAttributes(attribute.StringSlice(key, values))
+}
+
+// End records a failure and ends span. Error events contain the registered error
+// description, never wrapped diagnostic text, payloads or stack traces.
+// Classified failures also carry error.code and error.retriable attributes.
+func End(span Span, err error) {
+	if span == nil {
+		return
+	}
+	defer span.End()
+	if err == nil {
+		return
+	}
+	message := "operation failed"
+	if appErr, ok := errorkit.As(err); ok {
+		if appErr.Metadata.Description != "" {
+			message = appErr.Metadata.Description
+		}
+		span.SetAttributes(attribute.String("error.code", string(appErr.Code())), attribute.Bool("error.retriable", appErr.Metadata.Retriable))
+	}
+	span.RecordError(errors.New(message))
+	span.SetStatus(codes.Error, message)
 }

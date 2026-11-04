@@ -3,13 +3,13 @@ package httprequest
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"reflect"
 	"time"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
 	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
@@ -34,9 +34,9 @@ type RequestConfig struct {
 	Headers     map[string]string
 }
 
-// HTTPRequester sends one logical request (with retries) and decodes the
+// Requester sends one logical request (with retries) and decodes the
 // response into out. Accept it in constructors so tests can pass a fake.
-type HTTPRequester interface {
+type Requester interface {
 	Do(ctx context.Context, config RequestConfig, out any) error
 }
 
@@ -82,7 +82,7 @@ func rawBodyRedactor(b []byte) []byte { return b }
 // redactorNeedsContent reports whether the configured redactor looks at the
 // body bytes. DefaultBodyRedactor only needs to know whether the body is
 // empty, so the response body is not copied for it.
-func (h *HTTPRequest) redactorNeedsContent() bool {
+func (h *Request) redactorNeedsContent() bool {
 	if h.redactor == nil {
 		return false
 	}
@@ -106,8 +106,9 @@ func auditBody(buf *bytes.Buffer, read int64) []byte {
 	return nil
 }
 
-// HTTPRequest implements the HTTPRequester interface.
-type HTTPRequest struct {
+// Request implements the Requester interface.
+type Request struct {
+	instrumenter  *telemetry.Instrumenter
 	client        *http.Client
 	retryConfig   RetryConfig
 	auditLog      bool
@@ -118,30 +119,30 @@ type HTTPRequest struct {
 	maxResponseBytes int64
 }
 
-// Option configures an HTTPRequest at construction time.
-type Option func(*HTTPRequest)
+// Option configures an Request at construction time.
+type Option func(*Request)
 
 // WithRetryConfig overrides the default retry configuration.
 func WithRetryConfig(rc RetryConfig) Option {
-	return func(h *HTTPRequest) { h.retryConfig = normalizeRetryConfig(rc) }
+	return func(h *Request) { h.retryConfig = normalizeRetryConfig(rc) }
 }
 
 // WithAuditLog enables structured audit log lines per outbound HTTP call.
 // Bodies in audit log entries always pass through the configured redactor.
 func WithAuditLog() Option {
-	return func(h *HTTPRequest) { h.auditLog = true }
+	return func(h *Request) { h.auditLog = true }
 }
 
 // WithBodyCapture includes request and response bodies (after redaction) in
 // the payload of structured errors returned from Do. Off by default.
 func WithBodyCapture() Option {
-	return func(h *HTTPRequest) { h.captureBodies = true }
+	return func(h *Request) { h.captureBodies = true }
 }
 
 // WithBodyRedactor installs a custom redactor for body capture and audit log.
 // Pass nil to fall back to DefaultBodyRedactor.
 func WithBodyRedactor(r BodyRedactor) Option {
-	return func(h *HTTPRequest) {
+	return func(h *Request) {
 		if r == nil {
 			h.redactor = DefaultBodyRedactor
 			return
@@ -153,11 +154,11 @@ func WithBodyRedactor(r BodyRedactor) Option {
 // WithRawBodies disables redaction entirely. Use only in development or when
 // the caller has independently confirmed the bodies carry no sensitive data.
 func WithRawBodies() Option {
-	return func(h *HTTPRequest) { h.redactor = rawBodyRedactor }
+	return func(h *Request) { h.redactor = rawBodyRedactor }
 }
 
-// Ensure HTTPRequest satisfies HTTPRequester
-var _ HTTPRequester = (*HTTPRequest)(nil)
+// Ensure Request satisfies Requester
+var _ Requester = (*Request)(nil)
 
 // normalizeRetryConfig fills zero values with defaults and clamps a
 // negative MaxRetries to a single attempt. Called once in constructors so
@@ -178,10 +179,10 @@ func normalizeRetryConfig(rc RetryConfig) RetryConfig {
 	return rc
 }
 
-// newPlain creates a baseline HTTPRequest with default retry config and the
+// newPlain creates a baseline Request with default retry config and the
 // default body redactor. Constructors compose this with options and tracing.
-func newPlain(client *http.Client) *HTTPRequest {
-	return &HTTPRequest{
+func newPlain(client *http.Client) *Request {
+	return &Request{
 		client:           client,
 		retryConfig:      normalizeRetryConfig(RetryConfig{}),
 		redactor:         DefaultBodyRedactor,
@@ -189,35 +190,29 @@ func newPlain(client *http.Client) *HTTPRequest {
 	}
 }
 
-// New creates a new instance of HTTPRequest with default retry settings.
+// New creates a new instance of Request with default retry settings.
 // Bodies are redacted by default and the audit log is disabled.
-func New(client *http.Client) HTTPRequester {
-	return WrapWithTracing(newPlain(client))
+func New(client *http.Client) *Request {
+	return NewWithInstrumenter(client, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
 
-// NewHTTPRequestWithRetry creates a new instance with custom retry configuration.
-func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) HTTPRequester {
-	h := newPlain(client)
-	h.retryConfig = normalizeRetryConfig(retryConfig)
-	return WrapWithTracing(h)
-}
-
-// NewWithoutTracing creates an HTTPRequester with no automatic tracing wrapper.
+// NewWithoutTracing creates an Requester with no automatic tracing wrapper.
 // SDK consumers that want explicit tracing should call WrapWithInstrumenter.
-func NewWithoutTracing(client *http.Client) HTTPRequester {
+func NewWithoutTracing(client *http.Client) *Request {
 	return newPlain(client)
 }
 
-// NewWithInstrumenter creates an HTTPRequester wrapped with the supplied instrumenter.
+// NewWithInstrumenter creates an Requester wrapped with the supplied instrumenter.
 // Passing nil disables tracing.
-func NewWithInstrumenter(client *http.Client, instrumenter *telemetry.Instrumenter) HTTPRequester {
-	return WrapWithInstrumenter(NewWithoutTracing(client), instrumenter)
+func NewWithInstrumenter(client *http.Client, instrumenter *telemetry.Instrumenter) *Request {
+	h := newPlain(client)
+	h.instrumenter = instrumenter
+	return h
 }
 
-// NewWithOptions builds an HTTPRequester from explicit options. Tracing is
-// disabled by default; pass WrapWithInstrumenter outside this constructor if
-// tracing is needed.
-func NewWithOptions(client *http.Client, opts ...Option) HTTPRequester {
+// NewWithOptions builds an Requester from explicit options. Tracing is
+// disabled by default; use WithInstrumenter to enable tracing.
+func NewWithOptions(client *http.Client, opts ...Option) *Request {
 	h := newPlain(client)
 	for _, opt := range opts {
 		opt(h)
@@ -230,7 +225,13 @@ func NewWithOptions(client *http.Client, opts ...Option) HTTPRequester {
 
 // Do execute the request with retry logic and processes the response into 'out'.
 // Do is safe for concurrent use after construction: it never mutates h.
-func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) error {
+func (h *Request) Do(ctx context.Context, config RequestConfig, out any) (err error) {
+	if h.instrumenter != nil {
+		var span telemetry.Span
+		ctx, span = httpSpan(ctx, h.instrumenter, config)
+		defer func() { telemetry.End(span, err) }()
+	}
+
 	var lastErr error
 	span := trace.SpanFromContext(ctx)
 	rc := h.retryConfig // local copy keeps Do concurrent-safe.
@@ -301,13 +302,13 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 // nextDelay doubles the backoff cap, bounded by maxDelay. The actual wait
 // is a random fraction of it (see retryDelay).
 func nextDelay(currentDelay, maxDelay time.Duration) time.Duration {
-	return min(currentDelay*2, maxDelay)
+	return sharedbackoff.Grow(currentDelay, maxDelay, 2)
 }
 
 // executeRequest performs a single HTTP request attempt. For a non-2xx
 // response it also returns the wait requested by its Retry-After header.
 // The bool reports evidence that any request in the attempt was sent.
-func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, bool, error) {
+func (h *Request) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, bool, error) {
 	start := time.Now()
 
 	// Build request
@@ -361,7 +362,7 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 }
 
 // buildRequest creates an http.Request from RequestConfig.
-func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*http.Request, error) {
+func (h *Request) buildRequest(ctx context.Context, config RequestConfig) (*http.Request, error) {
 	var body io.Reader
 	if len(config.Body) > 0 {
 		body = bytes.NewReader(config.Body)
@@ -394,19 +395,24 @@ func (h *HTTPRequest) buildRequest(ctx context.Context, config RequestConfig) (*
 }
 
 // isRetryable determines if an error should be retried using errorkit metadata.
-func (h *HTTPRequest) isRetryable(err error) bool {
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+func (h *Request) isRetryable(err error) bool {
+	appErr, ok := errorkit.As(err)
 	// Use the Retriable field from errorkit metadata
 	return ok && appErr.Metadata.Retriable
 }
 
 // waitForRetry waits for the specified delay with context cancellation support.
 // Returns false if context was cancelled, true if wait completed successfully.
-func (h *HTTPRequest) waitForRetry(ctx context.Context, delay time.Duration) bool {
+func (h *Request) waitForRetry(ctx context.Context, delay time.Duration) bool {
 	select {
 	case <-ctx.Done():
 		return false
 	case <-time.After(delay):
 		return true
 	}
+}
+
+// WithInstrumenter selects client tracing for NewWithOptions. Nil disables it.
+func WithInstrumenter(instrumenter *telemetry.Instrumenter) Option {
+	return func(r *Request) { r.instrumenter = instrumenter }
 }

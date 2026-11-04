@@ -62,23 +62,34 @@ func NewError(code ErrorCode) *AppError {
 	return newAppError(code, meta)
 }
 
+// NewWithoutStack creates an AppError without collecting caller frames. Use it
+// for expected rejection paths such as input validation. Metadata, identity,
+// timestamp and error-chain behavior are identical to NewError.
+func NewWithoutStack(code ErrorCode) *AppError {
+	meta, exists := GetMetadata(code)
+	if !exists {
+		meta = unknownMetadata(code)
+	}
+	return newAppErrorBase(code, meta)
+}
+
 func newAppError(code ErrorCode, meta Metadata) *AppError {
 	return newAppErrorWithStackDepth(code, meta, currentMaxStackDepth())
 }
 
 func newAppErrorWithStackDepth(code ErrorCode, meta Metadata, maxStackDepth int) *AppError {
-	e := &AppError{
+	e := newAppErrorBase(code, meta)
+	e.Trace = captureStackWithDepth(maxStackDepth)
+	return e
+}
+
+func newAppErrorBase(code ErrorCode, meta Metadata) *AppError {
+	return &AppError{
 		ErrCode:   code,
 		Metadata:  meta,
 		ID:        generateID(),
-		TraceID:   "", // Empty for now, will be populated in distributed systems
 		Timestamp: nowISO8601(),
 	}
-
-	// Automatic stack capture
-	e.Trace = captureStackWithDepth(maxStackDepth)
-
-	return e
 }
 
 // ==============================

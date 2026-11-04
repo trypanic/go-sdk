@@ -2,25 +2,18 @@ package httprequest
 
 import (
 	"context"
-	"crypto/rand"
-	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
 )
 
 // fullJitter returns a random delay in [0, d] ("full jitter"), so clients
 // that failed together do not retry in lockstep.
 func fullJitter(d time.Duration) time.Duration {
-	if d <= 0 {
-		return 0
-	}
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(d)+1))
-	if err != nil {
-		return d
-	}
-	return time.Duration(n.Int64())
+	return sharedbackoff.Jitter(d)
 }
 
 // parseRetryAfter returns the wait a Retry-After header asks for, given as

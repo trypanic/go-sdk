@@ -23,7 +23,7 @@ type (
 func TestProcessResponseDecodesEveryKind(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPRequest{}
+	h := &Request{}
 	var (
 		s    string
 		ns   namedString
@@ -80,7 +80,7 @@ func TestProcessResponseDecodesEveryKind(t *testing.T) {
 func TestProcessResponseRejectsInvalidOut(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPRequest{}
+	h := &Request{}
 	tests := []struct {
 		name string
 		out  any
@@ -106,7 +106,7 @@ func TestProcessResponseRejectsInvalidOut(t *testing.T) {
 func TestProcessResponseParseErrors(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPRequest{}
+	h := &Request{}
 	var (
 		i int
 		u uint

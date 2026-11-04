@@ -1,13 +1,13 @@
-# `database` — PostgreSQL Pool & Generic Stored-Procedure Runner
+# `postgres` — PostgreSQL Pool & Generic Stored-Procedure Runner
 
-Package `database` provides:
+Package `postgres` provides:
 
 1. A pgx/v5 connection-pool factory with explicit DSN handling and pool tuning.
 2. A generic stored-procedure runner that scans rows into `T` via `pgx.RowToStructByNameLax`
    for structs or `pgx.RowTo` for scalars.
-3. An optional, opt-in tracing wrapper that creates one span per stored-procedure call.
+3. A traced stored-procedure constructor and explicit wrappers that create one client span per call.
 
-The package itself does **not** install pgx tracing on the pool — telemetry is opt-in.
+The package itself does **not** install pgx tracing on the pool — driver-level telemetry is opt-in.
 Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx tracing](#adding-pgx-tracing)).
 
 ## Table of Contents
@@ -16,8 +16,8 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Constructors](#constructors)
-  - [NewPostgresClient](#newpostgresclient)
-  - [NewPostgresClientFromEnv](#newpostgresclientfromenv)
+  - [New](#newpostgresclient)
+  - [NewFromEnv](#newpostgresclientfromenv)
 - [DSN Normalization](#dsn-normalization)
 - [Stored Procedures](#stored-procedures)
   - [Interface](#interface)
@@ -38,9 +38,9 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `Config` | struct | DSN + pool tuning fields |
-| `PostgresEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewPostgresClientFromEnv` |
-| `NewPostgresClient` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
-| `NewPostgresClientFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `NewPostgresClient` |
+| `DSNEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewFromEnv` |
+| `New` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
+| `NewFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `New` |
 | `normalizePostgresDSN` | func (unexported) | Percent-encodes raw `@`, `/`, `?`, `#` in URL passwords so pgx can parse the DSN |
 | `Querier` | interface | `Query` + `QueryRow`; `*pgxpool.Pool` and `pgx.Tx` both implement it |
 | `Execer` | interface | `Exec` |
@@ -61,10 +61,10 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/postgres" // package identifier: database
+    "github.com/trypanic/go-sdk/postgres" // package identifier: postgres
 )
 
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
     MaxConnLifetime: time.Hour,
     MaxConnIdleTime: time.Minute,
@@ -81,7 +81,7 @@ type Item struct {
     Name string `db:"name"`
 }
 
-sp := database.NewStoredProcedure[Item](pool)
+sp := postgres.NewStoredProcedure[Item](pool)
 
 ctx := context.Background()
 
@@ -113,8 +113,8 @@ type Config struct {
 }
 ```
 
-The package reads no environment variables in `NewPostgresClient`. The convenience helper
-`NewPostgresClientFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
+The package reads no environment variables in `New`. The convenience helper
+`NewFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
 `Config` unchanged. SDK consumers that prefer a different env var name should read it themselves
 and assign `Config.DSN`.
 
@@ -122,10 +122,10 @@ and assign `Config.DSN`.
 
 ## Constructors
 
-### NewPostgresClient
+### New
 
 ```go
-func NewPostgresClient(cfg Config) (*pgxpool.Pool, error)
+func New(cfg Config) (*pgxpool.Pool, error)
 ```
 
 Behavior:
@@ -134,8 +134,8 @@ Behavior:
 2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@`, `/`, `?` or `#` parse
    correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
-   5-second timeout context.
-4. Pings the database. If the ping fails the pool is closed before returning the error.
+   5-second timeout context by default. The context variants preserve caller deadlines.
+4. Pings the postgres. If the ping fails the pool is closed before returning the error.
 
 Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
 parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
@@ -145,14 +145,14 @@ the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
 driver's `Error()` text, in which pgx masks the password. The driver error value itself is
 never used as the payload: `*pgconn.ParseConfigError` exports the unredacted connection string.
 
-### NewPostgresClientFromEnv
+### NewFromEnv
 
 ```go
-func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error)
+func NewFromEnv(cfg Config) (*pgxpool.Pool, error)
 ```
 
-Reads `os.Getenv(PostgresEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
-`NewPostgresClient`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
+Reads `os.Getenv(DSNEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
+`New`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
 
 ---
 
@@ -251,7 +251,7 @@ context.Canceled)` keep working. The code follows the cause:
 | Anything else | `ERR_DB_POSTGRES_ERROR` | yes | 503 |
 
 A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
-`ERR_DB_POSTGRES_ERROR` before any query is sent.
+`ERR_DB_POSTGRES_ENCODE_FAILED` (HTTP 500, nonretriable) before any query is sent. The original JSON encoding error remains in the error chain.
 
 ---
 
@@ -261,14 +261,14 @@ A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
 
 `NewStoredProcedure[T]`, `WrapWithTracing[T]`, and `WrapWithInstrumenter[T]` install a wrapper
 that opens one span per call. The span name is derived from the SQL string by extracting the
-function name in `SELECT * FROM <fn>(...)`:
+unquoted, optionally schema-qualified routine in `SELECT ... FROM <fn>(...)` or `CALL <fn>(...)`:
 
 ```
-SELECT * FROM get_item($1)             → span: "postgres.get_item"
-SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items"
+SELECT * FROM get_item($1)             → span: "postgres.get_item.query"
+SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items.query"
 ```
 
-If the regular expression does not match the SQL, the span name falls back to `"postgres.query"`.
+If the regular expression does not match the SQL, the span name falls back to `"postgres.unknown.query"`.
 
 Pass `nil` to `WrapWithInstrumenter` to skip the wrapper and use the bare `StoredProcedure[T]`
 directly.
@@ -300,7 +300,7 @@ inherit the dependency.
 
 ```go
 // Wire pool + repository
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             cfg.Postgres.DSN,
     MaxConnLifetime: cfg.Postgres.MaxConnLifetime,
     MaxConnIdleTime: cfg.Postgres.MaxConnIdleTime,
@@ -312,14 +312,14 @@ if err != nil {
 }
 defer pool.Close()
 
-sp := database.NewStoredProcedure[entities.Item](pool)
+sp := postgres.NewStoredProcedure[entities.Item](pool)
 repo := repository.NewItem(sp)
 ```
 
 ```go
 // Repository methods
 type ItemRepo struct {
-    sp database.StoredProcedurer[entities.Item]
+    sp postgres.StoredProcedurer[entities.Item]
 }
 
 func (r *ItemRepo) Get(ctx context.Context, id int64) (*entities.Item, error) {
@@ -362,3 +362,36 @@ freely across goroutines.
 
 The package has **no dependency on `otelpgx`** or any other pgx tracer. Callers that want
 driver-level tracing wire it up themselves.
+
+### Cancellable setup
+
+`NewContext(ctx, cfg)` and `NewFromEnvContext(ctx, cfg)`
+use the caller context during pool creation and verification. With no deadline,
+the default setup timeout is five seconds. Positive `Config.ConnectTimeout`
+caps setup even with a later caller deadline; negative values are rejected.
+The caller owns `pool.Close()`. Canceling the construction context after success
+does not close the pool or control later queries.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+`NewStoredProcedure` returns `*TracedProcedure[T]`; its `Unwrap()` returns the
+underlying `StoredProcedurer[T]`. It does not own or close the supplied pool.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+PostgreSQL operation spans carry `db.system=postgresql`.
+
+Span names now follow `postgres.<routine>.query`; for example, `CALL audit.clean($1)` produces `postgres.audit.clean.query`. Update dashboards that used the previous names. SQL text and argument values are not span-name components.

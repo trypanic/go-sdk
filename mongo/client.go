@@ -1,13 +1,15 @@
-package mongodb
+package mongo
 
 import (
 	"context"
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/telemetry"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
@@ -35,30 +37,35 @@ type Config struct {
 // Client is the untraced ClientPort returned by NewWithoutTracing (and
 // wrapped by New). It is safe for concurrent use.
 type Client struct {
-	client   *mongo.Client
-	database *mongo.Database
+	instrumenter *telemetry.Instrumenter
+	borrowed     bool
+	client       *mongodriver.Client
+	database     *mongodriver.Database
 }
 
 // New creates a production-ready MongoDB client with OTEL instrumentation
 // using the global tracer. Equivalent to NewWithInstrumenter(ctx, cfg, telemetry.NewInstrumenter(...)).
-func New(ctx context.Context, cfg Config) (ClientPort, error) {
-	return NewWithInstrumenter(ctx, cfg, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
+func New(ctx context.Context, cfg Config, opts ...ClientOption) (*Client, error) {
+	return NewWithInstrumenter(ctx, cfg, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}), opts...)
 }
 
 // NewWithoutTracing creates a MongoDB client with no tracing wrapper. SDK
 // consumers can wrap it later via WrapWithInstrumenter or use NewWithInstrumenter.
-func NewWithoutTracing(ctx context.Context, cfg Config) (ClientPort, error) {
-	return NewWithInstrumenter(ctx, cfg, nil)
+func NewWithoutTracing(ctx context.Context, cfg Config, opts ...ClientOption) (*Client, error) {
+	return NewWithInstrumenter(ctx, cfg, nil, opts...)
 }
 
 // NewWithInstrumenter creates a MongoDB client wrapped with the supplied
 // instrumenter. Pass nil to disable tracing entirely.
-func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetry.Instrumenter) (ClientPort, error) {
+func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetry.Instrumenter, opts ...ClientOption) (*Client, error) {
 	clientOpts := clientOptions(cfg)
+	for _, opt := range opts {
+		clientOpts = opt(clientOpts)
+	}
 
-	// mongo.Connect performs no I/O: it fails only when the URI or the
+	// mongodriver.Connect performs no I/O: it fails only when the URI or the
 	// options are invalid, which retrying cannot fix.
-	mongoClient, err := mongo.Connect(clientOpts)
+	mongoClient, err := mongodriver.Connect(clientOpts)
 	if err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("mongo client options are invalid"),
@@ -81,21 +88,31 @@ func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetr
 		client:   mongoClient,
 		database: mongoClient.Database(cfg.Database),
 	}
-	return WrapWithInstrumenter(plain, instrumenter), nil
+	plain.instrumenter = instrumenter
+	return plain, nil
 }
 
-// Database returns the underlying mongo.Database.
-func (c *Client) Database() *mongo.Database {
+// Database returns the underlying mongodriver.Database.
+func (c *Client) Database() *mongodriver.Database {
 	return c.database
 }
 
 // Collection returns an instrumented, error-normalizing collection adapter.
 func (c *Client) Collection(name string) Collection {
-	return collectionAdapter{collection: c.database.Collection(name)}
+	inner := collectionAdapter{collection: c.database.Collection(name)}
+	if c.instrumenter != nil {
+		return tracingCollection{inner: inner, name: name, instrumenter: c.instrumenter}
+	}
+	return inner
 }
 
 // Ping allows readiness/liveness checks.
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) Ping(ctx context.Context) (err error) {
+	if c.instrumenter != nil {
+		var span telemetry.Span
+		ctx, span = c.instrumenter.DB(ctx, "mongo", "client", "ping", telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
+	}
 	if err := c.client.Ping(ctx, readpref.Primary()); err != nil {
 		return WrapOperationError(err, "ping")
 	}
@@ -103,7 +120,15 @@ func (c *Client) Ping(ctx context.Context) error {
 }
 
 // Close gracefully disconnects the Mongo client.
-func (c *Client) Close(ctx context.Context) error {
+func (c *Client) Close(ctx context.Context) (err error) {
+	if c.instrumenter != nil {
+		var span telemetry.Span
+		ctx, span = c.instrumenter.DB(ctx, "mongo", "client", "close", telemetry.WithSpanKind(trace.SpanKindClient))
+		defer func() { telemetry.End(span, err) }()
+	}
+	if c.borrowed {
+		return nil
+	}
 	if err := c.client.Disconnect(ctx); err != nil {
 		return WrapOperationError(err, "disconnect")
 	}
@@ -225,3 +250,26 @@ func trimMatchingQuotes(value string) string {
 
 	return value
 }
+
+// ClientOption supplies explicit driver settings at construction.
+type ClientOption func(*options.ClientOptions) *options.ClientOptions
+
+// WithClientOptions applies driver options after Config and URI settings.
+// Configure options before construction and do not mutate them concurrently.
+func WithClientOptions(opts *options.ClientOptions) ClientOption {
+	return func(base *options.ClientOptions) *options.ClientOptions {
+		return options.MergeClientOptions(base, opts)
+	}
+}
+
+// NewFromClient wraps an existing driver without dialing or taking ownership.
+// Close on this borrowed wrapper is a no-op; the original owner disconnects it.
+func NewFromClient(client *mongodriver.Client, database string, instrumenter *telemetry.Instrumenter) (*Client, error) {
+	if client == nil || database == "" {
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(errorkit.WithReason("client and database are required"))
+	}
+	return &Client{client: client, database: client.Database(database), instrumenter: instrumenter, borrowed: true}, nil
+}
+
+// Unwrap returns the underlying MongoDB driver client. Ownership is unchanged.
+func (c *Client) Unwrap() *mongodriver.Client { return c.client }

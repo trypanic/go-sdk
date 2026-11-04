@@ -1,7 +1,7 @@
 # httpserver
 
 Framework-agnostic HTTP server contracts. The core package defines the
-`HTTPServer`, `RouterGroup`, `HTTPContext`, `HandlerFunc`, and
+`Server`, `RouterGroup`, `Context`, `HandlerFunc`, and
 `MiddlewareFunc` interfaces, the `Reply` envelope, and `ServerOptions`.
 It pulls **no** web-framework code.
 
@@ -33,12 +33,12 @@ import (
 )
 
 func main() {
-    srv := hertzadapter.New(httpserver.ServerConfig{
+    srv := hertzadapter.NewServer(httpserver.ServerConfig{
         Host: "0.0.0.0",
         Port: 8080,
     })
 
-    srv.GET("/hello", func(ctx context.Context, c httpserver.HTTPContext) {
+    srv.GET("/hello", func(ctx context.Context, c httpserver.Context) {
         c.JSON(http.StatusOK, map[string]string{"message": "hello"})
     })
 
@@ -66,10 +66,10 @@ func main() {
 
 ## Core types
 
-### `HTTPServer`
+### `Server`
 
 ```go
-type HTTPServer interface {
+type Server interface {
     GET(endpoint string, handler HandlerFunc)
     POST(endpoint string, handler HandlerFunc)
     PUT(endpoint string, handler HandlerFunc)
@@ -185,12 +185,12 @@ SQL, hostnames, file paths or panic values, so `WithErrorOpt` sets:
 | any other error | `ERR_INTERNAL` | `Internal server error` |
 
 The `*errorkit.AppError` is found anywhere in the chain (`errors.As`). The
-Hertz adapter's `HTTPContext.WithError` also logs the full error
+Hertz adapter's `Context.WithError` also logs the full error
 server-side through `logger.CtxOrGlobal(ctx)` with `trace_id`/`span_id`
 (warn level for 4xx, error level otherwise) and fills `trace_id` in the
 reply from the active span when the error carries none.
 
-`HTTPContext.Reply(status, opts...)` ultimately calls `BuildReply` with
+`Context.Reply(status, opts...)` ultimately calls `BuildReply` with
 the server's `ReplyOptions`. The `Timestamp` is stamped from
 `opts.Clock().Format(opts.Layout)` so callers can override the layout or
 inject a deterministic clock for tests.
@@ -241,8 +241,8 @@ turn it off.
 
 | Symbol | Purpose |
 |---|---|
-| `New(cfg)` | Hertz `HTTPServer` with `DefaultServerOptions()` |
-| `NewWithOptions(cfg, opts)` | Hertz `HTTPServer` with explicit options; zero fields backfilled from defaults |
+| `New(cfg)` | Hertz `Server` with `DefaultServerOptions()` |
+| `NewWithOptions(cfg, opts)` | Hertz `Server` with explicit options; zero fields backfilled from defaults |
 | `RecoveryHandler` | Panic-recovery handler installed by `EnableRecovery` |
 | `RequestLogger(base *logger.Logger)` | Per-request logger as an `httpserver.MiddlewareFunc` (install with `srv.Use`); reuses and echoes `X-Request-ID` |
 | `RequestLoggerMiddleware(base *logger.Logger)` | Same middleware as a Hertz `app.HandlerFunc` |
@@ -266,7 +266,7 @@ surfaced verbatim.
 - `Shutdown(ctx)` triggers graceful drain; the supplied context bounds
   how long to wait, and a drain cut short by it is reported as
   `ERR_SYSTEM_TIMEOUT_INTERNAL`.
-- `HTTPContext` is single-goroutine. Do not stash it past the handler.
+- `Context` is single-goroutine. Do not stash it past the handler.
 
 ---
 
@@ -275,8 +275,48 @@ surfaced verbatim.
 - Core httpserver package has zero web-framework imports.
 - All built-in middleware (tracing, recovery, audit, health, NoRoute,
   NoMethod) is opt-in via `ServerOptions`.
-- `Shutdown(ctx)` is part of the `HTTPServer` interface.
+- `Shutdown(ctx)` is part of the `Server` interface.
 - 404/405 are the defaults for unknown routes/methods; the previous
   HTTP 200 behavior is no longer the default.
 - Audit body capture is OFF by default; enabling it requires an explicit
   `BodyRedactor` policy.
+
+### HTTP methods
+
+`Server` and `RouterGroup` directly support `PATCH`, `HEAD`, `OPTIONS`,
+and `Handle(method, path, handler)` alongside GET/POST/PUT/DELETE. Custom
+implementations must implement these methods in v2. Group prefixes and
+middleware apply equally to every method.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+Hertz constructors return `*hertz.Server`; `NewEngine(cfg)` also exposes this
+concrete adapter. `Engine()` gives access to the underlying Hertz engine for
+framework features. Configure routes and middleware before starting the server.
+
+### Functional server options
+
+Prefer `hertz.NewServer(cfg, opts...)`: zero options enable tracing, recovery,
+redacted audit, health and 404/405 handling. Options include `WithoutTracing`,
+`WithoutRecovery`, `WithoutAudit`, `WithoutHealth`, `WithoutNoRoute`,
+`WithoutNoMethod`, `WithLogger`, `WithHealth`, `WithAudit` and `WithReply`.
+`WithLogger` applies to audit and recovery as well as handler context logging.
+`NewWithOptions` remains the explicit struct profile: its boolean zero values
+are disabled, so initialize that struct with `DefaultServerOptions()` when needed.
+
+### Metadata-driven error replies
+
+Use `httpserver.ReplyError(c, err)` in handlers to select the status from an
+`AppError` anywhere in the error chain and send the adapter's client-safe reply.
+The adapter's `WithError` hook still logs the failure. Nil errors do not write.
+`StatusFor(nil)` returns 200; unknown errors and invalid failure statuses return
+500. Registered 400–599 statuses are preserved. Do not serialize `err.Error()`.
+
+Consumer tests can import [`httpservertest`](./httpservertest/README.md) for a reusable public test double without a live service.

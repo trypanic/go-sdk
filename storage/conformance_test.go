@@ -8,17 +8,17 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-// appendLogFactory builds an empty AppendLogStorager for one test.
-type appendLogFactory func(t *testing.T) AppendLogStorager[int]
+// appendLogFactory builds an empty AppendLog for one test.
+type appendLogFactory func(t *testing.T) AppendLog[int]
 
-// appendLogImplementations lists every AppendLogStorager in the package so
+// appendLogImplementations lists every AppendLog in the package so
 // the conformance tests run against all of them.
 func appendLogImplementations() map[string]appendLogFactory {
 	return map[string]appendLogFactory{
-		"MemoryStorage": func(*testing.T) AppendLogStorager[int] {
+		"MemoryStorage": func(*testing.T) AppendLog[int] {
 			return NewMemory[int]()
 		},
-		"FileStorage": func(t *testing.T) AppendLogStorager[int] {
+		"FileStorage": func(t *testing.T) AppendLog[int] {
 			t.Helper()
 			fs, err := NewFileStorage[int](t.TempDir())
 			if err != nil {
@@ -57,7 +57,7 @@ func TestAppendLogConformance_AppendNilReturnsError(t *testing.T) {
 	}
 }
 
-// TestAppendLogConformance runs the AppendLogStorager contract against every
+// TestAppendLogConformance runs the AppendLog contract against every
 // implementation (C4-023).
 func TestAppendLogConformance(t *testing.T) {
 	t.Parallel()

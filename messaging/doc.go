@@ -5,7 +5,7 @@
 //
 // # Construction
 //
-// NewPubSub builds a Messager from WithTopology or WithTopologyFile;
+// NewPubSub builds a Broker from WithTopology or WithTopologyFile;
 // NewPubSubFromEnv loads the topology from the file named by
 // RABBITMQ_TOPOLOGY_FILE. No other constructor reads the environment.
 // Topologies are validated (Topology.Validate) before anything is dialed.

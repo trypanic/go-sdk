@@ -69,7 +69,23 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 }
 
 func (p *Publisher) connect() error {
-	l, err := p.open(context.Background())
+	return p.connectContext(context.Background())
+}
+
+func (p *Publisher) connectContext(ctx context.Context) error {
+	timeout := p.opts.dialTimeout
+	if timeout <= 0 {
+		timeout = DefaultDialTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	l, err := p.open(ctx)
+	if ctxErr := ctxEnded(ctx); ctxErr != nil {
+		if l.conn != nil {
+			abandon(l.conn)
+		}
+		return mqError(ERR_MQ_CONNECTION_FAILED, "connection setup interrupted", ctxErr)
+	}
 	if err != nil {
 		return err
 	}
@@ -102,6 +118,20 @@ func (p *Publisher) open(ctx context.Context) (publisherLink, error) {
 		return publisherLink{}, mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
 
+	done := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		if real, ok := conn.(realConnection); ok {
+			_ = real.conn.CloseDeadline(time.Now())
+		} else {
+			_ = conn.Close()
+		}
+		close(done)
+	})
+	defer func() {
+		if !stop() {
+			<-done
+		}
+	}()
 	ch, err := conn.Channel()
 	if err != nil {
 		abandon(conn)
@@ -602,8 +632,7 @@ func mqError(code errorkit.ErrorCode, reason string, err error) *errorkit.AppErr
 // isRetriable reports whether err is worth retrying: an AppError answers
 // through its metadata, any other error is assumed transient.
 func isRetriable(err error) bool {
-	var appErr *errorkit.AppError
-	if errors.As(err, &appErr) {
+	if appErr, ok := errorkit.As(err); ok {
 		return appErr.Metadata.Retriable
 	}
 	return true

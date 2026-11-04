@@ -13,9 +13,10 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/trypanic/go-sdk/algorithms"
 	"github.com/trypanic/go-sdk/errorkit"
+	sharedbackoff "github.com/trypanic/go-sdk/internal/backoff"
 	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
@@ -25,7 +26,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// PubSub implements Messager backed by RabbitMQ with a topology-driven
+// PubSub implements Broker backed by RabbitMQ with a topology-driven
 // configuration.  It owns a single Publisher (shared, thread-safe) and
 // creates one Subscriber per Subscribe call.
 type PubSub struct {
@@ -136,15 +137,20 @@ func WithDeclareTopology() PubSubOption {
 	return func(p *pubSubBuild) { p.declareTopo = true }
 }
 
-// NewPubSub builds a Messager. The topology comes from WithTopology (used
+// NewPubSub builds a Broker. The topology comes from WithTopology (used
 // as-is) or, failing that, WithTopologyFile (the file is loaded); one of
 // them is required. NewPubSub never reads environment variables: use
 // NewPubSubFromEnv to load the topology from RABBITMQ_TOPOLOGY_FILE.
 //
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
-func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
-	ps, err := newPubSub(amqpURL, nil, opts...)
+func NewPubSub(amqpURL string, opts ...PubSubOption) (*PubSub, error) {
+	return NewPubSubContext(context.Background(), amqpURL, opts...)
+}
+
+// NewPubSubContext uses ctx for setup only. Close owns the returned PubSub lifetime.
+func NewPubSubContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (*PubSub, error) {
+	ps, err := newPubSubContext(ctx, amqpURL, nil, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +162,14 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 // explicit WithTopology or WithTopologyFile still takes precedence. It fails
 // with ERR_SYSTEM_CONFIG_INVALID, before dialing, when no topology source is
 // available.
-func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
+func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (*PubSub, error) {
+	return NewPubSubFromEnvContext(context.Background(), amqpURL, opts...)
+}
+
+// NewPubSubFromEnvContext reads the topology from the environment and uses ctx during setup.
+func NewPubSubFromEnvContext(ctx context.Context, amqpURL string, opts ...PubSubOption) (*PubSub, error) {
 	fromEnv := func(b *pubSubBuild) { b.topologyFromEnv = true }
-	ps, err := newPubSub(amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
+	ps, err := newPubSubContext(ctx, amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +179,10 @@ func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
 // newPubSub is NewPubSub with the publisher dialing through dial (nil means
 // dialAMQP).
 func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
+	return newPubSubContext(context.Background(), amqpURL, dial, opts...)
+}
+
+func newPubSubContext(ctx context.Context, amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
 	build := &pubSubBuild{}
 	for _, opt := range opts {
 		opt(build)
@@ -182,7 +197,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 	if build.declareTopo {
 		pub.declare = topo
 	}
-	if err := pub.connect(); err != nil {
+	if err := pub.connectContext(ctx); err != nil {
 		return nil, err
 	}
 
@@ -531,8 +546,8 @@ func (p *PubSub) reportSettleFailure(ctx context.Context, span trace.Span, queue
 // warn logs appErr at Warn level through the WithLogger logger, or the
 // ctx/global logger when none was injected.
 func (p *PubSub) warn(ctx context.Context, appErr error, msg string) {
-	var ae *errorkit.AppError
-	if !errors.As(appErr, &ae) {
+	ae, ok := errorkit.As(appErr)
+	if !ok {
 		ae = errorkit.NewError(ERR_MQ_ERROR).With(errorkit.WithWrapped(appErr))
 	}
 	if p.log != nil {
@@ -595,18 +610,19 @@ func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) 
 	// Topology.Validate rejects MaxAttempts < 1; clamp anyway so a value that
 	// bypassed validation cannot wrap to an unbounded uint64.
 	attempts := max(retry.MaxAttempts, 1)
-	bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
-		InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,
-		MaxInterval:     time.Duration(retry.MaxDelay) * time.Millisecond,
-		Multiplier:      retry.BackoffMult,
-		MaxRetries:      uint64(attempts),
+	bo := sharedbackoff.New(sharedbackoff.Config{
+		Initial:        time.Duration(retry.InitialDelay) * time.Millisecond,
+		Max:            time.Duration(retry.MaxDelay) * time.Millisecond,
+		Multiplier:     retry.BackoffMult,
+		Attempts:       attempts,
+		MaxElapsedTime: 15 * time.Minute,
 	})
 	return backoff.Retry(fn, backoff.WithContext(bo, ctx))
 }
 
 // reconnectWithBackoff retries sub.Reconnect with exponential delay until
-// success, a non-retriable error (returned as is) or ctx cancellation.  Delay starts at DefaultReconnectDelay and
-// doubles up to MaxReconnectDelay. The log argument may be nil — in that
+// success, a non-retriable error or cancellation. The full-jitter cap starts
+// at DefaultReconnectDelay and doubles up to MaxReconnectDelay. In that
 // case the package-level global logger is used.
 func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logger) error {
 	delay := DefaultReconnectDelay
@@ -617,14 +633,17 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 				errorkit.WithReason("subscriber reconnect canceled"),
 				errorkit.WithWrapped(ctx.Err()),
 			)
-		case <-time.After(delay):
+		case <-time.After(sharedbackoff.Jitter(delay)):
+			if ctx.Err() != nil {
+				continue
+			}
 			if err := sub.Reconnect(); err != nil {
 				if !isRetriable(err) {
 					// e.g. ERR_MQ_AUTH_FAILED: retrying cannot succeed.
 					return err
 				}
 				warnReconnect(ctx, log, sub.queue.Name, err, delay)
-				delay = min(delay*2, MaxReconnectDelay)
+				delay = sharedbackoff.Grow(delay, MaxReconnectDelay, 2)
 				continue
 			}
 			return nil
@@ -680,8 +699,7 @@ func buildQueueArgs(queue QueueTopology) amqp.Table {
 // (AGENTS.md §2.1). Any other error is wrapped once with code and reason; a
 // deadline is reported as ERR_MQ_TIMEOUT.
 func asAppError(err error, code errorkit.ErrorCode, reason string) error {
-	var appErr *errorkit.AppError
-	if errors.As(err, &appErr) {
+	if _, ok := errorkit.As(err); ok {
 		return err
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -691,4 +709,10 @@ func asAppError(err error, code errorkit.ErrorCode, reason string) error {
 		errorkit.WithReason("%s", reason),
 		errorkit.WithWrapped(err),
 	)
+}
+
+// WithInstrumenter uses the instrumenter's provider with the messaging scope.
+// A nil instrumenter disables span recording.
+func WithInstrumenter(i *telemetry.Instrumenter) PubSubOption {
+	return WithTracer(i.TracerProvider().Tracer("messaging"))
 }

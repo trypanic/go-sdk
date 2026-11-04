@@ -29,10 +29,10 @@ func auditLines(t *testing.T, logs string) []map[string]any {
 	return out
 }
 
-func echoServer(t *testing.T, opts httpserver.ServerOptions) *wrapperHertzServer {
+func echoServer(t *testing.T, opts httpserver.ServerOptions) *Server {
 	t.Helper()
 	s := newTestServer(t, opts)
-	s.POST("/echo", func(ctx context.Context, c httpserver.HTTPContext) {
+	s.POST("/echo", func(ctx context.Context, c httpserver.Context) {
 		c.SetHeader("Set-Cookie", "session=resp-cookie")
 		c.String(http.StatusOK, "response-secret")
 	})
@@ -129,7 +129,7 @@ func TestInboundAuditSanitizesURLHeadersByDefault(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			s := newTestServer(t, httpserver.DefaultServerOptions())
-			s.GET("/login", func(ctx context.Context, c httpserver.HTTPContext) {
+			s.GET("/login", func(ctx context.Context, c httpserver.Context) {
 				c.SetHeader("lOcAtIoN", tt.raw)
 				c.SetHeader("X-Trace-Note", "visible")
 				c.String(http.StatusFound, "")

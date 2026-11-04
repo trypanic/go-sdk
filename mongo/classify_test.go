@@ -1,4 +1,4 @@
-package mongodb
+package mongo
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type timeoutNetError struct{}
@@ -30,16 +30,16 @@ func TestWrapOperationErrorMatrix(t *testing.T) {
 		wantRetriable bool
 	}{
 		{"deadline exceeded", fmt.Errorf("op: %w", context.DeadlineExceeded), ERR_DB_MONGO_TIMEOUT, true},
-		{"network timeout label", mongo.CommandError{Name: "x", Labels: []string{"NetworkTimeoutError"}}, ERR_DB_MONGO_TIMEOUT, true},
+		{"network timeout label", mongodriver.CommandError{Name: "x", Labels: []string{"NetworkTimeoutError"}}, ERR_DB_MONGO_TIMEOUT, true},
 		{"net.Error timeout", fmt.Errorf("read: %w", timeoutNetError{}), ERR_DB_MONGO_TIMEOUT, true},
-		{"max time expired", mongo.CommandError{Code: 50, Name: "MaxTimeMSExpired"}, ERR_DB_MONGO_TIMEOUT, true},
+		{"max time expired", mongodriver.CommandError{Code: 50, Name: "MaxTimeMSExpired"}, ERR_DB_MONGO_TIMEOUT, true},
 		{"canceled", fmt.Errorf("op: %w", context.Canceled), ERR_DB_MONGO_CANCELED, false},
-		{"network error", mongo.CommandError{Name: "x", Labels: []string{"NetworkError"}}, ERR_DB_MONGO_UNAVAILABLE, true},
-		{"client disconnected", mongo.ErrClientDisconnected, errorkit.ERR_SYSTEM_UNEXPECTED, false},
-		{"nil document", mongo.ErrNilDocument, errorkit.ERR_VALIDATION, false},
-		{"not found", mongo.ErrNoDocuments, ERR_DB_MONGO_NOT_FOUND, false},
-		{"duplicate key", mongo.WriteException{WriteErrors: []mongo.WriteError{{Code: 11000, Message: "E11000"}}}, errorkit.ERR_VALIDATION_DUPLICATE, false},
-		{"generic server error", mongo.CommandError{Code: 2, Name: "BadValue"}, ERR_DB_MONGO_ERROR, true},
+		{"network error", mongodriver.CommandError{Name: "x", Labels: []string{"NetworkError"}}, ERR_DB_MONGO_UNAVAILABLE, true},
+		{"client disconnected", mongodriver.ErrClientDisconnected, errorkit.ERR_SYSTEM_UNEXPECTED, false},
+		{"nil document", mongodriver.ErrNilDocument, errorkit.ERR_VALIDATION, false},
+		{"not found", mongodriver.ErrNoDocuments, ERR_DB_MONGO_NOT_FOUND, false},
+		{"duplicate key", mongodriver.WriteException{WriteErrors: []mongodriver.WriteError{{Code: 11000, Message: "E11000"}}}, errorkit.ERR_VALIDATION_DUPLICATE, false},
+		{"generic server error", mongodriver.CommandError{Code: 2, Name: "BadValue"}, ERR_DB_MONGO_ERROR, true},
 		{"unknown", errors.New("boom"), ERR_DB_MONGO_ERROR, true},
 	}
 

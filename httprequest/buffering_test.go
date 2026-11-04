@@ -51,13 +51,13 @@ func TestDecodedResponseIsNotBufferedTwice(t *testing.T) {
 	zl := zerolog.New(&discard)
 	ctx := logger.WithLogger(t.Context(), &zl)
 
-	h := &HTTPRequest{maxResponseBytes: DefaultMaxResponseBytes}
+	h := &Request{maxResponseBytes: DefaultMaxResponseBytes}
 	baseline := allocPerOp(4, func() {
 		var out []byte
 		_ = h.processResponse(newLimitedBody(bytes.NewReader(body), DefaultMaxResponseBytes), &out)
 	})
 
-	cases := map[string]HTTPRequester{
+	cases := map[string]Requester{
 		"audit off":                      NewWithOptions(client),
 		"audit on with default redactor": NewWithOptions(client, WithAuditLog()),
 	}

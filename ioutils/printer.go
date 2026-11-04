@@ -1,6 +1,3 @@
-// Package ioutils provides developer-only JSON dump helpers. None of these
-// functions are intended for production data paths; reach for `storage` or
-// `marshal` directly when persistence or wire encoding matters.
 package ioutils
 
 import (

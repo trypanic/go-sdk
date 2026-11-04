@@ -8,6 +8,6 @@
 // service-to-service calls (60 s per-attempt timeout); SetupForLLM suits
 // slow LLM providers and leaves the overall bound to the caller's context.
 //
-// The package also owns the generic external-service error codes
-// (ERR_EXTERNAL_*) used by httprequest and llmclient.
+// Generic external-service error codes are owned by errorkit. This package
+// retains equal constants for compatibility.
 package httpclient

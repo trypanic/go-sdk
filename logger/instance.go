@@ -27,9 +27,9 @@ type Config struct {
 	Writer io.Writer
 
 	// OTLPWriter, when non-nil, is composed with Writer through
-	// zerolog.MultiLevelWriter. The OTLP path requires InitLogProvider to
+	// zerolog.MultiLevelWriter. The OTLP path requires InitProvider to
 	// have run first.
-	OTLPWriter *OTLPWriter
+	OTLPWriter io.Writer
 
 	// Redactor, when non-nil, extends the built-in redaction policy (see
 	// the package README, "Redaction"). It is called for every JSON object

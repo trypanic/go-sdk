@@ -18,7 +18,7 @@ func checkCode(t *testing.T, err error, want errorkit.ErrorCode) {
 		}
 		return
 	}
-	requireCode(t, err, want)
+	_ = requireCode(t, err, want)
 }
 
 func TestIsValidDatePointerTable(t *testing.T) {

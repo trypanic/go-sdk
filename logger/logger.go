@@ -2,29 +2,18 @@ package logger
 
 import (
 	"io"
-	"os"
 	"sync"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/trypanic/go-sdk/internal/logctx"
 )
 
-// global holds the application logger instance
-var global *zerolog.Logger
+// global is the shared atomic SDK logger slot.
+var global = &logctx.Global
+var initMu sync.Mutex
 
-func globalLogger() *zerolog.Logger {
-	if global != nil {
-		return global
-	}
-	return fallbackLogger()
-}
-
-// fallbackLogger is the logger used before Init: plain JSON to stderr,
-// built once and reused.
-var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
-	l := zerolog.New(os.Stderr).With().Timestamp().Logger()
-	return &l
-})
+func globalLogger() *zerolog.Logger { return logctx.GlobalLogger() }
 
 // Init creates and configures the logger for the environment DetectEnv
 // returns. It sets the package-level global, zerolog's global log.Logger,
@@ -34,10 +23,10 @@ var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
 //
 // An optional OTLPWriter ships every log event to an OpenTelemetry
 // collector as well as to the console/stdout writer. The OTLP export uses
-// its own connection, configured by NewLogProvider or InitLogProvider.
+// its own connection, configured by NewProvider or InitProvider.
 //
 // Returns the logger and an io.Closer that does nothing (kept for forward
-// compatibility); the OTLP lifecycle belongs to the LogProviderHandle.
+// compatibility); the OTLP lifecycle belongs to the Provider.
 //
 // Usage without OTLP:
 //
@@ -46,11 +35,13 @@ var fallbackLogger = sync.OnceValue(func() *zerolog.Logger {
 //
 // Usage with OTLP:
 //
-//	lp := logger.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	l, cleanup := logger.Init("my-service", "1.0.0", logger.NewOTLPWriter("my-service"))
+//	l, cleanup := logger.Init("my-service", "1.0.0", otlp.NewWriter("my-service"))
 //	defer cleanup.Close()
-func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, io.Closer) {
+func Init(appName, version string, otlpWriter ...io.Writer) (*zerolog.Logger, io.Closer) {
+	initMu.Lock()
+	defer initMu.Unlock()
 	env := DetectEnv()
 	applyGlobalSettings(env)
 
@@ -67,7 +58,7 @@ func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, 
 		l = newLogger(env, appName, version)
 	}
 
-	global = &l
+	global.Store(&l)
 	log.Logger = l
-	return global, io.NopCloser(nil)
+	return &l, io.NopCloser(nil)
 }

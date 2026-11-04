@@ -14,7 +14,7 @@ func TestNoRouteAndNoMethodDefaults(t *testing.T) {
 	t.Parallel()
 
 	s := newTestServer(t, plainOptions())
-	s.GET("/only-get", func(_ context.Context, c httpserver.HTTPContext) { c.Status(http.StatusOK) })
+	s.GET("/only-get", func(_ context.Context, c httpserver.Context) { c.Status(http.StatusOK) })
 
 	require.Equal(t, http.StatusNotFound, perform(t.Context(), s, http.MethodGet, "/missing", nil).StatusCode())
 	require.Equal(t, http.StatusMethodNotAllowed, perform(t.Context(), s, http.MethodPost, "/only-get", nil).StatusCode())
@@ -24,14 +24,14 @@ func TestNoRouteAndNoMethodCustomHandlers(t *testing.T) {
 	t.Parallel()
 
 	o := plainOptions()
-	o.NoRouteHandler = func(_ context.Context, c httpserver.HTTPContext) {
+	o.NoRouteHandler = func(_ context.Context, c httpserver.Context) {
 		c.Reply(http.StatusNotFound, c.WithMessage("no such route"))
 	}
-	o.NoMethodHandler = func(_ context.Context, c httpserver.HTTPContext) {
+	o.NoMethodHandler = func(_ context.Context, c httpserver.Context) {
 		c.Reply(http.StatusMethodNotAllowed, c.WithMessage("method not allowed here"))
 	}
 	s := newTestServer(t, o)
-	s.GET("/only-get", func(_ context.Context, c httpserver.HTTPContext) { c.Status(http.StatusOK) })
+	s.GET("/only-get", func(_ context.Context, c httpserver.Context) { c.Status(http.StatusOK) })
 
 	res := perform(t.Context(), s, http.MethodGet, "/missing", nil)
 	require.Equal(t, http.StatusNotFound, res.StatusCode())

@@ -1,14 +1,8 @@
-// Package hertz is the Hertz adapter for go-sdk/httpserver.
-//
-// Consumers that import this package get the Hertz framework as a transitive
-// dependency. The core go-sdk/httpserver package is framework-agnostic and
-// pulls no Hertz code; choose this adapter explicitly.
 package hertz
 
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/cloudwego/hertz/pkg/app"
 
@@ -17,7 +11,7 @@ import (
 	"github.com/trypanic/go-sdk/logger"
 )
 
-// hertzContext implements httpserver.HTTPContext over Hertz's RequestContext.
+// hertzContext implements httpserver.Context over Hertz's RequestContext.
 // ctx is the request context the handler received (never nil: every
 // constructor copies the ctx Hertz passes in); it carries the logger and
 // the active span used when an error reply is logged.
@@ -95,7 +89,7 @@ func (h *hertzContext) WithError(err error) httpserver.OptionReply {
 // at warn level for client errors (4xx) and at error level otherwise.
 func logReplyError(ctx context.Context, err error) {
 	l := logger.CtxOrGlobal(ctx)
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	appErr, ok := errorkit.As(err)
 	if !ok || appErr == nil {
 		logger.WithTrace(ctx, l.Error()).Str("error", err.Error()).Msg("httpserver: error reply")
 		return

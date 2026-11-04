@@ -16,7 +16,7 @@ import (
 func TestDefaultRetryConfigSetInConstructor(t *testing.T) {
 	t.Parallel()
 
-	r := NewWithoutTracing(http.DefaultClient).(*HTTPRequest)
+	r := NewWithoutTracing(http.DefaultClient)
 	if r.retryConfig.MaxRetries != DefaultMaxRetries ||
 		r.retryConfig.InitialDelay != DefaultInitialDelay ||
 		r.retryConfig.MaxDelay != DefaultMaxDelay {
@@ -27,7 +27,7 @@ func TestDefaultRetryConfigSetInConstructor(t *testing.T) {
 func TestDoDoesNotMutateRetryConfig(t *testing.T) {
 	t.Parallel()
 
-	r := NewWithoutTracing(http.DefaultClient).(*HTTPRequest)
+	r := NewWithoutTracing(http.DefaultClient)
 	r.retryConfig = RetryConfig{} // simulate caller passing zero values
 	before := r.retryConfig
 
@@ -70,7 +70,7 @@ func TestDoIsConcurrentSafe(t *testing.T) {
 func TestDefaultRedactorOmitsRequestBody(t *testing.T) {
 	t.Parallel()
 
-	h := NewWithoutTracing(http.DefaultClient).(*HTTPRequest)
+	h := NewWithoutTracing(http.DefaultClient)
 
 	// captureBodies is false by default — payload should not include request_body.
 	netErr := h.buildNetworkError(errors.New("boom"), "http://x", []byte("secret=42")).(*errorkit.AppError)
@@ -83,7 +83,7 @@ func TestDefaultRedactorOmitsRequestBody(t *testing.T) {
 func TestWithBodyCaptureRedactsBody(t *testing.T) {
 	t.Parallel()
 
-	h := NewWithOptions(http.DefaultClient, WithBodyCapture()).(*HTTPRequest)
+	h := NewWithOptions(http.DefaultClient, WithBodyCapture())
 
 	netErr := h.buildNetworkError(errors.New("boom"), "http://x", []byte("secret=42")).(*errorkit.AppError)
 	body, ok := netErr.Payload.(map[string]any)["request_body"].(string)
@@ -102,7 +102,7 @@ func TestWithBodyRedactorCustom(t *testing.T) {
 		http.DefaultClient,
 		WithBodyCapture(),
 		WithBodyRedactor(func(b []byte) []byte { return []byte("size=" + itoa(len(b))) }),
-	).(*HTTPRequest)
+	)
 
 	netErr := h.buildNetworkError(errors.New("boom"), "http://x", []byte("payload-bytes")).(*errorkit.AppError)
 	if got := netErr.Payload.(map[string]any)["request_body"].(string); !strings.HasPrefix(got, "size=") {
@@ -113,7 +113,7 @@ func TestWithBodyRedactorCustom(t *testing.T) {
 func TestWithRawBodiesPreservesContent(t *testing.T) {
 	t.Parallel()
 
-	h := NewWithOptions(http.DefaultClient, WithBodyCapture(), WithRawBodies()).(*HTTPRequest)
+	h := NewWithOptions(http.DefaultClient, WithBodyCapture(), WithRawBodies())
 
 	netErr := h.buildNetworkError(errors.New("boom"), "http://x", []byte("raw=keep-me")).(*errorkit.AppError)
 	if got := netErr.Payload.(map[string]any)["request_body"].(string); got != "raw=keep-me" {

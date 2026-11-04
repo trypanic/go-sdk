@@ -31,7 +31,7 @@ func IsValidDatePointer(value any) error {
 	}
 
 	if _, err := time.Parse(DateLayout, *datePtr); err != nil {
-		return errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+		return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
 			errorkit.WithReason("must be in format YYYY-MM-DD"),
 			errorkit.WithWrapped(err),
 		)
@@ -85,7 +85,7 @@ func IsWithinRange(lo, hi int) func(any) error {
 			return invalidFormat("value must be an int")
 		}
 		if num < lo || num > hi {
-			return errorkit.NewError(errorkit.ERR_VALIDATION_INCONSISTENT).With(
+			return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INCONSISTENT).With(
 				errorkit.WithReason("must be between %d and %d", lo, hi),
 			)
 		}
@@ -98,7 +98,7 @@ func IsWithinRange(lo, hi int) func(any) error {
 func ValidateDateRange(from, to string) error {
 	fromDate, err := time.Parse(DateLayout, from)
 	if err != nil {
-		return errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+		return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
 			errorkit.WithReason("invalid from date format, expected YYYY-MM-DD"),
 			errorkit.WithWrapped(err),
 		)
@@ -106,14 +106,14 @@ func ValidateDateRange(from, to string) error {
 
 	toDate, err := time.Parse(DateLayout, to)
 	if err != nil {
-		return errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+		return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
 			errorkit.WithReason("invalid to date format, expected YYYY-MM-DD"),
 			errorkit.WithWrapped(err),
 		)
 	}
 
 	if fromDate.After(toDate) {
-		return errorkit.NewError(errorkit.ERR_VALIDATION_INCONSISTENT).With(
+		return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INCONSISTENT).With(
 			errorkit.WithReason("from date must not be after to date"),
 		)
 	}
@@ -122,9 +122,9 @@ func ValidateDateRange(from, to string) error {
 }
 
 func invalidFormat(reason string) error {
-	return errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(errorkit.WithReason("%s", reason))
+	return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(errorkit.WithReason("%s", reason))
 }
 
 func missingField(reason string) error {
-	return errorkit.NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).With(errorkit.WithReason("%s", reason))
+	return errorkit.NewWithoutStack(errorkit.ERR_VALIDATION_MISSING_FIELD).With(errorkit.WithReason("%s", reason))
 }

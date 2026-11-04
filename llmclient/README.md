@@ -30,10 +30,10 @@ constructors never do.
 | Constructor | Returns | Tracing |
 |---|---|---|
 | `NewClient(httpRequest, cfg)` | `*Client` | None |
-| `New(httpRequest, cfg)` | `LLMProvider` | Wraps with the global OTel tracer |
-| `NewWithoutTracing(httpRequest, cfg)` | `LLMProvider` | None |
-| `NewWithInstrumenter(httpRequest, cfg, instr)` | `LLMProvider` | Explicit instrumenter (`nil` skips tracing) |
-| `WrapWithInstrumenter(provider, instr)` | `LLMProvider` | Wraps an existing provider |
+| `New(httpRequest, cfg)` | `*Client` | Integrated global OTel tracer |
+| `NewWithoutTracing(httpRequest, cfg)` | `*Client` | None |
+| `NewWithInstrumenter(httpRequest, cfg, instr)` | `*Client` | Explicit instrumenter (`nil` skips tracing) |
+| `WrapWithInstrumenter(provider, instr)` | `Provider` | Wraps an existing provider |
 
 `Config` and `Client` never print the API key: `String`, `GoString`
 (`%v`, `%+v`, `%#v`), `MarshalJSON` and `LogValue` (slog) show
@@ -47,13 +47,14 @@ returned value is safe for concurrent `Execute` calls.
 ```go
 // One requester for the process: a single attempt over a client tuned for
 // slow first bytes (see httpclient.SetupForLLM).
-requester := httprequest.NewHTTPRequestWithRetry(
+requester := httprequest.NewWithOptions(
     httpclient.NewClient(httpclient.SetupForLLM()),
-    httprequest.RetryConfig{MaxRetries: 1},
+    httprequest.WithRetryConfig(httprequest.RetryConfig{MaxRetries: 1}),
+    httprequest.WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})),
 )
 provider := llmclient.New(requester, cfg)
 
-content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
+content, err := provider.Execute(ctx, llmclient.RequestConfig{
     Model:        "gpt-4o-mini",
     SystemPrompt: "You are a helpful assistant.",
     UserMessage:  "What is the capital of France?",
@@ -89,7 +90,26 @@ call may be billed twice.
 
 ## Tracing
 
-`New` and `NewWithInstrumenter` open a span named `llm.<model>` (or
-`llm.execute` if the model is empty). The span is the parent of the
+`New` and `NewWithInstrumenter` open a span named `external.llm.execute`.
+The selected model is recorded as `gen_ai.request.model`, rather than in the name. The span is the parent of the
 `httprequest` span produced by the underlying HTTP call, so end-to-end LLM
 latency is visible in the trace tree without instrumenting call sites.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+Update dashboards that used `llm.<model>` or `llm.execute` to select `external.llm.execute`. Model changes no longer create new operation names.

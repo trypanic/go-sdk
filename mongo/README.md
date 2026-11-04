@@ -1,10 +1,9 @@
-# `mongodb` — MongoDB Client with Adapter-Based API
+# `mongo` — MongoDB Client with Adapter-Based API
 
-Package `mongodb` exposes a small, framework-agnostic interface (`ClientPort`,
+Package `mongo` exposes a small, framework-agnostic interface (`ClientPort`,
 `Collection`) over the official MongoDB Go driver. Connection setup applies safe
-defaults, performs a fail-fast ping, and normalizes errors to `errorkit`. Tracing
-is **opt-in** via a wrapper that emits one span per collection operation; the
-package itself imports no telemetry package by default.
+defaults, performs a fail-fast ping, and normalizes errors to `errorkit`. Default constructors integrate one client span per collection operation.
+Use NewWithoutTracing or a nil explicit instrumenter to disable tracing.
 
 ## Table of Contents
 
@@ -50,10 +49,10 @@ import (
     "context"
     "log"
 
-    "github.com/trypanic/go-sdk/mongo" // package identifier: mongodb
+    "github.com/trypanic/go-sdk/mongo" // package identifier: mongo
 )
 
-client, err := mongodb.New(context.Background(), mongodb.Config{
+client, err := mongo.New(context.Background(), mongo.Config{
     URI:      "mongodb://root:secret@localhost:27017",
     Database: "my_app",
 })
@@ -136,7 +135,7 @@ The previous `bool` field made `false` ambiguous between "I want it off" and
 
 ```go
 disable := false
-client, err := mongodb.New(ctx, mongodb.Config{
+client, err := mongo.New(ctx, mongo.Config{
     URI:         os.Getenv("MONGO_URI"),
     Database:    "my_app",
     RetryWrites: &disable, // explicitly off
@@ -154,12 +153,16 @@ The package itself reads no environment variables — callers wire env loading.
 | `New(ctx, cfg)` | Auto-traced via the global OTel tracer (compatibility) |
 | `NewWithoutTracing(ctx, cfg)` | No tracing wrapper |
 | `NewWithInstrumenter(ctx, cfg, instrumenter)` | Explicit instrumenter; pass `nil` to disable |
-| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` (from `NewWithoutTracing`; `New` already wraps) |
+| `WrapWithInstrumenter(client, instrumenter)` | Wrap an existing `ClientPort` (from `NewWithoutTracing`; `New` already traces) |
 
-Startup behavior is identical across constructors:
+Each connecting constructor returns `(*Client, error)` and accepts optional
+`ClientOption` values. `NewFromClient` borrows an existing driver client and
+does not connect, ping, or take lifecycle ownership.
+
+Startup behavior for the connecting constructors:
 
 1. Options are resolved: `Config` field, then URI, then SDK default (see [Defaults](#defaults)).
-2. `mongo.Connect` builds the driver client (no I/O yet).
+2. The upstream driver builds its client and starts connection monitoring.
 3. The primary is pinged with a timeout of `max(5s, ServerSelectionTimeout)` (the
    effective value from `Config` or the URI); an earlier deadline on `ctx` still applies.
    On failure the driver client is disconnected (bounded to 5 s, even if `ctx` is already
@@ -251,7 +254,7 @@ collection operation, named `mongo.<collection>.<operation>` (e.g.
 `mongo.products.insertOne`). The cursor returned by `Find` opens a second span,
 `mongo.<collection>.find.all`, around `Cursor.All`, because fetching further
 batches and decoding happen after `Find` returns. `ClientPort.Ping` and
-`ClientPort.Close` open `mongo.ping` and `mongo.close`.
+`ClientPort.Close` open `mongo.client.ping` and `mongo.client.close`.
 
 The wrapper holds an explicit `*telemetry.Instrumenter`, so consumers can:
 
@@ -270,7 +273,7 @@ which is acceptable since the wrapper-level span already covers the SDK API.
 
 ## Error Handling
 
-`mongodb` produces `errorkit.AppError` values for adapter-level failures. The
+`mongo` produces `errorkit.AppError` values for adapter-level failures. The
 driver error stays wrapped, so `errors.Is`/`errors.As` still reach it.
 Invalid URIs or client options are configuration errors; a failed start-up
 ping is `ERR_DB_MONGO_UNAVAILABLE`; per-operation errors (including
@@ -306,10 +309,10 @@ needed.
 
 ```go
 type ProductRepo struct {
-    client mongodb.ClientPort
+    client mongo.ClientPort
 }
 
-func NewProductRepo(c mongodb.ClientPort) *ProductRepo {
+func NewProductRepo(c mongo.ClientPort) *ProductRepo {
     return &ProductRepo{client: c}
 }
 
@@ -350,4 +353,36 @@ needed because the interface is not bound to `*mongo.Database`.
 | `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
 | `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for collection operations |
 
-The package has **no `otelmongo` import**. Tracing is wrapper-level and opt-in.
+The package has **no `otelmongo` import**. SDK operation tracing is integrated by default; driver command tracing is an explicit caller choice.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+`New`, `NewWithoutTracing` and `NewWithInstrumenter` return `*Client`, preserving
+`Database()` and `Unwrap()` (the driver client) with tracing enabled. Optional
+`WithClientOptions(*options.ClientOptions)` overrides Config/URI driver settings.
+Configure these options before construction. `NewFromClient(driver, database, instr)`
+performs no I/O and borrows the driver: its `Close` is a no-op; the original owner
+must call `Disconnect`. Clients opened by the SDK own and disconnect their driver.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+`FindOne` reports deferred operation/decode failures in a child
+`mongo.<collection>.findOne.decode` span when `Decode` is called. The initial
+find span always ends when FindOne returns, even if the result is never decoded.
+
+Span names use the shared `Instrumenter.DB` convention. Update dashboards that previously selected `mongo.ping` or `mongo.close` to use `mongo.client.ping` or `mongo.client.close`.
+
+Consumer tests can import [`mongotest`](./mongotest/README.md) for a reusable public test double without a live service.

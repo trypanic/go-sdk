@@ -21,10 +21,10 @@ const RequestIDHeader = "X-Request-ID"
 const maxRequestIDLen = 128
 
 // RequestLogger returns an httpserver.MiddlewareFunc, installable with
-// HTTPServer.Use, that injects a request-scoped logger into ctx. See
+// Server.Use, that injects a request-scoped logger into ctx. See
 // RequestLoggerMiddleware for the fields and the request ID rules.
 func RequestLogger(base *logger.Logger) httpserver.MiddlewareFunc {
-	return func(ctx context.Context, c httpserver.HTTPContext, next httpserver.HandlerFunc) {
+	return func(ctx context.Context, c httpserver.Context, next httpserver.HandlerFunc) {
 		hc, ok := c.(*hertzContext)
 		if !ok {
 			next(ctx, c)
@@ -39,7 +39,7 @@ func RequestLogger(base *logger.Logger) httpserver.MiddlewareFunc {
 // inbound X-Request-ID when it is 1-128 characters of [A-Za-z0-9._:-],
 // otherwise a new random one; it is echoed in the X-Request-ID response
 // header. Pass nil for base to derive from the context or global logger.
-// Use RequestLogger to install it through HTTPServer.Use.
+// Use RequestLogger to install it through Server.Use.
 func RequestLoggerMiddleware(base *logger.Logger) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
 		c.Next(withRequestLogger(ctx, c, base))

@@ -6,9 +6,9 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-// Compile-time assertion: Hertz adapter satisfies the SDK HTTPServer
+// Compile-time assertion: Hertz adapter satisfies the SDK Server
 // interface, including the new Shutdown method.
-var _ httpserver.HTTPServer = (*wrapperHertzServer)(nil)
+var _ httpserver.Server = (*Server)(nil)
 
 func TestNewWithOptionsBackfillsZeroFields(t *testing.T) {
 	t.Parallel()
@@ -18,9 +18,9 @@ func TestNewWithOptionsBackfillsZeroFields(t *testing.T) {
 			EnableHealth: true,
 		},
 	)
-	w, ok := srv.(*wrapperHertzServer)
+	w, ok := any(srv).(*Server)
 	if !ok {
-		t.Fatalf("NewWithOptions returned %T, want *wrapperHertzServer", srv)
+		t.Fatalf("NewWithOptions returned %T, want *Server", srv)
 	}
 	if w.replyOpts.Layout == "" || w.replyOpts.Clock == nil {
 		t.Fatalf("Reply layout/clock must be backfilled, got %+v", w.replyOpts)
@@ -30,7 +30,7 @@ func TestNewWithOptionsBackfillsZeroFields(t *testing.T) {
 func TestShutdownIsExposedOnHTTPServer(t *testing.T) {
 	t.Parallel()
 
-	var srv httpserver.HTTPServer = NewWithOptions(
+	var srv httpserver.Server = NewWithOptions(
 		httpserver.ServerConfig{Host: "127.0.0.1", Port: 0},
 		httpserver.ServerOptions{},
 	)

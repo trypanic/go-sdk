@@ -2,8 +2,8 @@
 
 Generic key-based storage with two implementations:
 
-- `MemoryStorage[T]` — in-memory, satisfies both `KVStorager[T]` and `AppendLogStorager[T]`.
-- `FileStorage[T]` — JSON Lines file backed, satisfies `AppendLogStorager[T]` only.
+- `MemoryStorage[T]` — in-memory, satisfies both `KVStore[T]` and `AppendLog[T]`.
+- `FileStorage[T]` — JSON Lines file backed, satisfies `AppendLog[T]` only.
 
 The two interfaces are deliberately separate. `Put` always means *overwrite*;
 `Append` always means *append*. No method does both.
@@ -13,14 +13,14 @@ The two interfaces are deliberately separate. `Put` always means *overwrite*;
 ## Interfaces
 
 ```go
-type KVStorager[T any] interface {
+type KVStore[T any] interface {
     Put(key string, value *T) error
     Get(key string) (*T, bool, error)
     Delete(key string) error
     Clear() error
 }
 
-type AppendLogStorager[T any] interface {
+type AppendLog[T any] interface {
     Append(key string, item *T) (*[]T, error)
     List(key string) (*[]T, bool, error)
     Delete(key string) error
@@ -181,9 +181,11 @@ file, the open uses `O_NOFOLLOW` (on Unix), and the opened file is the one
 no data: `List` reports the key as absent, and `Append` replaces the link with
 a regular file through the atomic rename, leaving the link's target untouched. The data is synced to
 disk, the temporary file is renamed onto the final path, and the directory is
-synced so the rename survives a crash. Any failure leaves the target file
-untouched and removes the temporary file. A file therefore always starts
-with at least one complete line.
+synced so the rename survives a crash. Failures before a successful rename
+leave the target untouched and remove the temporary file. If directory fsync
+fails after rename, the new file is already visible but crash durability is
+unconfirmed; the returned error does not imply rollback. A newly replaced file
+always starts with at least one complete line.
 
 Later items are appended as a single write of one line followed by `fsync`;
 `Append` returns only after the sync. A crash in the middle of an append can
@@ -223,8 +225,8 @@ returns). Other files in `baseDir`, such as `config.json`, are left untouched.
 
 | Need | Use |
 |---|---|
-| Process-local KV with overwrite semantics | `MemoryStorage[T]` (KVStorager) |
-| Process-local append-log | `MemoryStorage[T]` (AppendLogStorager) |
+| Process-local KV with overwrite semantics | `MemoryStorage[T]` (KVStore) |
+| Process-local append-log | `MemoryStorage[T]` (AppendLog) |
 | Persistent append-log across restarts | `FileStorage[T]` |
 
 For ad-hoc dump-to-disk during development (one-shot file write, not a

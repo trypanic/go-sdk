@@ -10,8 +10,8 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/httprequest"
-	mongodb "github.com/trypanic/go-sdk/mongo"
-	database "github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/mongo"
+	"github.com/trypanic/go-sdk/postgres"
 
 	// Imported for their init(), which registers each package's codes in the
 	// global errorkit registry swept below.
@@ -29,9 +29,9 @@ func TestToStatus_PackageCodesUseRegisteredMetadata(t *testing.T) {
 		{httprequest.ERR_AUTH_UNAUTHENTICATED, codes.Unauthenticated},
 		{httprequest.ERR_AUTH_UNAUTHORIZED, codes.PermissionDenied},
 		{httprequest.ERR_NETWORK_TIMEOUT, codes.DeadlineExceeded},
-		{mongodb.ERR_DB_MONGO_NOT_FOUND, codes.NotFound},
-		{database.ERR_DB_POSTGRES_UNAVAILABLE, codes.Unavailable},
-		{database.ERR_DB_POSTGRES_TIMEOUT, codes.DeadlineExceeded},
+		{mongo.ERR_DB_MONGO_NOT_FOUND, codes.NotFound},
+		{postgres.ERR_DB_POSTGRES_UNAVAILABLE, codes.Unavailable},
+		{postgres.ERR_DB_POSTGRES_TIMEOUT, codes.DeadlineExceeded},
 		{httpclient.ERR_EXTERNAL_SERVICE_UNAVAILABLE, codes.Unavailable},
 	}
 	for _, tc := range cases {

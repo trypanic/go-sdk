@@ -61,15 +61,15 @@ func (f *StackFormatter) FormatColored(e *AppError) string {
 	// Header
 	builder.WriteString("\n")
 	fmt.Fprintf(builder, "%s %s %s\n",
-		f.colorize(Bold+Red, "✘ ERROR"),
-		f.colorize(Cyan, string(e.ErrCode)),
-		f.colorize(Yellow, e.Metadata.Description),
+		f.colorize(bold+red, "✘ ERROR"),
+		f.colorize(cyan, string(e.ErrCode)),
+		f.colorize(yellow, e.Metadata.Description),
 	)
 
 	// Reason
 	if e.Reason != "" {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "Reason:"),
+			f.colorize(purple, "Reason:"),
 			e.Reason,
 		)
 	}
@@ -77,44 +77,44 @@ func (f *StackFormatter) FormatColored(e *AppError) string {
 	// Wrapped
 	if e.Wrapped != nil {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "Wrapped:"),
+			f.colorize(purple, "Wrapped:"),
 			e.Unwrap(),
 		)
 	}
 
 	if e.Payload != nil {
 		fmt.Fprintf(builder, "  %s %v\n",
-			f.colorize(Cyan, "Payload:"),
+			f.colorize(cyan, "Payload:"),
 			e.Payload,
 		)
 	}
 
 	// Error ID
 	fmt.Fprintf(builder, "  %s %s\n",
-		f.colorize(Purple, "ErrorID:"),
+		f.colorize(purple, "ErrorID:"),
 		e.ID,
 	)
 
 	// Trace ID (only if present)
 	if e.TraceID != "" {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "TraceID:"),
+			f.colorize(purple, "TraceID:"),
 			e.TraceID,
 		)
 	}
 
 	// Stack Trace
 	builder.WriteString("\n")
-	builder.WriteString(f.colorize(Bold+Blue, "Stack Trace:"))
+	builder.WriteString(f.colorize(bold+blue, "Stack Trace:"))
 	builder.WriteString("\n")
 
 	for i, frame := range e.Trace {
 		fmt.Fprintf(builder,
 			"%d:%s:%s:%s:%d\n",
 			i,
-			f.colorize(Red, frame.Package),
-			f.colorize(Yellow, frame.Function),
-			f.colorize(Cyan, frame.File),
+			f.colorize(red, frame.Package),
+			f.colorize(yellow, frame.Function),
+			f.colorize(cyan, frame.File),
 			frame.Line,
 		)
 	}

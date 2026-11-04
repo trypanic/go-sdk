@@ -221,3 +221,9 @@ All functions are pure and stateless. They are safe for concurrent use without a
 |---|---|
 | `net/url` | URL parsing, construction, and query-string encoding |
 | `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
+
+Hierarchical base paths preserve escaped separators (`/a%2Fb` stays one segment).
+`JoinPath` takes raw segments (a literal `%2F` becomes `%252F`); `BuildURL` accepts
+percent-escaped path input. Both reject opaque bases such as `mailto:user@example.com`
+with `ERR_VALIDATION_INVALID_FORMAT`, because appending a path would otherwise
+leave the serialized URL unchanged.

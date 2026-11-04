@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
-func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsPostgresError(t *testing.T) {
+func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsEncodingError(t *testing.T) {
 	sut := StoredProcedure[map[string]any]{}
 
 	_, err := sut.QueryRowJSON(t.Context(), "SELECT 1", make(chan int))
@@ -27,8 +27,8 @@ func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsPostgresError(t *test
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
-	if appErr.Code() != ERR_DB_POSTGRES_ERROR {
-		t.Fatalf("expected code %s, got %s", ERR_DB_POSTGRES_ERROR, appErr.Code())
+	if appErr.Code() != ERR_DB_POSTGRES_ENCODE_FAILED {
+		t.Fatalf("expected code %s, got %s", ERR_DB_POSTGRES_ENCODE_FAILED, appErr.Code())
 	}
 }
 

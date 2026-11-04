@@ -43,12 +43,12 @@ func requireCode(t *testing.T, err error, want errorkit.ErrorCode) *errorkit.App
 func TestValidatorsUseConsistentCodes(t *testing.T) {
 	t.Parallel()
 
-	requireCode(t, IsValidDatePointer("2024-01-01"), errorkit.ERR_VALIDATION_INVALID_FORMAT)
-	requireCode(t, IsValidDatePointer(42), errorkit.ERR_VALIDATION_INVALID_FORMAT)
-	requireCode(t, IsValidDatePointer((*string)(nil)), errorkit.ERR_VALIDATION_MISSING_FIELD)
-	requireCode(t, IsValidDatePointer(nil), errorkit.ERR_VALIDATION_MISSING_FIELD)
-	requireCode(t, IsAlphanumericWithSpaces(42), errorkit.ERR_VALIDATION_INVALID_FORMAT)
-	requireCode(t, IsWithinRange(1, 5)(int64(3)), errorkit.ERR_VALIDATION_INVALID_FORMAT)
+	_ = requireCode(t, IsValidDatePointer("2024-01-01"), errorkit.ERR_VALIDATION_INVALID_FORMAT)
+	_ = requireCode(t, IsValidDatePointer(42), errorkit.ERR_VALIDATION_INVALID_FORMAT)
+	_ = requireCode(t, IsValidDatePointer((*string)(nil)), errorkit.ERR_VALIDATION_MISSING_FIELD)
+	_ = requireCode(t, IsValidDatePointer(nil), errorkit.ERR_VALIDATION_MISSING_FIELD)
+	_ = requireCode(t, IsAlphanumericWithSpaces(42), errorkit.ERR_VALIDATION_INVALID_FORMAT)
+	_ = requireCode(t, IsWithinRange(1, 5)(int64(3)), errorkit.ERR_VALIDATION_INVALID_FORMAT)
 }
 
 func TestIsWithinRangeRejectsInvertedBounds(t *testing.T) {

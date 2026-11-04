@@ -88,7 +88,7 @@ func TestPublicMessageByStatusClass(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			appErr := errorkit.NewError(tc.code)
 			if tc.reason != "" {
-				appErr.With(errorkit.WithReason("%s", tc.reason))
+				appErr = appErr.With(errorkit.WithReason("%s", tc.reason))
 			}
 			pub := appErr.Public()
 			if pub.Message != tc.want {

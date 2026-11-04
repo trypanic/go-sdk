@@ -620,7 +620,7 @@ Declared in `types.go`. Several groups are reserved for downstream code that reg
 | `GroupClient`       | `client`          |
 | `GroupAuth`         | `auth`            |
 | `GroupStorage`      | `storage`         |
-| `GroupDatabase`     | `database`        |
+| `GroupDatabase`     | `postgres`        |
 | `GroupMessageQueue` | `message_queue`   |
 
 ---
@@ -646,3 +646,26 @@ The package ships with a small core registry. Domain-specific codes (auth, datab
 | `ERR_SYSTEM_CONFIG_INVALID`     | system  | 500 | ✗         | Invalid system configuration           |
 | `ERR_SYSTEM_TIMEOUT_INTERNAL`   | system  | 500 | ✓         | Internal operation timeout             |
 | `ERR_SYSTEM_CONCURRENCY`        | system  | 409 | ✓         | Concurrency conflict detected          |
+
+### Expected failures without stack capture
+
+`NewWithoutStack(code)` preserves the normal metadata, ID, timestamp and error
+chain while leaving `Trace` empty. Use it for frequent expected validation
+failures. `NewError`, registry and factory constructors retain their existing
+stack behavior; global stack-depth configuration does not affect this explicit
+constructor. The `validators` package uses it for invalid user input, while
+configuration errors (such as reversed numeric bounds) retain a stack.
+
+### Additional adapter codes
+
+These codes are registered by importing their owning package:
+
+| Code | Owner | HTTP status | Retriable | Meaning |
+| --- | --- | --- | --- | --- |
+| ERR_REQUEST_CANCELED | httprequest | 499 | no | Caller canceled the HTTP request |
+| ERR_DB_MONGO_CANCELED | mongo | 499 | no | Caller canceled the MongoDB operation |
+| ERR_MQ_CLOSED | messaging | 503 | no | Messaging client is closed |
+| ERR_DB_POSTGRES_ENCODE_FAILED | postgres | 500 | no | JSON argument cannot be encoded before the query |
+
+The four `ERR_EXTERNAL_*` codes are registered by `errorkit` itself; importing
+`httpclient` is unnecessary to construct or classify them.

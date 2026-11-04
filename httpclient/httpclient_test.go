@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
@@ -112,7 +113,7 @@ func TestRedirectPolicyMaxRedirectsPositive(t *testing.T) {
 	client := NewClient(&ClientConfig{MaxRedirects: 2})
 	resp, err := client.Get(srv.URL)
 	if resp != nil {
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 	}
 
 	var appErr *errorkit.AppError
@@ -144,7 +145,7 @@ func TestRedirectPolicyMaxRedirectsZeroReturnsRedirectResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error with MaxRedirects=0, got %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { require.NoError(t, resp.Body.Close()) })
 
 	if resp.StatusCode != http.StatusFound {
 		t.Fatalf("expected 302 to be returned to caller, got %d", resp.StatusCode)

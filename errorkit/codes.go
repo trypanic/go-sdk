@@ -106,3 +106,26 @@ const (
 	// concurrent modification conflict, distributed lock acquisition failed, CAS operation failed
 	ERR_SYSTEM_CONCURRENCY ErrorCode = "ERR_SYSTEM_CONCURRENCY"
 )
+
+const (
+	// ERR_EXTERNAL_SERVICE_UNAVAILABLE indicates external service is down or unreachable
+	// Context: HTTP 503 response, service maintenance mode, load balancer returning errors,
+	// circuit breaker open, health check failed, gRPC UNAVAILABLE status (14)
+	ERR_EXTERNAL_SERVICE_UNAVAILABLE ErrorCode = "ERR_EXTERNAL_SERVICE_UNAVAILABLE"
+
+	// ERR_EXTERNAL_SERVICE_TIMEOUT indicates external service didn't respond in time
+	// Context: HTTP 504 response, request deadline exceeded, read timeout from external API,
+	// gRPC DEADLINE_EXCEEDED status (4), slow third-party response
+	ERR_EXTERNAL_SERVICE_TIMEOUT ErrorCode = "ERR_EXTERNAL_SERVICE_TIMEOUT"
+
+	// ERR_EXTERNAL_SERVICE_ERROR indicates external service returned server error
+	// Context: HTTP 500/502 response, internal error from third-party API,
+	// gRPC INTERNAL status (13), external service degraded, unhandled exception in external service
+	ERR_EXTERNAL_SERVICE_ERROR ErrorCode = "ERR_EXTERNAL_SERVICE_ERROR"
+
+	// ERR_EXTERNAL_INVALID_RESPONSE indicates external service response is invalid or unexpected
+	// Context: HTTP 4xx responses (400, 401, 403, 404, 422), malformed JSON response,
+	// unexpected response schema, missing required fields in response, response validation failed,
+	// gRPC INVALID_ARGUMENT status (3), gRPC ABORTED status (10), protocol violation
+	ERR_EXTERNAL_INVALID_RESPONSE ErrorCode = "ERR_EXTERNAL_INVALID_RESPONSE"
+)

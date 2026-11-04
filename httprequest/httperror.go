@@ -13,13 +13,12 @@ import (
 	"strings"
 
 	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
 	"github.com/trypanic/go-sdk/internal/redact"
 )
 
 // redactBody returns the redactor output as a string. It centralizes the
 // nil-safety logic so callers can always call it.
-func (h *HTTPRequest) redactBody(b []byte) string {
+func (h *Request) redactBody(b []byte) string {
 	r := h.redactor
 	if r == nil {
 		r = DefaultBodyRedactor
@@ -31,10 +30,10 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 // included when WithBodyCapture is enabled, and even then it is redacted.
 // The URL, in the payload and inside a wrapped *url.Error, is sanitized by
 // redact.URL so credentials never reach logs or error payloads.
-func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+func (h *Request) buildNetworkError(err error, requestURL string, requestBody []byte) error {
 	// An *errorkit.AppError raised inside the client (for example by a
 	// CheckRedirect policy) already carries the right classification.
-	if inner, ok := errors.AsType[*errorkit.AppError](err); ok {
+	if inner, ok := errorkit.As(err); ok {
 		return inner
 	}
 
@@ -48,7 +47,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	if isTLSVerificationError(err) {
-		return errorkit.NewError(httpclient.ERR_EXTERNAL_INVALID_RESPONSE).
+		return errorkit.NewError(errorkit.ERR_EXTERNAL_INVALID_RESPONSE).
 			With(
 				errorkit.WithReason("TLS certificate verification failed"),
 				errorkit.WithWrapped(err),
@@ -135,7 +134,7 @@ func validateURL(rawURL string) error {
 }
 
 // buildHTTPError maps HTTP status codes to structured errors.
-func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
+func (h *Request) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
 	statusCode := res.StatusCode
 	requestURL := redact.URL(res.Request.URL.String())
 	providerErr := parseProviderError(bodyBytes)
@@ -168,13 +167,13 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	switch {
 	// 5xx Server Errors
 	case statusCode == http.StatusServiceUnavailable: // 503
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_UNAVAILABLE
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_UNAVAILABLE
 		reason = fmt.Sprintf("External service unavailable (%d)", statusCode)
 	case statusCode == http.StatusGatewayTimeout: // 504
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_TIMEOUT
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_TIMEOUT
 		reason = fmt.Sprintf("External service timeout (%d)", statusCode)
 	case statusCode >= 500 && statusCode <= 599:
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_ERROR
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_ERROR
 		reason = fmt.Sprintf("External service error (%d)", statusCode)
 
 	// 4xx Client Errors
@@ -198,7 +197,7 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 		errCode = ERR_AUTH_UNAUTHORIZED
 		reason = fmt.Sprintf("Access forbidden (%d)", statusCode)
 	case statusCode >= 400 && statusCode <= 499:
-		errCode = httpclient.ERR_EXTERNAL_INVALID_RESPONSE
+		errCode = errorkit.ERR_EXTERNAL_INVALID_RESPONSE
 		reason = fmt.Sprintf("Invalid request or response (%d)", statusCode)
 
 	// Unexpected status codes

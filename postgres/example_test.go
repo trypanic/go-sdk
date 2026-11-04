@@ -1,11 +1,11 @@
-package database_test
+package postgres_test
 
 import (
 	"context"
 	"log"
 	"time"
 
-	database "github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/postgres"
 )
 
 type item struct {
@@ -16,7 +16,7 @@ type item struct {
 // Example wires a pool and a traced stored-procedure runner. It needs a
 // database, so it is compiled but not run.
 func Example() {
-	pool, err := database.NewPostgresClient(database.Config{
+	pool, err := postgres.New(postgres.Config{
 		DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
 		MaxConnLifetime: time.Hour,
 		MaxConns:        10,
@@ -27,7 +27,7 @@ func Example() {
 	defer pool.Close()
 
 	// NewStoredProcedure already traces each call; do not wrap it again.
-	sp := database.NewStoredProcedure[item](pool)
+	sp := postgres.NewStoredProcedure[item](pool)
 
 	ctx := context.Background()
 	created, err := sp.QueryJSON(ctx, "SELECT * FROM insert_items($1, $2::jsonb)", []item{{Name: "alpha"}}, "tenant-a")

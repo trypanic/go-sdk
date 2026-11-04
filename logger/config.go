@@ -18,11 +18,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Blue and Reset are the ANSI escape codes the Dev console writer uses to
+// blue and reset are the ANSI escape codes the Dev console writer uses to
 // color field names.
 const (
-	Blue  = "\033[34m"
-	Reset = "\033[0m"
+	blue  = "\033[34m"
+	reset = "\033[0m"
 
 	maskedPasswordValue = "*****"
 )
@@ -152,7 +152,7 @@ func writeConsoleInlineField(buf *bytes.Buffer, field consoleField) {
 }
 
 func colorizeConsoleFieldName(key string) string {
-	return fmt.Sprintf("%s%s%s", Blue, key, Reset)
+	return fmt.Sprintf("%s%s%s", blue, key, reset)
 }
 
 func renderConsoleInlineValue(fieldKey string, value any) string {
@@ -439,7 +439,7 @@ func formatConsoleTimestamp(i any) string {
 	default:
 		return fmt.Sprint(i)
 	}
-	return consoleTimestampColor + ts.Local().Format(consoleTimeFormat) + Reset
+	return consoleTimestampColor + ts.Local().Format(consoleTimeFormat) + reset
 }
 
 const (

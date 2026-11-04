@@ -34,7 +34,7 @@ func TestHealthCustomPathFreesHealthForTheConsumer(t *testing.T) {
 	o.HealthPath = "/livez"
 	s := newTestServer(t, o)
 	require.NotPanics(t, func() {
-		s.GET("/health", func(_ context.Context, c httpserver.HTTPContext) {
+		s.GET("/health", func(_ context.Context, c httpserver.Context) {
 			c.String(http.StatusOK, "mine")
 		})
 	})
@@ -52,7 +52,7 @@ func TestHealthDisabledLeavesThePathFree(t *testing.T) {
 	o.EnableHealth = false
 	s := newTestServer(t, o)
 	require.NotPanics(t, func() {
-		s.GET("/health", func(_ context.Context, c httpserver.HTTPContext) { c.String(http.StatusOK, "mine") })
+		s.GET("/health", func(_ context.Context, c httpserver.Context) { c.String(http.StatusOK, "mine") })
 	})
 }
 

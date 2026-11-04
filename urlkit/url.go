@@ -26,23 +26,9 @@ import (
 //	})
 //	// Result: https://api.example.com/users?page=1&limit=10
 func BuildURL(base, path string, params map[string]string) (*url.URL, error) {
-	// Validate base URL is not empty
-	if base == "" {
-		return nil, errorkit.NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).
-			With(errorkit.WithReason("Base URL is required"))
-	}
-
-	// Parse base URL first to validate it
-	baseURL, err := url.Parse(base)
+	baseURL, err := parseBase(base)
 	if err != nil {
-		return nil, errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).
-			With(
-				errorkit.WithReason("Invalid base URL format"),
-				errorkit.WithWrapped(err),
-				errorkit.WithPayload(map[string]string{
-					"base_url": base,
-				}),
-			)
+		return nil, err
 	}
 
 	if path != "" {
@@ -102,8 +88,8 @@ func MustBuildURL(base, path string, params map[string]string) *url.URL {
 // ".." path element (for example "..", "a/../b") is rejected with
 // ERR_VALIDATION_INVALID_FORMAT, so a segment cannot escape the base path.
 //
-// JoinPath accepts any base that url.Parse accepts, including relative and
-// non-HTTP URLs; use JoinHTTPPath to also require an http(s) base with a host.
+// JoinPath accepts hierarchical bases, including relative and non-HTTP URLs;
+// opaque bases such as mailto:user@example.com are rejected. use JoinHTTPPath to also require an http(s) base with a host.
 //
 // Example:
 //
@@ -154,12 +140,15 @@ func parseBase(base string) (*url.URL, error) {
 			errorkit.WithPayload(map[string]string{"base_url": base}),
 		)
 	}
+	if u.Opaque != "" {
+		return nil, errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(errorkit.WithReason("Base URL must have a hierarchical path"))
+	}
 	return u, nil
 }
 
 // joinSegments appends segments to the path of u and returns the result.
 func joinSegments(u *url.URL, base string, segments []string) (string, error) {
-	parts := []string{strings.TrimRight(u.Path, "/")}
+	parts := []string{strings.TrimRight(u.EscapedPath(), "/")}
 	for _, s := range segments {
 		s = strings.Trim(s, "/")
 		if s == "" {
@@ -174,9 +163,15 @@ func joinSegments(u *url.URL, base string, segments []string) (string, error) {
 				}),
 			)
 		}
-		parts = append(parts, s)
+		segmentURL := &url.URL{Path: s}
+		parts = append(parts, segmentURL.EscapedPath())
 	}
-	u.Path = strings.Join(parts, "/")
+	rawPath := strings.Join(parts, "/")
+	decoded, err := url.PathUnescape(rawPath)
+	if err != nil {
+		return "", errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(errorkit.WithWrapped(err))
+	}
+	u.Path, u.RawPath = decoded, rawPath
 	return u.String(), nil
 }
 

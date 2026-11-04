@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -95,7 +96,44 @@ func (d dialFunc) open(ctx context.Context, url string, o connOptions) (amqpConn
 	if d == nil {
 		d = dialAMQP
 	}
-	return d(url, o.config(ctx))
+	cfg := o.config(ctx)
+	dial := cfg.Dial
+	var mu sync.Mutex
+	var socket net.Conn
+	done := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		mu.Lock()
+		if socket != nil {
+			_ = socket.Close()
+		}
+		mu.Unlock()
+		close(done)
+	})
+	cfg.Dial = func(network, address string) (net.Conn, error) {
+		conn, err := dial(network, address)
+		if err != nil {
+			return nil, err
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if err := ctx.Err(); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+		socket = conn
+		return conn, nil
+	}
+	conn, err := d(url, cfg)
+	if !stop() {
+		<-done
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		if conn != nil {
+			abandon(conn)
+		}
+		return nil, ctxErr
+	}
+	return conn, err
 }
 
 // ctxDialer returns an amqp.Config.Dial func whose TCP connect is cancelled

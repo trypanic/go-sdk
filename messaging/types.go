@@ -67,9 +67,9 @@ type Message struct {
 // return an error to trigger the queue's retry policy.
 type MessageHandler func(ctx context.Context, msg Message) error
 
-// Messager is the public contract for publish/subscribe operations.
+// Broker is the public contract for publish/subscribe operations.
 // Use this interface in function signatures to allow mocking in tests.
-type Messager interface {
+type Broker interface {
 	// Publish sends payload to the exchange and routing keys that the
 	// topology binds to queueName, and waits for the broker's confirms.
 	Publish(ctx context.Context, queueName string, payload Event) error

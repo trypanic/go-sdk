@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"net/url"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -86,7 +86,7 @@ func TestCancellationDuringBackoffWait(t *testing.T) {
 		start := time.Now()
 		err := r.Do(ctx, getReq, nil)
 
-		requireAppError(t, err, ERR_REQUEST_CANCELED, false)
+		_ = requireAppError(t, err, ERR_REQUEST_CANCELED, false)
 		require.Equal(t, time.Second, time.Since(start), "the wait ends when ctx is canceled")
 		require.Empty(t, tr.gaps(), "no attempt after cancellation")
 	})
@@ -104,17 +104,23 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	for name, r := range map[string]HTTPRequester{
-		"New":                     New(srv.Client()),
-		"NewHTTPRequestWithRetry": NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2}),
-		"WrapWithTracing":         WrapWithTracing(NewWithoutTracing(srv.Client())),
+	for name, r := range map[string]Requester{
+		"New":                              New(srv.Client()),
+		"NewWithOptions retry and tracing": NewWithOptions(srv.Client(), WithRetryConfig(RetryConfig{MaxRetries: 2}), WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))),
+		"WrapWithTracing":                  WrapWithTracing(NewWithoutTracing(srv.Client())),
 	} {
-		_, ok := r.(*tracingHTTPRequester)
-		require.True(t, ok, "%s must wrap with tracing, got %T", name, r)
+		switch client := r.(type) {
+		case *Request:
+			require.NotNil(t, client.instrumenter, name)
+		case *tracingHTTPRequester:
+			require.NotNil(t, client.instrumenter, name)
+		default:
+			t.Fatalf("%s: unexpected implementation %T", name, r)
+		}
 		require.NoError(t, r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, nil), name)
 	}
 
-	inner := NewHTTPRequestWithRetry(srv.Client(), RetryConfig{MaxRetries: 2}).(*tracingHTTPRequester).inner.(*HTTPRequest)
+	inner := NewWithOptions(srv.Client(), WithRetryConfig(RetryConfig{MaxRetries: 2}), WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})))
 	require.Equal(t, 2, inner.retryConfig.MaxRetries)
 	require.Equal(t, DefaultInitialDelay, inner.retryConfig.InitialDelay)
 	require.Equal(t, DefaultMaxDelay, inner.retryConfig.MaxDelay)
@@ -123,10 +129,10 @@ func TestConstructorsApplyDefaultsAndTracing(t *testing.T) {
 	require.NoError(t, r.Do(t.Context(), RequestConfig{Method: http.MethodPost, URL: srv.URL + "/v1/chat/completions"}, nil))
 	spans := recorder.Ended()
 	require.Len(t, spans, 1)
-	require.Equal(t, "http.0.POST.chat.completions", spans[0].Name(), "loopback host keyword is the second-to-last label of 127.0.0.1")
+	require.Equal(t, "external.http.127.0.0.1.POST", spans[0].Name(), "path segments do not enter the span name")
 
-	plain, ok := NewWithInstrumenter(srv.Client(), nil).(*HTTPRequest)
-	require.True(t, ok, "a nil instrumenter disables tracing")
+	plain := NewWithInstrumenter(srv.Client(), nil)
+	require.Nil(t, plain.instrumenter, "a nil instrumenter disables tracing")
 	require.Equal(t, normalizeRetryConfig(RetryConfig{}), plain.retryConfig)
 	require.Equal(t, DefaultMaxResponseBytes, plain.maxResponseBytes)
 }
@@ -135,10 +141,10 @@ func TestHTTPSpanName(t *testing.T) {
 	t.Parallel()
 
 	for rawURL, want := range map[string]string{
-		"https://openapi.taobao.com/purchase/order/render": "http.taobao.POST.order.render",
-		"http://localhost:8080/items":                      "http.localhost.POST.items",
-		"https://api.example.com/":                         "http.example.POST.root",
-		"://bad":                                           "http.unknown.POST.unknown",
+		"https://openapi.taobao.com/purchase/order/render": "external.http.openapi.taobao.com.POST",
+		"http://localhost:8080/items":                      "external.http.localhost.POST",
+		"https://api.example.com/":                         "external.http.api.example.com.POST",
+		"://bad":                                           "external.http.unknown.POST",
 	} {
 		require.Equal(t, want, httpSpanName("post", rawURL), rawURL)
 	}
@@ -198,14 +204,10 @@ func FuzzSpanNameHelpers(f *testing.F) {
 	f.Add("", "")
 	f.Add("[::1]:80", "///")
 	f.Fuzz(func(t *testing.T, host, path string) {
-		_ = hostKeyword(host)
-		seg := lastTwoPathSegments(path)
-		if seg == "" {
-			t.Fatalf("lastTwoPathSegments(%q) is empty", path)
-		}
-		if strings.Trim(path, "/") == "" && seg != "root" {
-			t.Fatalf("lastTwoPathSegments(%q) = %q, want root", path, seg)
-		}
+		require.NotEmpty(t, hostKeyword(host))
+		// Arbitrary resource identifiers must not affect the operation name.
+		base := "https://api.example.com/"
+		require.Equal(t, httpSpanName("GET", base), httpSpanName("GET", base+url.PathEscape(path)))
 	})
 }
 

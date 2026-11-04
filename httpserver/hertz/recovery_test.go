@@ -15,13 +15,13 @@ import (
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
-func panickingServer(t *testing.T, enableRecovery bool) *wrapperHertzServer {
+func panickingServer(t *testing.T, enableRecovery bool) *Server {
 	t.Helper()
 	opts := testOptions()
 	opts.EnableAudit = false
 	opts.EnableRecovery = enableRecovery
 	s := newTestServer(t, opts)
-	s.GET("/boom", func(context.Context, httpserver.HTTPContext) {
+	s.GET("/boom", func(context.Context, httpserver.Context) {
 		panic("boom secret=xyz")
 	})
 	return s

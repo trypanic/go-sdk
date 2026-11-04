@@ -21,7 +21,7 @@ type captureRequester struct {
 func (c *captureRequester) Do(ctx context.Context, cfg httprequest.RequestConfig, out any) error {
 	c.cfg = cfg
 	c.ctx = ctx
-	resp, ok := out.(*LLMResponse)
+	resp, ok := out.(*Response)
 	if !ok {
 		return nil
 	}
@@ -39,7 +39,7 @@ func TestNewClientExecutePostsToConfiguredEndpointWithBearer(t *testing.T) {
 	stub := &captureRequester{}
 	c := NewClient(stub, Config{APIKey: "key-123", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{
+	if _, err := c.Execute(t.Context(), RequestConfig{
 		Model: "m1", SystemPrompt: "s", UserMessage: "u",
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -63,7 +63,7 @@ func TestExecuteAppliesConfiguredTimeoutAsContextDeadline(t *testing.T) {
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: 50 * time.Millisecond})
 
 	start := time.Now()
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{Model: "m"}); err != nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -82,7 +82,7 @@ func TestExecuteNoDeadlineWhenTimeoutNegative(t *testing.T) {
 	stub := &captureRequester{}
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: -1})
 
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{Model: "m"}); err != nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, ok := stub.ctx.Deadline(); ok {
@@ -97,7 +97,7 @@ func TestExecuteDefaultDeadlineWhenTimeoutZero(t *testing.T) {
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
 	start := time.Now()
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{Model: "m"}); err != nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	deadline, ok := stub.ctx.Deadline()
@@ -115,7 +115,7 @@ func TestExecuteRequiresModel(t *testing.T) {
 	stub := &captureRequester{}
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{}); err == nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{}); err == nil {
 		t.Fatalf("expected error when Model is empty")
 	}
 }
@@ -126,7 +126,7 @@ func TestExecutePayloadOmitsStreamField(t *testing.T) {
 	stub := &captureRequester{}
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(t.Context(), LLMRequestConfig{
+	if _, err := c.Execute(t.Context(), RequestConfig{
 		Model: "m", SystemPrompt: "s", UserMessage: "u",
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -150,7 +150,7 @@ func TestExecuteReturnsResponseContentUnchanged(t *testing.T) {
 	stub := &captureRequester{responseText: "```json\n{\"a\":1}\n```"}
 	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	got, err := c.Execute(t.Context(), LLMRequestConfig{Model: "m"})
+	got, err := c.Execute(t.Context(), RequestConfig{Model: "m"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
 	t.Parallel()
 
 	c := NewClient(emptyChoicesRequester{}, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
-	_, err := c.Execute(t.Context(), LLMRequestConfig{Model: "m1"})
+	_, err := c.Execute(t.Context(), RequestConfig{Model: "m1"})
 
 	appErr, ok := err.(*errorkit.AppError)
 	if !ok {
@@ -184,14 +184,14 @@ func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
 func TestLLMRequestOmitsZeroTuningFields(t *testing.T) {
 	t.Parallel()
 
-	b, err := json.Marshal(LLMRequest{Model: "m"})
+	b, err := json.Marshal(Request{Model: "m"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if bytes.Contains(b, []byte("max_tokens")) || bytes.Contains(b, []byte("temperature")) {
 		t.Fatalf("zero tuning fields must be omitted, got %s", b)
 	}
-	b, err = json.Marshal(LLMRequest{Model: "m", MaxTokens: 5, Temperature: 0.5})
+	b, err = json.Marshal(Request{Model: "m", MaxTokens: 5, Temperature: 0.5})
 	if err != nil {
 		t.Fatal(err)
 	}

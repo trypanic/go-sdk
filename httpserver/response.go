@@ -1,15 +1,13 @@
 package httpserver
 
 import (
-	"errors"
-
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
 // OptionReply sets one field of a Reply; see BuildReply.
 type OptionReply func(*Reply)
 
-// Reply is the JSON envelope written by HTTPContext.Reply. Code and Error
+// Reply is the JSON envelope written by Context.Reply. Code and Error
 // are client-safe: they never carry err.Error() text (see WithErrorOpt).
 type Reply struct {
 	Message   *string `json:"message,omitempty"`
@@ -22,7 +20,7 @@ type Reply struct {
 }
 
 // WithMessageOpt returns an OptionReply that sets Reply.Message.
-// Framework-agnostic equivalent of HTTPContext.WithMessage.
+// Framework-agnostic equivalent of Context.WithMessage.
 func WithMessageOpt(message string) OptionReply {
 	return func(r *Reply) { r.Message = &message }
 }
@@ -42,7 +40,7 @@ const genericErrorMessage = "Internal server error"
 //     its Metadata.Description otherwise.
 //   - any other error: Code is ERR_INTERNAL and Error is a generic message.
 //
-// Log the full error server-side; the Hertz adapter's HTTPContext.WithError
+// Log the full error server-side; the Hertz adapter's Context.WithError
 // does that with trace correlation.
 func WithErrorOpt(err error) OptionReply {
 	return func(r *Reply) {
@@ -52,7 +50,7 @@ func WithErrorOpt(err error) OptionReply {
 		code, message := publicError(err)
 		r.Code = code
 		r.Error = &message
-		if appErr, ok := errors.AsType[*errorkit.AppError](err); ok && appErr.TraceID != "" {
+		if appErr, ok := errorkit.As(err); ok && appErr.TraceID != "" {
 			r.TraceID = appErr.TraceID
 		}
 	}
@@ -60,7 +58,7 @@ func WithErrorOpt(err error) OptionReply {
 
 // publicError returns the client-safe code and message for err.
 func publicError(err error) (code, message string) {
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	appErr, ok := errorkit.As(err)
 	if !ok || appErr == nil {
 		return string(errorkit.ERR_INTERNAL), genericErrorMessage
 	}
@@ -104,3 +102,26 @@ func BuildReply(o ReplyOptions, opts ...OptionReply) *Reply {
 
 // buildReply is the unexported alias used by package tests.
 func buildReply(o ReplyOptions, opts ...OptionReply) *Reply { return BuildReply(o, opts...) }
+
+// StatusFor returns an AppError's registered HTTP failure status, including
+// through wrappers. Nil means 200; unknown errors or invalid statuses mean 500.
+func StatusFor(err error) int {
+	if err == nil {
+		return 200
+	}
+	if appErr, ok := errorkit.As(err); ok {
+		if status := appErr.Metadata.HTTPStatus; status >= 400 && status <= 599 {
+			return status
+		}
+	}
+	return 500
+}
+
+// ReplyError writes a metadata-driven, client-safe error response. A nil error
+// does not write a response. The adapter's WithError hook retains its logging.
+func ReplyError(c Context, err error) {
+	if err == nil {
+		return
+	}
+	c.Reply(StatusFor(err), c.WithError(err))
+}

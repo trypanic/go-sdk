@@ -1,7 +1,7 @@
 // Package httprequest sends HTTP requests with retries and maps every
 // failure to an *errorkit.AppError.
 //
-// HTTPRequester.Do builds the request, retries retriable failures that are
+// Requester.Do builds the request, retries retriable failures that are
 // safe to resend (idempotent methods, an Idempotency-Key header, or a
 // connection that was never made) with jittered exponential backoff that
 // honors Retry-After, and decodes the response into out by its type

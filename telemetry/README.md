@@ -103,3 +103,17 @@ call (a nil error is a no-op).
 use. `InitTracer` replaces the compatibility instrumenter atomically and may
 run concurrently with span creation, but it is meant to be called once at
 startup.
+
+Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
+`grpc.WithServerInstrumenter` / `grpc.WithClientInstrumenter` or
+`messaging.WithInstrumenter`; each keeps its component scope and uses
+`instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
+Hertz tracing remains an exception: its adapter uses the global provider.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.

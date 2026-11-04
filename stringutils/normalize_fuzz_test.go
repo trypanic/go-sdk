@@ -14,7 +14,7 @@ func FuzzNormalizeText(f *testing.F) {
 		got := NormalizeText(s)
 		for i := 0; i < len(got); i++ {
 			c := got[i]
-			if !(c == '_' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9') {
+			if c != '_' && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
 				t.Fatalf("NormalizeText(%q) = %q contains byte %q", s, got, c)
 			}
 		}

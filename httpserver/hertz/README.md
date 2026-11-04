@@ -1,7 +1,7 @@
 # httpserver/hertz
 
 Hertz adapter for `httpserver`. Implements the framework-agnostic
-`httpserver.HTTPServer`, `RouterGroup`, and `HTTPContext` contracts on
+`httpserver.Server`, `RouterGroup`, and `Context` contracts on
 top of [CloudWeGo Hertz](https://github.com/cloudwego/hertz).
 
 Importing this package transitively pulls Hertz, OTel-Hertz tracing, and
@@ -12,8 +12,8 @@ does not.
 
 | Symbol | Purpose |
 |---|---|
-| `New(cfg httpserver.ServerConfig) httpserver.HTTPServer` | Hertz-backed server with `httpserver.DefaultServerOptions()`. |
-| `NewWithOptions(cfg, opts httpserver.ServerOptions) httpserver.HTTPServer` | Same with explicit options; zero-valued fields are backfilled from defaults. |
+| `New(cfg httpserver.ServerConfig) httpserver.Server` | Hertz-backed server with `httpserver.DefaultServerOptions()`. |
+| `NewWithOptions(cfg, opts httpserver.ServerOptions) httpserver.Server` | Same with explicit options; zero-valued fields are backfilled from defaults. |
 | `RecoveryHandler(ctx, c, err, stack)` | Panic-recovery handler installed as the outermost middleware when `EnableRecovery` is true. Logs one structured line (with `panic_stack`) via `logger.CtxOrGlobal(ctx)` and aborts with HTTP 500. With `EnableRecovery` false no recovery runs at all (the engine is built with `server.New`, not `server.Default`). |
 | `RequestLogger(base *logger.Logger) httpserver.MiddlewareFunc` | Same as `RequestLoggerMiddleware`, installable with `srv.Use(hertzadapter.RequestLogger(nil))`. |
 | `RequestLoggerMiddleware(base *logger.Logger) app.HandlerFunc` | Injects a per-request logger (`request_id`, `method`, `path`, `remote_addr`) into ctx, for code that holds the Hertz engine. Pass `nil` for `base` to derive from the context or global logger. |
@@ -67,7 +67,7 @@ import (
 func main() {
     srv := hertzadapter.New(httpserver.ServerConfig{Host: "0.0.0.0", Port: 8080})
 
-    srv.GET("/hello", func(ctx context.Context, c httpserver.HTTPContext) {
+    srv.GET("/hello", func(ctx context.Context, c httpserver.Context) {
         c.JSON(200, map[string]string{"message": "hello"})
     })
 
