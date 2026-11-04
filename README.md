@@ -88,7 +88,7 @@ does not raise its `go` directive to force it. Contributors can run
 
 Tool versions are pinned in [`.prototools`](./.prototools) and installed by
 [proto](https://moonrepo.dev/proto): Go, Python, [Task](https://taskfile.dev),
-staticcheck, skillshare and sentrux. Third-party tools resolve through the
+staticcheck and skillshare. Third-party tools resolve through the
 plugins in [`trypanic/proto-plugins`](https://github.com/trypanic/proto-plugins).
 
 System packages required for `semgrep` (one-time, host install):
@@ -102,7 +102,7 @@ Then, from the repository root:
 ```bash
 bash <(curl -fsSL https://moonrepo.dev/install/proto.sh)   # once per machine
 proto trust .prototools   # allow the pinned plugins, env and auto-install
-proto install             # go, python, task, staticcheck, skillshare, sentrux
+proto install             # go, python, task, staticcheck, skillshare
 task tools:install        # goimports, pre-commit and semgrep on top
 ```
 

@@ -1,7 +1,6 @@
 go = "1.27.3"
 skillshare = "0.25.5"
 staticcheck = "2026.2.2"
-sentrux = "0.5.7"
 # 3.11: semgrep 1.95.0 (pinned in Taskfile.yml) crashes on import under
 # Python 3.15 (protobuf 4.25 upb: "Metaclasses with custom tp_new").
 python = "3.11.15"
@@ -9,7 +8,6 @@ task = "3.54.0"
 
 
 [env]
-file = ".env.shared"
 ENVIRONMENT = "local"
 
 [settings]
@@ -21,5 +19,4 @@ telemetry = false
 # Plugin definitions pinned to a trypanic/proto-plugins commit, not `main`.
 skillshare = "https://raw.githubusercontent.com/trypanic/proto-plugins/2b603cd9665c00f5e3ec4cbaf2f1a68c3fb630a7/plugins/skillshare.toml"
 staticcheck = "https://raw.githubusercontent.com/trypanic/proto-plugins/2b603cd9665c00f5e3ec4cbaf2f1a68c3fb630a7/plugins/staticcheck.toml"
-sentrux = "https://raw.githubusercontent.com/trypanic/proto-plugins/2b603cd9665c00f5e3ec4cbaf2f1a68c3fb630a7/plugins/sentrux.toml"
 task = "https://raw.githubusercontent.com/trypanic/proto-plugins/2b603cd9665c00f5e3ec4cbaf2f1a68c3fb630a7/plugins/task.toml"

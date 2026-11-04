@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://taskfile.dev/schema.json
 #
 # Task runner for go-sdk (https://taskfile.dev).
-# Toolchain versions (go, python, task, staticcheck, skillshare, sentrux) are
+# Toolchain versions (go, python, task, staticcheck, skillshare) are
 # pinned in .prototools and installed by proto (third-party plugins live in
 # github.com/trypanic/proto-plugins); this file only orchestrates.
 #
@@ -71,7 +71,7 @@ tasks:
         exit "$status"
 
   skills:install:
-    desc: Install agent skills and sync them across agents (was moon install-skills)
+    desc: Install agent skills and sync them across agents
     preconditions:
       - sh: command -v skillshare
         msg: "skillshare is not installed; run `task tools:install`"
@@ -82,7 +82,7 @@ tasks:
   # ------------------------------------------------------------ quality gates
 
   precommit:install:
-    desc: Install pre-commit hooks into .git/hooks (was moon precommit-install)
+    desc: Install pre-commit hooks into .git/hooks
     preconditions:
       - sh: command -v pre-commit
         msg: "pre-commit is not installed; run `task tools:install`"
@@ -101,7 +101,7 @@ tasks:
       - pre-commit run --all-files --hook-stage manual staticanalysis-full
 
   staticanalysis:
-    desc: Run vet + staticcheck + semgrep on the whole repo (was moon staticanalysis)
+    desc: Run vet + staticcheck + semgrep on the whole repo
     env:
       QG_FULL: "1"
     cmds:

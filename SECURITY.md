@@ -125,7 +125,7 @@ Use **semgrep** for org policy. Use **staticcheck** for type-correct Go bugs.
 ```bash
 # 1. Install tools (versions pinned in .prototools)
 proto trust .prototools
-proto install                    # go, python, task, staticcheck, skillshare, sentrux
+proto install                    # go, python, task, staticcheck, skillshare
 task tools:install               # pinned goimports, pre-commit, semgrep, git-cliff
 
 # 2. Install git hooks

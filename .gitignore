@@ -14,7 +14,6 @@ bin/
 .DS_Store
 
 # tool reports
-sentrux-report.json
 .semgrep-report.json
 .semgrep-plan.md
 semgrep.sarif
@@ -22,13 +21,13 @@ semgrep.sarif
 # env
 .env
 .env.local
+.env.shared
 .env.dev*
 .env.prod*
 *.pem
 *.key
 
 
-.sentrux/baseline.json
 
 .claude/settings.local.json
 .*/skills/*
