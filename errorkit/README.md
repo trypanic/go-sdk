@@ -200,8 +200,10 @@ if errorkit.HasCode(err, errorkit.ERR_CLIENT_NOT_FOUND) {
 }
 ```
 
-`As` returns the first non-nil `*AppError` in the chain. `HasCode` checks that
-error and every `*AppError` reachable through its wrapped error. `AppError`
+`As` returns the first non-nil `*AppError` in the chain. `HasCode` walks the
+whole error tree like `errors.Is` (`%w` wrappers, `errors.Join` branches and
+the wrapped error of every `*AppError`) and reports whether any `*AppError` in
+it has the code. `AppError`
 has no `Is` method, so two errors with the same code are not `errors.Is`-equal;
 compare codes with `HasCode` or `.Code()`.
 

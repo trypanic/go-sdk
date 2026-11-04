@@ -54,6 +54,10 @@ func TestHasCode(t *testing.T) {
 		{name: "outer code", err: fmt.Errorf("svc: %w", outer), code: errorkit.ERR_INTERNAL, want: true},
 		{name: "code of a nested AppError", err: fmt.Errorf("svc: %w", outer), code: errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL, want: true},
 		{name: "absent code", err: outer, code: errorkit.ERR_VALIDATION, want: false},
+		{name: "joined after another AppError", err: errors.Join(errorkit.NewError(errorkit.ERR_VALIDATION), inner), code: errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL, want: true},
+		{name: "joined inside a wrapped AppError", err: errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(errors.Join(errors.New("a"), fmt.Errorf("b: %w", inner)))), code: errorkit.ERR_SYSTEM_TIMEOUT_INTERNAL, want: true},
+		{name: "joined without the code", err: errors.Join(errors.New("a"), errorkit.NewError(errorkit.ERR_VALIDATION)), code: errorkit.ERR_INTERNAL, want: false},
+		{name: "typed nil AppError", err: (*errorkit.AppError)(nil), code: errorkit.ERR_UNKNOWN, want: false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
