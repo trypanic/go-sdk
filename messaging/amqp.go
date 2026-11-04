@@ -40,6 +40,7 @@ type Publisher struct {
 	channel   amqpChannel
 	returns   chan amqp.Return // basic.return notifications of channel
 	broken    bool             // channel must not be reused (abandoned confirm)
+	closed    bool             // Close was called; terminal
 	exchanges []Exchange       // declared on every (re)connect
 	declare   *Topology        // when non-nil, its queues and bindings are declared on every (re)connect
 	amqpURL   string
@@ -70,15 +71,24 @@ func (p *Publisher) connect() error {
 	if err != nil {
 		return err
 	}
-	p.swap(l)
+	return p.swap(l)
+}
+
+// swap installs l as the current link. After Close it closes l instead and
+// reports ERR_MQ_CLOSED, so a reconnect racing with Close does not leak.
+func (p *Publisher) swap(l publisherLink) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		_ = l.conn.Close() // never used; the closed state is the error to report
+		return errPublisherClosed()
+	}
+	p.conn, p.channel, p.returns, p.broken = l.conn, l.channel, l.returns, false
 	return nil
 }
 
-// swap installs l as the current link.
-func (p *Publisher) swap(l publisherLink) {
-	p.mu.Lock()
-	p.conn, p.channel, p.returns, p.broken = l.conn, l.channel, l.returns, false
-	p.mu.Unlock()
+func errPublisherClosed() *errorkit.AppError {
+	return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("publisher is closed"))
 }
 
 // open dials a new connection, opens a channel in confirm mode and declares
@@ -163,6 +173,10 @@ func (p *Publisher) release() { <-p.turn }
 // publishing turn.
 func (p *Publisher) currentLink(ctx context.Context) (publisherLink, error) {
 	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return publisherLink{}, errPublisherClosed()
+	}
 	if p.conn != nil && !p.conn.IsClosed() && !p.broken {
 		l := publisherLink{conn: p.conn, channel: p.channel, returns: p.returns}
 		p.mu.Unlock()
@@ -183,6 +197,10 @@ func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 	}
 
 	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return publisherLink{}, errPublisherClosed()
+	}
 	old := p.conn
 	p.mu.Unlock()
 	if old != nil && !old.IsClosed() {
@@ -197,7 +215,9 @@ func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 		return publisherLink{}, err
 	}
 
-	p.swap(l)
+	if err := p.swap(l); err != nil {
+		return publisherLink{}, err
+	}
 	return l, nil
 }
 
@@ -337,10 +357,17 @@ func publishCtxError(err error) *errorkit.AppError {
 }
 
 // Close gracefully closes the channel and connection. Both are always attempted
-// so that a channel-close failure does not leak the connection.
+// so that a channel-close failure does not leak the connection. Close is
+// terminal: later publishes fail with ERR_MQ_CLOSED and never re-dial, and a
+// reconnect in progress closes its new connection. Calling Close again
+// returns nil.
 func (p *Publisher) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.closed {
+		return nil
+	}
+	p.closed = true
 
 	var errs []error
 	if p.channel != nil {

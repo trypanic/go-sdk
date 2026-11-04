@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -28,9 +29,15 @@ type PubSub struct {
 	publisher  *Publisher
 	topology   *Topology
 	amqpURL    string
+	dial       dialFunc // used by subscribers; nil means dialAMQP
 	tracer     trace.Tracer
 	propagator propagation.TextMapPropagator
 	log        *logger.Logger
+
+	// life is cancelled by Close; every Subscribe stops with it.
+	lifeOnce sync.Once
+	life     context.Context
+	stop     context.CancelFunc
 }
 
 // PubSubOption configures explicit dependencies on a PubSub.
@@ -130,6 +137,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 		publisher:  pub,
 		topology:   topo,
 		amqpURL:    amqpURL,
+		dial:       dial,
 		tracer:     build.tracer,
 		propagator: build.propagator,
 		log:        build.log,
@@ -145,6 +153,12 @@ func resolveTopology(b *pubSubBuild) (*Topology, error) {
 	default:
 		return LoadTopologyFromEnv()
 	}
+}
+
+// lifetime returns the context that Close cancels.
+func (p *PubSub) lifetime() context.Context {
+	p.lifeOnce.Do(func() { p.life, p.stop = context.WithCancel(context.Background()) })
+	return p.life
 }
 
 func (p *PubSub) tracerOrDefault() trace.Tracer {
@@ -231,6 +245,9 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 			p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
 
 			if err := p.publisher.PublishWithContext(ctx, binding.Exchange, rk, data, headers); err != nil {
+				if !isRetriable(err) {
+					return backoff.Permanent(err) // e.g. ERR_MQ_CLOSED
+				}
 				return err
 			}
 		}
@@ -248,9 +265,19 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 
 // Subscribe blocks and consumes messages for queueName, calling handler for
 // each delivery.  On connection drops the subscriber reconnects with
-// exponential backoff automatically.  Returns when ctx is cancelled or an
-// unrecoverable error occurs.
+// exponential backoff automatically.  Returns when ctx is cancelled, Close
+// is called, or an unrecoverable error occurs. After Close it fails with
+// ERR_MQ_CLOSED.
 func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) error {
+	life := p.lifetime()
+	if life.Err() != nil {
+		return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("pubsub is closed"))
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stopOnClose := context.AfterFunc(life, cancel)
+	defer stopOnClose()
+
 	queue, binding, err := p.getQueueAndBinding(queueName)
 	if err != nil {
 		return err
@@ -266,8 +293,16 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 
 	args := buildQueueArgs(queue)
 
-	sub, err := NewSubscriber(p.amqpURL, exchange, queue, serviceName, args, binding.RoutingKeys)
-	if err != nil {
+	sub := &Subscriber{
+		amqpURL:     p.amqpURL,
+		exchange:    exchange,
+		queue:       queue,
+		consumer:    serviceName,
+		queueArgs:   args,
+		routingKeys: binding.RoutingKeys,
+		dial:        p.dial,
+	}
+	if err := sub.connect(); err != nil {
 		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to create subscriber")
 	}
 	defer sub.Close()
@@ -376,8 +411,16 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	_ = msg.Ack(false)
 }
 
-// Close closes the shared publisher connection.
+// Close stops every Subscribe call of this PubSub (each returns nil once its
+// in-flight message is settled; see the README) and closes the shared
+// publisher connection. Close is terminal: Publish and Subscribe then fail
+// with ERR_MQ_CLOSED. Close does not wait for the subscriptions to return.
 func (p *PubSub) Close() error {
+	p.lifetime()
+	p.stop()
+	if p.publisher == nil {
+		return nil
+	}
 	return p.publisher.Close()
 }
 
@@ -411,7 +454,12 @@ func (p *PubSub) getQueueAndBinding(queueName string) (QueueTopology, Binding, e
 // and no backoff delay is waited.
 func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) error {
 	if retry == nil {
-		return fn()
+		err := fn()
+		var permanent *backoff.PermanentError
+		if errors.As(err, &permanent) {
+			return permanent.Err
+		}
+		return err
 	}
 	bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
 		InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,

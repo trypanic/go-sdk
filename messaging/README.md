@@ -226,11 +226,20 @@ handler := func(ctx context.Context, msg messaging.Message) error {
     return nil  // nil → message is Acked
 }
 
-// Blocks until ctx is cancelled.  Reconnection is automatic.
+// Blocks until ctx is cancelled or pubsub.Close is called.  Reconnection is automatic.
 if err := pubsub.Subscribe(ctx, "order.created.processor", "order-worker", handler); err != nil {
     slog.Error("subscriber exited", "error", err)
 }
 ```
+
+### Closing
+
+`Close` is terminal.  It stops every `Subscribe` call of the `PubSub` (as a
+cancelled `ctx` would: the in-flight message is requeued and `Subscribe`
+returns `nil`) without waiting for them to return, then closes the shared
+publisher connection.  After `Close`, `Publish` and `Subscribe` fail with
+`ERR_MQ_CLOSED` and never dial the broker; calling `Close` again returns
+`nil`.
 
 ### Mocking in Tests
 
@@ -277,6 +286,7 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | `ERR_MQ_CONSUME_FAILED` | Starting a consumer fails | yes |
 | `ERR_MQ_PUBLISH_FAILED` | Publishing a message fails, the broker nacks it, or returns it as unroutable | yes |
 | `ERR_MQ_TIMEOUT` | The caller's `ctx` deadline ends a `Publish` (waiting, dialing or waiting for the confirm) | yes |
+| `ERR_MQ_CLOSED` | `Publish` or `Subscribe` is called after `Close` | **no** |
 | `ERR_SYSTEM_CONFIG_INVALID` | A queue, binding or exchange is missing from the topology | no |
 
 ## Error Handling Summary
@@ -289,4 +299,5 @@ callers can branch on `.Code()` and `Metadata.Retriable`:
 | Handler panics | The panic is recovered and recorded (with its stack) on the process span; the message is not retried and is Nacked without requeue → DLQ |
 | Connection drops during `Subscribe` | Automatic reconnect with exponential backoff |
 | Context cancelled | Subscriber exits cleanly, connection is closed via `defer`; a message being processed is Nacked with requeue (not dead-lettered) and no further retry or backoff wait happens |
+| `Close` called | Active subscriptions stop as if their `ctx` were cancelled; later `Publish`/`Subscribe` calls fail with `ERR_MQ_CLOSED` |
 | Marshal / unmarshal failure | Error returned immediately (no retry — it would produce the same result) |
