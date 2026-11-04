@@ -1,0 +1,4 @@
+task: [test:integration] go test -race -tags integration -run Integration -count=1 -timeout=5m ./postgres ./mongo ./messaging
+ok  	github.com/trypanic/go-sdk/postgres	3.084s
+ok  	github.com/trypanic/go-sdk/mongo	2.055s
+ok  	github.com/trypanic/go-sdk/messaging	3.835s

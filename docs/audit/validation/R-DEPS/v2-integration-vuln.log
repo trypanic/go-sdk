@@ -1,0 +1,29 @@
+=== Symbol Results ===
+
+Vulnerability #1: GO-2026-6253
+    moby/go-archive: Crafted tar archive can write outside the extraction
+    directory in github.com/moby/go-archive
+  More info: https://pkg.go.dev/vuln/GO-2026-6253
+  Module: github.com/moby/go-archive
+    Found in: github.com/moby/go-archive@v0.2.0
+    Fixed in: github.com/moby/go-archive@v0.3.0
+    Example traces found:
+      #1: internal/integrationtest/container.go:37:51: integrationtest.Start calls testcontainers.GenericContainer, which eventually calls archive.TarWithOptions
+      #2: internal/integrationtest/container.go:13:2: integrationtest.init calls testcontainers.init, which calls archive.init
+      #3: logger/config.go:535:34: logger.mayNeedRedaction calls sync.Pool.Get, which calls archive.init
+      #4: internal/integrationtest/container.go:37:51: integrationtest.Start calls testcontainers.GenericContainer, which eventually calls compression.CompressStream
+      #5: internal/integrationtest/container.go:13:2: integrationtest.init calls testcontainers.init, which eventually calls compression.init
+      #6: logger/config.go:535:34: logger.mayNeedRedaction calls sync.Pool.Get, which calls compression.init
+      #7: internal/integrationtest/container.go:37:51: integrationtest.Start calls testcontainers.GenericContainer, which eventually calls compression.nopWriteCloser.Close
+      #8: internal/integrationtest/container.go:37:51: integrationtest.Start calls testcontainers.GenericContainer, which eventually calls tarheader.FileInfoHeaderNoLookups
+      #9: internal/integrationtest/container.go:13:2: integrationtest.init calls testcontainers.init, which eventually calls tarheader.init
+      #10: internal/integrationtest/container.go:46:36: integrationtest.Start calls testcontainers.DockerContainer.Start, which eventually calls tarheader.nosysFileInfo.Gname
+      #11: internal/integrationtest/container.go:46:36: integrationtest.Start calls testcontainers.DockerContainer.Start, which eventually calls tarheader.nosysFileInfo.Sys
+      #12: internal/integrationtest/container.go:46:36: integrationtest.Start calls testcontainers.DockerContainer.Start, which eventually calls tarheader.nosysFileInfo.Uname
+
+Your code is affected by 1 vulnerability from 1 module.
+This scan also found 1 vulnerability in packages you import and 1 vulnerability
+in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+exit status 3

@@ -1,0 +1,3 @@
+ok  	github.com/trypanic/go-sdk/postgres	4.461s
+ok  	github.com/trypanic/go-sdk/mongo	2.787s
+ok  	github.com/trypanic/go-sdk/messaging	6.044s
