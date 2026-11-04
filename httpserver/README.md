@@ -300,3 +300,13 @@ client intentionally creates another span, so wrap a tracing-disabled client.
 Hertz constructors return `*hertz.Server`; `NewEngine(cfg)` also exposes this
 concrete adapter. `Engine()` gives access to the underlying Hertz engine for
 framework features. Configure routes and middleware before starting the server.
+
+### Functional server options
+
+Prefer `hertz.NewServer(cfg, opts...)`: zero options enable tracing, recovery,
+redacted audit, health and 404/405 handling. Options include `WithoutTracing`,
+`WithoutRecovery`, `WithoutAudit`, `WithoutHealth`, `WithoutNoRoute`,
+`WithoutNoMethod`, `WithLogger`, `WithHealth`, `WithAudit` and `WithReply`.
+`WithLogger` applies to audit and recovery as well as handler context logging.
+`NewWithOptions` remains the explicit struct profile: its boolean zero values
+are disabled, so initialize that struct with `DefaultServerOptions()` when needed.
