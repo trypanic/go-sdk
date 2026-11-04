@@ -206,7 +206,7 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 
 			p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
 
-			if err := p.publisher.PublishWithHeaders(binding.Exchange, rk, data, headers); err != nil {
+			if err := p.publisher.PublishWithContext(ctx, binding.Exchange, rk, data, headers); err != nil {
 				return err
 			}
 		}
@@ -477,11 +477,15 @@ func buildQueueArgs(queue QueueTopology) amqp.Table {
 
 // asAppError returns err unchanged when it already is (or wraps) an
 // *errorkit.AppError, so SDK codes and their retriability reach the caller
-// (AGENTS.md §2.1). Any other error is wrapped once with code and reason.
+// (AGENTS.md §2.1). Any other error is wrapped once with code and reason; a
+// deadline is reported as ERR_MQ_TIMEOUT.
 func asAppError(err error, code errorkit.ErrorCode, reason string) error {
 	var appErr *errorkit.AppError
 	if errors.As(err, &appErr) {
 		return err
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		code = ERR_MQ_TIMEOUT
 	}
 	return errorkit.NewError(code).With(
 		errorkit.WithReason("%s", reason),

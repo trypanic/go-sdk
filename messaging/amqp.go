@@ -1,9 +1,11 @@
 package messaging
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/trypanic/go-sdk/errorkit"
@@ -17,8 +19,18 @@ import (
 // Publisher publishes messages to AMQP exchanges. It is safe for concurrent use.
 // If the underlying connection drops, Publish reconnects transparently before
 // (or after) the attempt.
+//
+// Publishes on the shared channel run one at a time. Waiting for that turn,
+// reconnecting and publishing all honour the caller's ctx, and the dial never
+// runs under the mutex that guards the connection, so Close and callers with
+// a deadline are never stuck behind an unreachable broker.
 type Publisher struct {
-	mu        sync.Mutex
+	// turn serializes use of the publishing channel, including reconnects
+	// (so at most one dial is in flight). Acquiring it honours ctx.
+	turnOnce sync.Once
+	turn     chan struct{}
+
+	mu        sync.Mutex // guards conn and channel; never held across a dial
 	conn      amqpConnection
 	channel   amqpChannel
 	exchanges []Exchange // declared on every (re)connect
@@ -39,15 +51,28 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 }
 
 func (p *Publisher) connect() error {
-	conn, err := p.dial.open(p.amqpURL)
+	conn, ch, err := p.open(context.Background())
 	if err != nil {
-		return mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
+		return err
+	}
+	p.mu.Lock()
+	p.conn, p.channel = conn, ch
+	p.mu.Unlock()
+	return nil
+}
+
+// open dials a new connection, opens a channel and declares the exchanges.
+// It does not touch the publisher state.
+func (p *Publisher) open(ctx context.Context) (amqpConnection, amqpChannel, error) {
+	conn, err := p.dial.open(ctx, p.amqpURL)
+	if err != nil {
+		return nil, nil, mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
+		return nil, nil, mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
 
 	for _, ex := range p.exchanges {
@@ -58,71 +83,96 @@ func (p *Publisher) connect() error {
 			nil,
 		); err != nil {
 			conn.Close()
-			return mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
+			return nil, nil, mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 		}
 	}
-
-	p.conn = conn
-	p.channel = ch
-	return nil
+	return conn, ch, nil
 }
 
-func (p *Publisher) reconnect() error {
-	if p.conn != nil && !p.conn.IsClosed() {
-		p.conn.Close()
+// acquire waits for the publishing turn or for ctx to end.
+func (p *Publisher) acquire(ctx context.Context) error {
+	p.turnOnce.Do(func() { p.turn = make(chan struct{}, 1) })
+	if err := ctx.Err(); err != nil {
+		return publishCtxError(err)
 	}
-	return p.connect()
+	select {
+	case p.turn <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return publishCtxError(ctx.Err())
+	}
+}
+
+func (p *Publisher) release() { <-p.turn }
+
+// currentChannel returns the open channel, reconnecting first when the
+// connection is missing or closed. The caller holds the publishing turn.
+func (p *Publisher) currentChannel(ctx context.Context) (amqpChannel, error) {
+	p.mu.Lock()
+	if p.conn != nil && !p.conn.IsClosed() {
+		ch := p.channel
+		p.mu.Unlock()
+		return ch, nil
+	}
+	p.mu.Unlock()
+
+	logger.Info("publisher connection closed, reconnecting")
+	return p.reconnect(ctx)
+}
+
+// reconnect replaces the connection. The caller holds the publishing turn,
+// so reconnects are single-flight; mu is held only to swap the state, never
+// across the dial.
+func (p *Publisher) reconnect(ctx context.Context) (amqpChannel, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, publishCtxError(err)
+	}
+
+	p.mu.Lock()
+	old := p.conn
+	p.mu.Unlock()
+	if old != nil && !old.IsClosed() {
+		old.Close()
+	}
+
+	conn, ch, err := p.open(ctx)
+	if err != nil {
+		if ctxErr := ctxEnded(ctx); ctxErr != nil {
+			return nil, publishCtxError(ctxErr)
+		}
+		return nil, err
+	}
+
+	p.mu.Lock()
+	p.conn, p.channel = conn, ch
+	p.mu.Unlock()
+	return ch, nil
 }
 
 // Publish sends body to the given exchange with the specified routing key.
 // It reconnects automatically on a closed connection or a mid-flight error
 // (single retry per call; higher-level backoff is handled by PubSub).
+// It is PublishWithContext with context.Background() and no headers.
 func (p *Publisher) Publish(exchange, routingKey string, body []byte) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.conn == nil || p.conn.IsClosed() {
-		logger.Info("publisher connection closed, reconnecting")
-		if err := p.reconnect(); err != nil {
-			return err
-		}
-		logger.Info("publisher reconnected")
-	}
-
-	err := p.channel.Publish(exchange, routingKey, false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		Body:         body,
-		DeliveryMode: amqp.Persistent,
-	})
-	if err != nil {
-		// Channel may have died between the connection check and Publish.
-		// Reconnect once and retry.
-		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
-		if reconnErr := p.reconnect(); reconnErr != nil {
-			return reconnErr
-		}
-		if err := p.channel.Publish(exchange, routingKey, false, false, amqp.Publishing{
-			ContentType:  "application/json",
-			Body:         body,
-			DeliveryMode: amqp.Persistent,
-		}); err != nil {
-			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
-		}
-		return nil
-	}
-	return nil
+	return p.PublishWithContext(context.Background(), exchange, routingKey, body, nil)
 }
 
+// PublishWithHeaders is PublishWithContext with context.Background().
 func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte, headers amqp.Table) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	return p.PublishWithContext(context.Background(), exchange, routingKey, body, headers)
+}
 
-	if p.conn == nil || p.conn.IsClosed() {
-		logger.Info("publisher connection closed, reconnecting")
-		if err := p.reconnect(); err != nil {
-			return err
-		}
+// PublishWithContext sends body with the given AMQP headers to exchange
+// using routingKey, as a persistent application/json message. It reconnects
+// first when the connection is closed and, when the publish itself fails,
+// reconnects once more and retries. ctx bounds the wait for the publishing
+// turn, the reconnect and the publish; when it ends the returned error
+// wraps ctx.Err() (ERR_MQ_TIMEOUT for a deadline).
+func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey string, body []byte, headers amqp.Table) error {
+	if err := p.acquire(ctx); err != nil {
+		return err
 	}
+	defer p.release()
 
 	pub := amqp.Publishing{
 		ContentType:  "application/json",
@@ -131,17 +181,56 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 		Headers:      headers,
 	}
 
-	if err := p.channel.Publish(exchange, routingKey, false, false, pub); err != nil {
+	ch, err := p.currentChannel(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := ch.PublishWithContext(ctx, exchange, routingKey, false, false, pub); err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return publishCtxError(ctxErr)
+		}
+		// Channel may have died between the connection check and Publish.
+		// Reconnect once and retry.
 		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
-		if reconnErr := p.reconnect(); reconnErr != nil {
-			return reconnErr
+		ch, err = p.reconnect(ctx)
+		if err != nil {
+			return err
 		}
-		if err := p.channel.Publish(exchange, routingKey, false, false, pub); err != nil {
-			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message with headers after reconnect", err)
+		if err := ch.PublishWithContext(ctx, exchange, routingKey, false, false, pub); err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return publishCtxError(ctxErr)
+			}
+			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
 		}
-		return nil
 	}
 	return nil
+}
+
+// ctxEnded returns ctx.Err(), or context.DeadlineExceeded once the ctx
+// deadline has passed even if the ctx timer has not fired yet (a socket
+// deadline set from it can expire first).
+func ctxEnded(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if deadline, ok := ctx.Deadline(); ok && !time.Now().Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+// publishCtxError reports an ended ctx: ERR_MQ_TIMEOUT for a deadline,
+// ERR_MQ_PUBLISH_FAILED for a cancellation. errors.Is(err, ctx.Err()) holds.
+func publishCtxError(err error) *errorkit.AppError {
+	code := ERR_MQ_PUBLISH_FAILED
+	if errors.Is(err, context.DeadlineExceeded) {
+		code = ERR_MQ_TIMEOUT
+	}
+	return errorkit.NewError(code).With(
+		errorkit.WithReason("publish aborted: %v", err),
+		errorkit.WithWrapped(err),
+	)
 }
 
 // Close gracefully closes the channel and connection. Both are always attempted
@@ -214,7 +303,7 @@ func NewSubscriber(
 }
 
 func (s *Subscriber) connect() error {
-	conn, err := s.dial.open(s.amqpURL)
+	conn, err := s.dial.open(context.Background(), s.amqpURL)
 	if err != nil {
 		return mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}

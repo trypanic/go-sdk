@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"context"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -166,7 +167,10 @@ func (ch *fakeChannel) Consume(_, _ string, _, _, _, _ bool, _ amqp.Table) (<-ch
 	return ch.b.deliveries, nil
 }
 
-func (ch *fakeChannel) Publish(exchange, key string, mandatory, _ bool, msg amqp.Publishing) error {
+func (ch *fakeChannel) PublishWithContext(ctx context.Context, exchange, key string, mandatory, _ bool, msg amqp.Publishing) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	ch.b.mu.Lock()
 	defer ch.b.mu.Unlock()
 	ch.b.attempts++

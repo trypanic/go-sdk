@@ -91,7 +91,7 @@ Connection drops are handled transparently at both ends:
 
 | Component | Strategy |
 |-----------|----------|
-| **Publisher** | Checks the connection before every `Publish`.  If closed, reconnects first.  If the publish itself fails (channel died between the check and the call) it reconnects once more and retries.  Further retries are governed by the per-queue backoff config. |
+| **Publisher** | Checks the connection before every `Publish`.  If closed, reconnects first.  If the publish itself fails (channel died between the check and the call) it reconnects once more and retries.  Further retries are governed by the per-queue backoff config.  The caller's `ctx` bounds the whole call: waiting for the shared channel, the dial (TCP connect and handshake), the publish and the backoff.  An ended `ctx` never dials and the error wraps `ctx.Err()` (`ERR_MQ_TIMEOUT` for a deadline).  Reconnects are single-flight and never block `Close`. |
 | **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  The delay starts at `DefaultReconnectDelay` (5 s) and doubles on each failed attempt, capped at `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position.  The loop stops and `Subscribe` returns the error when it is not retriable (`Metadata.Retriable == false`, e.g. `ERR_MQ_AUTH_FAILED`), since retrying cannot succeed. |
 
 Both sides open their connections with an AMQP heartbeat interval

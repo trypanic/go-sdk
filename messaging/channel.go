@@ -1,6 +1,10 @@
 package messaging
 
 import (
+	"context"
+	"net"
+	"time"
+
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -20,7 +24,7 @@ type amqpChannel interface {
 	QueueBind(name, key, exchange string, noWait bool, args amqp.Table) error
 	Qos(prefetchCount, prefetchSize int, global bool) error
 	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table) (<-chan amqp.Delivery, error)
-	Publish(exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
+	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqp.Publishing) error
 	Close() error
 }
 
@@ -36,13 +40,47 @@ func dialAMQP(url string, cfg amqp.Config) (amqpConnection, error) {
 	return realConnection{conn: conn}, nil
 }
 
+// defaultDialTimeout bounds the TCP connect and the TLS/AMQP handshake of a
+// dial, matching amqp091-go's own default.
+const defaultDialTimeout = 30 * time.Second
+
 // open opens a connection to url with the package defaults, through d when
-// it is non-nil.
-func (d dialFunc) open(url string) (amqpConnection, error) {
+// it is non-nil. ctx bounds the TCP connect and the handshake; an ended ctx
+// never dials.
+func (d dialFunc) open(ctx context.Context, url string) (amqpConnection, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if d == nil {
 		d = dialAMQP
 	}
-	return d(url, amqp.Config{Heartbeat: DefaultHeartbeat})
+	return d(url, amqp.Config{
+		Heartbeat: DefaultHeartbeat,
+		Dial:      ctxDialer(ctx, defaultDialTimeout),
+	})
+}
+
+// ctxDialer returns an amqp.Config.Dial func whose TCP connect is cancelled
+// with ctx and whose TLS/AMQP handshake deadline is the earlier of timeout
+// and the ctx deadline. amqp091-go clears the deadline once the connection
+// is open.
+func ctxDialer(ctx context.Context, timeout time.Duration) func(network, addr string) (net.Conn, error) {
+	return func(network, addr string) (net.Conn, error) {
+		d := net.Dialer{Timeout: timeout}
+		conn, err := d.DialContext(ctx, network, addr)
+		if err != nil {
+			return nil, err
+		}
+		deadline := time.Now().Add(timeout)
+		if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+			deadline = ctxDeadline
+		}
+		if err := conn.SetDeadline(deadline); err != nil {
+			_ = conn.Close() // the SetDeadline error is the one returned
+			return nil, err
+		}
+		return conn, nil
+	}
 }
 
 // realConnection adapts *amqp.Connection to amqpConnection.
