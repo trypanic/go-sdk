@@ -292,6 +292,8 @@ requester := httprequest.NewWithOptions(client,
 
 `WithRawBodies()` disables redaction entirely — use only in development environments where the bodies are guaranteed not to contain credentials or PII.
 
+`Referer`, `Location` and `Content-Location` header values use the same URL sanitization; malformed values become `[invalid URL]` and opaque URLs are masked in full. `Link` and `Refresh` are masked in full because they contain compound URL syntax. Each header value is sanitized before multiple values are joined; unrelated diagnostic headers are preserved.
+
 The audit log (one structured entry per outbound request) is opt-in via `WithAuditLog()`. Bodies in audit log entries always pass through the configured redactor, even when `WithRawBodies` is not set.
 
 ### Sending JSON

@@ -220,6 +220,11 @@ structured line per request through `logger.CtxOrGlobal(ctx)`, with
   `Proxy-Authorization`, `Cookie`, `Set-Cookie`, API-key headers and any
   name containing `token`, `secret`, `key`, `auth`, `password`, `session`,
   `signature` or `credential`) are logged as `[REDACTED]`; the keys stay.
+- `Referer`, `Location` and `Content-Location` values omit userinfo and
+  fragments and replace query values with `REDACTED`. Malformed URLs
+  become `[invalid URL]`; opaque URLs are masked in full. `Link` and
+  `Refresh` are masked in full because they contain compound URL syntax.
+  Other diagnostic headers are preserved.
 - With `Audit.CaptureBodies = false` (default) every non-empty body is
   logged as `[REDACTED]`, whatever `BodyRedactor` is set.
 - With `Audit.CaptureBodies = true` bodies pass through

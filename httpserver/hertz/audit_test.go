@@ -118,3 +118,35 @@ func TestInboundAuditDisabled(t *testing.T) {
 
 	require.Empty(t, auditLines(t, logs.String()))
 }
+
+func TestInboundAuditSanitizesURLHeadersByDefault(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct{ name, raw, want string }{
+		{"credentials query fragment", "https://user-secret:password-secret@example.test/callback?code=query-secret#fragment-secret", "https://example.test/callback?code=REDACTED"},
+		{"relative", "/callback?code=query-secret#fragment-secret", "/callback?code=REDACTED"},
+		{"malformed", "https://[bad-host?code=query-secret", "[invalid URL]"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			s := newTestServer(t, httpserver.DefaultServerOptions())
+			s.GET("/login", func(ctx context.Context, c httpserver.HTTPContext) {
+				c.SetHeader("lOcAtIoN", tt.raw)
+				c.SetHeader("X-Trace-Note", "visible")
+				c.String(http.StatusFound, "")
+			})
+			ctx, logs := logContext(t)
+			res := perform(ctx, s, http.MethodGet, "/login", nil, header{"rEfErEr", tt.raw}, header{"X-Trace-Note", "visible"})
+			require.Equal(t, http.StatusFound, res.StatusCode())
+			require.Equal(t, tt.raw, string(res.Header.Peek("Location")), "redaction must not change the response")
+			lines := auditLines(t, logs.String())
+			require.Len(t, lines, 1)
+			req := lines[0]["request.headers"].(map[string]any)
+			resp := lines[0]["response.headers"].(map[string]any)
+			require.Equal(t, tt.want, req["Referer"])
+			require.Equal(t, tt.want, resp["Location"])
+			require.Equal(t, "visible", req["X-Trace-Note"])
+			require.Equal(t, "visible", resp["X-Trace-Note"])
+			require.NotContains(t, logs.String(), "-secret")
+		})
+	}
+}

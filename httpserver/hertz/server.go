@@ -239,10 +239,7 @@ func isInboundSensitiveHeader(key string) bool {
 
 // inboundHeaderValue returns the log form of an inbound header value.
 func inboundHeaderValue(key, value string) string {
-	if isInboundSensitiveHeader(key) {
-		return redact.Placeholder
-	}
-	return value
+	return redact.HeaderValue(key, value)
 }
 
 // health answers the built-in health endpoint. With a check it is a
