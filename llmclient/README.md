@@ -8,11 +8,24 @@ JSON cleanup are intentionally not supported.
 
 ```go
 cfg := llmclient.Config{
-    APIKey:   os.Getenv("LLM_API_KEY"),
+    APIKey:   apiKey,
     Endpoint: "https://api.example.com/v1/chat/completions",
     Timeout:  30 * time.Second, // 0 = DefaultTimeout (5 min); < 0 = no client-side deadline
 }
 ```
+
+To read the conventional environment variables, use `ConfigFromEnv`:
+
+```go
+cfg, err := llmclient.ConfigFromEnv() // LLM_API_KEY (required), LLM_ENDPOINT (optional)
+if err != nil {
+    return err // ERR_SYSTEM_CONFIG_INVALID when LLM_API_KEY is unset
+}
+cfg.Timeout = 30 * time.Second
+```
+
+`ConfigFromEnv` is the only place `llmclient` reads the environment; the
+constructors never do.
 
 | Constructor | Returns | Tracing |
 |---|---|---|
