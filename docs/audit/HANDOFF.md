@@ -31,22 +31,21 @@ status.
 ## 1. Where things are
 
 - Orchestration branch: `audit/2026-11` (main checkout
-  `/home/trypanic/Code/github.com/trypanic/go-sdk`). It holds only the audit
-  documents; no remediation code is merged yet.
-- Cluster branches, one worktree each under
-  `/home/trypanic/Code/github.com/trypanic/go-sdk-wt/<cluster>`, all based on
-  `db8d2c8` (`audit/2026-11` at P4 start). Every worktree is clean
-  (committed); nothing is pushed.
+  `/home/trypanic/Code/github.com/trypanic/go-sdk`). All approved cluster code
+  and origin/main v1.0.1 are merged at `dab2c29`; P4.M is DONE.
+- Cluster branches are retained, based on `db8d2c8` at P4 start. All cluster
+  worktrees and the stale detached C2 loop-2 review worktree were removed
+  after verification. Nothing is pushed.
 
 | Cluster | Branch head | Commits | Ledger status | Next action |
 | --- | --- | --- | --- | --- |
-| C1 errorkit/logger/telemetry | `f0808cb` | — | DONE (loop 3 approved) | Merge in P4.M |
-| C2 http*/llmclient | `9b930df` | — | DONE (owner-authorized loop 4 approved) | Merge in P4.M |
-| C3 grpc | `f58b77b` | 15 | DONE | Merge in P4.M |
-| C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merge in P4.M |
-| C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merge in P4.M |
-| C6 utilities | `5d5c63d` | 15 | DONE | Merge in P4.M |
-| X CI/tooling/docs | `1aa63f3` | 25 | DONE (approved at loop 3) | Merge in P4.M |
+| C1 errorkit/logger/telemetry | `f0808cb` | — | DONE (loop 3 approved) | Merged in P4.M |
+| C2 http*/llmclient | `9b930df` | — | DONE (owner-authorized loop 4 approved) | Merged in P4.M |
+| C3 grpc | `f58b77b` | 15 | DONE | Merged in P4.M |
+| C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merged in P4.M |
+| C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merged in P4.M |
+| C6 utilities | `5d5c63d` | 15 | DONE | Merged in P4.M |
+| X CI/tooling/docs | `1aa63f3` | 25 | DONE (approved at loop 3) | Merged in P4.M |
 
 Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
@@ -54,7 +53,8 @@ CHANGES_REQUESTED a task goes BLOCKED for the owner.
 ## 2. Pending review details
 
 **Latest:** C2 passed the owner-authorized loop 4 at `9b930df`; all clusters
-are now DONE and ready for P4.M. Review: `reviews/P4.C2-loop4.md`.
+are DONE and merged. P4.M validation: `validation/P4.M.md`. Next: P4.XP.
+C2 review: `reviews/P4.C2-loop4.md`. Historical gate details follow.
 
 
 **Owner continuation decision:** the owner replied "continua" after the
