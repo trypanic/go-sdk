@@ -16,7 +16,7 @@ Package `httprequest` wraps `net/http` with automatic exponential-backoff retrie
 | `NewHTTPRequestWithRetry` | Function  | Creates an `HTTPRequest` with custom `RetryConfig` (auto-traced) |
 | `NewWithoutTracing`       | Function  | Creates a plain `HTTPRequester` with no tracing wrapper |
 | `NewWithInstrumenter`     | Function  | Creates an `HTTPRequester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
-| `NewWithOptions`          | Function  | Builds an `HTTPRequester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`); no tracing wrapper |
+| `NewWithOptions`          | Function  | Builds an `HTTPRequester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
 | `WrapWithInstrumenter`    | Function  | Wraps an existing `HTTPRequester` with an explicit instrumenter |
 | `BodyRedactor`            | Type      | `func([]byte) []byte` — policy applied to bodies in error payloads and audit logs |
 | `DefaultBodyRedactor`     | Function  | Replaces any non-empty body with the literal `[REDACTED]` |
@@ -25,6 +25,8 @@ Package `httprequest` wraps `net/http` with automatic exponential-backoff retrie
 | `WithBodyCapture`         | Option    | Include redacted bodies in error payloads (off by default) |
 | `WithBodyRedactor`        | Option    | Install a custom `BodyRedactor` |
 | `WithRawBodies`           | Option    | Disable redaction (development only) |
+| `WithMaxResponseBytes`    | Option    | Cap a successful response body (after decompression); non-positive restores the default |
+| `DefaultMaxResponseBytes` | Constant  | `32 MiB`                                               |
 | `DefaultMaxRetries`       | Constant  | `5`                                                    |
 | `DefaultInitialDelay`     | Constant  | `100ms`                                                |
 | `DefaultMaxDelay`         | Constant  | `5s`                                                   |
@@ -168,6 +170,8 @@ Passing a non-pointer as `out` returns `ERR_SYSTEM_UNEXPECTED`. Passing `nil` sk
 
 An empty body when JSON decoding is expected (`io.EOF`) is silently treated as success.
 
+**Response size limits.** A successful body is read through a cap of `DefaultMaxResponseBytes` (32 MiB), measured after transparent gzip decompression; change it with `WithMaxResponseBytes(n)`. A larger body fails with a non-retriable `ERR_EXTERNAL_INVALID_RESPONSE` whose payload carries `url` and `max_response_bytes`. Only the first 64 KiB of a non-2xx body are read (enough for the provider error and for `response_body`). Before the body is closed, at most 256 KiB of any unread remainder are discarded so the connection can be reused.
+
 **Error conditions and errorkit codes:**
 
 | Condition                            | errorkit code                      |
@@ -175,6 +179,7 @@ An empty body when JSON decoding is expected (`io.EOF`) is silently treated as s
 | `http.NewRequestWithContext` failure | `ERR_SYSTEM_UNEXPECTED`            |
 | `out` is not a pointer               | `ERR_SYSTEM_UNEXPECTED`            |
 | Body read or parse failure           | `ERR_SYSTEM_UNEXPECTED`            |
+| Success body over the size limit     | `ERR_EXTERNAL_INVALID_RESPONSE`    |
 | `context.DeadlineExceeded`           | `ERR_NETWORK_TIMEOUT`              |
 | `context.Canceled`                   | `ERR_SYSTEM_UNEXPECTED`            |
 | `net.Error` with `Timeout() == true` | `ERR_NETWORK_TIMEOUT`              |

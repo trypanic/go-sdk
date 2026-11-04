@@ -70,6 +70,9 @@ type HTTPRequest struct {
 	auditLog      bool
 	captureBodies bool
 	redactor      BodyRedactor
+	// maxResponseBytes caps a successful response body; see
+	// WithMaxResponseBytes.
+	maxResponseBytes int64
 }
 
 // Option configures an HTTPRequest at construction time.
@@ -136,9 +139,10 @@ func normalizeRetryConfig(rc RetryConfig) RetryConfig {
 // default body redactor. Constructors compose this with options and tracing.
 func newPlain(client *http.Client) *HTTPRequest {
 	return &HTTPRequest{
-		client:      client,
-		retryConfig: normalizeRetryConfig(RetryConfig{}),
-		redactor:    DefaultBodyRedactor,
+		client:           client,
+		retryConfig:      normalizeRetryConfig(RetryConfig{}),
+		redactor:         DefaultBodyRedactor,
+		maxResponseBytes: DefaultMaxResponseBytes,
 	}
 }
 
@@ -260,11 +264,12 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 	if err != nil {
 		return h.buildNetworkError(err, config.URL, config.Body)
 	}
-	defer res.Body.Close()
+	defer drainAndClose(res.Body)
 
 	// Check status code
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(res.Body)
+		// Only the provider's error code and message are needed here.
+		bodyBytes, _ := io.ReadAll(io.LimitReader(res.Body, maxErrorBodyBytes))
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, bodyBytes)
 		}
@@ -274,7 +279,11 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 	// Process successful response
 	if out != nil {
 		var respBuf bytes.Buffer
-		err := h.processResponse(io.TeeReader(res.Body, &respBuf), out)
+		body := newLimitedBody(res.Body, h.maxResponseBytes)
+		err := h.processResponse(io.TeeReader(body, &respBuf), out)
+		if err != nil && body.overLimit() {
+			err = buildBodyTooLargeError(redact.URL(config.URL), h.maxResponseBytes)
+		}
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, respBuf.Bytes())
 		}
