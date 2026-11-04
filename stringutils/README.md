@@ -7,7 +7,7 @@ String transformation utilities for normalizing identifiers and stripping Markdo
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `NormalizeText` | Function | Convert a human-readable string into a lowercase, underscore-separated, alphanumeric-only identifier |
-| `RemoveMarkdownCodeBlock` | Function | Strip a wrapping ` ``` ` / ` ```lang ` code fence from a string when it covers the entire content |
+| `RemoveMarkdownCodeBlock` | Function | Strip a wrapping ` ``` ` / ` ```lang ` / `~~~` code fence from a string when it is exactly one block covering the entire content |
 
 ---
 
@@ -64,20 +64,22 @@ Transforms `input` into a lowercase, underscore-delimited token suitable for use
 func RemoveMarkdownCodeBlock(input string) string
 ```
 
-Returns the inner content of `input` if — and only if — the entire string (after trimming leading/trailing whitespace) is wrapped in a single Markdown code fence. Otherwise returns `input` unchanged.
+Returns the inner content of `input` if — and only if — the entire string (after trimming leading/trailing whitespace) is exactly one Markdown fenced code block. Otherwise returns `input` unchanged.
 
-**Fence formats recognised:**
-- ` ``` `
-- ` ```json `, ` ```go `, or any other language tag immediately after the opening ` ``` `
+**Grammar (parsed line by line):**
+- **Opening fence** (first line): three or more backticks (` ``` `, ` ```` `) or tildes (`~~~`), followed by an optional info string. The info string may contain any characters (`json`, `python3`, `c++`, `objective-c`, `js title="a.js"`, trailing spaces), except that a backtick fence's info string must not contain a backtick.
+- **Closing fence** (last line): the same fence character repeated at least as many times as in the opening fence, optionally surrounded by spaces or tabs.
+- **No inner fence line:** if any line between them starts (after spaces or tabs) with at least as many fence characters as the opening fence, the input is not a single block and is returned as-is. A longer outer fence (` ```` `) may therefore wrap shorter inner fences (` ``` `).
 
 **Line ending support:** Both `\n` and `\r\n` are handled.
 
-**The outer fence must span the whole string.** If there is any content before the opening fence or after the closing fence (ignoring trailing spaces/tabs), the string is returned as-is.
+**The outer fence must span the whole string.** If there is any content before the opening fence or after the closing fence, the string is returned as-is.
 
 **Edge cases:**
 - Leading and trailing whitespace around the fence is trimmed before matching, and the extracted content is also trimmed before being returned.
-- Nested or multiple fences within the content are not altered.
-- An empty code block (` ```\n\n``` `) returns `""`.
+- Several blocks (for example two ` ```json ` blocks with prose between them) are returned unchanged, not merged.
+- An empty code block (` ```\n``` ` or ` ```\n\n``` `) returns `""`.
+- Two backticks (` `` `) are not a fence; mixed fence characters (` ``` ` … `~~~`) do not match.
 
 **Error conditions:** None.
 
@@ -107,7 +109,7 @@ if err := json.Unmarshal([]byte(raw), &partial); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-Both functions are pure and stateless. The compiled regular expressions (`codeBlockRegex`) are package-level variables initialised once at program start via `regexp.MustCompile`. Both functions are safe for concurrent use without additional synchronisation.
+Both functions are pure and stateless and are safe for concurrent use without additional synchronisation. `RemoveMarkdownCodeBlock` parses the input line by line without regular expressions.
 
 ---
 
@@ -115,5 +117,5 @@ Both functions are pure and stateless. The compiled regular expressions (`codeBl
 
 | Package | Role |
 |---|---|
-| `regexp` | Compiled regular expression for fence detection |
+| `regexp` | Character filter in `NormalizeText` |
 | `strings` | Lowercasing, space replacement, and trimming |
