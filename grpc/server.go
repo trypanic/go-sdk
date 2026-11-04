@@ -76,8 +76,8 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	var unary []grpc.UnaryServerInterceptor
 	var stream []grpc.StreamServerInterceptor
 	if b.recovery {
-		unary = append(unary, recoveryUnaryInterceptor(b.log))
-		stream = append(stream, recoveryStreamInterceptor(b.log))
+		unary = append(unary, recoveryUnaryInterceptor(b.log, b.errorDomain))
+		stream = append(stream, recoveryStreamInterceptor(b.log, b.errorDomain))
 	}
 	unary = append(unary, b.unary...)
 	stream = append(stream, b.stream...)

@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -99,6 +100,32 @@ type StatusPolicy struct {
 	// for callers you trust (e.g. internal tooling), never on an endpoint
 	// reachable by untrusted clients.
 	ExposeInternalReasons bool
+
+	// Domain is the errdetails.ErrorInfo.Domain: the service that produced
+	// the error, usually its DNS name (e.g. "payments.example.com"), so
+	// callers can attribute errors across services. Empty means "go-sdk".
+	Domain string
+}
+
+// domain returns the ErrorInfo.Domain to use under p.
+func (p StatusPolicy) domain() string {
+	if p.Domain != "" {
+		return p.Domain
+	}
+	return defaultErrorDomain
+}
+
+// errorInfoFor builds the ErrorInfo detail for appErr: the errorkit code as
+// Reason, and the error ID and registered Retriable flag as Metadata.
+func errorInfoFor(appErr *errorkit.AppError, domain string) *errdetails.ErrorInfo {
+	return &errdetails.ErrorInfo{
+		Reason: string(appErr.Code()),
+		Domain: domain,
+		Metadata: map[string]string{
+			"id":        appErr.ID,
+			"retriable": strconv.FormatBool(appErr.Metadata.Retriable),
+		},
+	}
 }
 
 // ToStatus converts an error into a gRPC status error suitable for returning
@@ -116,9 +143,10 @@ type StatusPolicy struct {
 //     "internal error" when it is empty, so internal details never reach the
 //     caller.
 //
-// In both cases the errorkit code and error ID are surfaced as an
-// errdetails.ErrorInfo (Reason = the code, Metadata["id"] = the error ID) so
-// callers can read them programmatically and correlate with server logs.
+// In both cases the error is described by an errdetails.ErrorInfo detail:
+// Reason = the errorkit code, Domain = StatusPolicy.Domain ("go-sdk" by
+// default), Metadata["id"] = the error ID (to correlate with server logs) and
+// Metadata["retriable"] = the registered Retriable flag ("true"/"false").
 //
 // A context error (context.DeadlineExceeded or context.Canceled, also when
 // wrapped) becomes codes.DeadlineExceeded or codes.Canceled. Any other error
@@ -138,11 +166,7 @@ func ToStatusWithPolicy(err error, policy StatusPolicy) error {
 	if errors.As(err, &appErr) {
 		code := codeFor(appErr)
 		st := status.New(code, statusMessage(appErr, code, policy))
-		if withDetail, derr := st.WithDetails(&errdetails.ErrorInfo{
-			Reason:   string(appErr.Code()),
-			Domain:   defaultErrorDomain,
-			Metadata: map[string]string{"id": appErr.ID},
-		}); derr == nil {
+		if withDetail, derr := st.WithDetails(errorInfoFor(appErr, policy.domain())); derr == nil {
 			st = withDetail
 		}
 		return st.Err()

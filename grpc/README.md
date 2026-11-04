@@ -58,6 +58,7 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 **Server options:** `WithServerTracing(bool)`, `WithServerRecovery(bool)`,
 `WithServerInsecure`, `WithServerTracerProvider`, `WithServerPropagator`,
 `WithServerPublicEndpoint`, `WithServerOTelOptions`, `WithServerLogger`,
+`WithServerErrorDomain`,
 `WithUnaryInterceptors`, `WithStreamInterceptors`, `WithRawServerOptions`.
 
 **Client options:** `WithClientTracing(bool)`, `WithClientInsecure`,
@@ -73,10 +74,21 @@ included),
 
 ### Error mapping
 
-`ToStatus` converts an `*errorkit.AppError` into a gRPC status and surfaces
-the errorkit code and error ID as an `errdetails.ErrorInfo` (`Reason` = the
-code, `Metadata["id"]` = the error ID, for correlation with server logs).
-Return it from your handlers (`return nil, sdkgrpc.ToStatus(err)`).
+`ToStatus` converts an `*errorkit.AppError` into a gRPC status with an
+`errdetails.ErrorInfo` detail. Return it from your handlers
+(`return nil, sdkgrpc.ToStatus(err)`).
+
+| `ErrorInfo` field       | Value                                                                    |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `Reason`                | the errorkit code, e.g. `ERR_CLIENT_NOT_FOUND`                           |
+| `Domain`                | `StatusPolicy.Domain`, or `"go-sdk"` when empty                          |
+| `Metadata["id"]`        | the errorkit error ID, the key of the server log entry                   |
+| `Metadata["retriable"]` | the registered `Metadata.Retriable`, `"true"` or `"false"`               |
+
+Set the domain to your service's name (usually its DNS name) so callers can
+tell which service produced an error: `ToStatusWithPolicy(err,
+sdkgrpc.StatusPolicy{Domain: "payments.example.com"})` in handlers, and
+`WithServerErrorDomain("payments.example.com")` for recovered panics.
 
 The status message depends on the class of the error, so internal details
 never reach a remote caller:
@@ -171,6 +183,12 @@ server option (e.g. `otelgrpc.WithPublicEndpointFn` to decide per call, or
 Add server interceptors with `WithUnaryInterceptors` / `WithStreamInterceptors`.
 They run in the order given, **inside** the recovery interceptor, so a panic in
 one of them becomes `codes.Internal` and the server stays up.
+
+A recovered panic is logged (panic value and stack) as an
+`ERR_SYSTEM_UNEXPECTED` error and answered with `ToStatus` of that error: the
+caller gets `codes.Internal`, the registered description (never the panic
+value), and the same `ErrorInfo` as any other error, whose `Metadata["id"]`
+matches the log entry.
 
 > **Do not** pass `grpc.UnaryInterceptor(...)` or `grpc.StreamInterceptor(...)`
 > through `WithRawServerOptions`: grpc-go runs such an interceptor **before**

@@ -25,6 +25,7 @@ type serverBuild struct {
 	propagator     propagation.TextMapPropagator
 	otelOptions    []otelgrpc.Option
 	log            *logger.Logger
+	errorDomain    string
 	unary          []grpc.UnaryServerInterceptor
 	stream         []grpc.StreamServerInterceptor
 	raw            []grpc.ServerOption
@@ -92,6 +93,15 @@ func WithServerOTelOptions(o ...otelgrpc.Option) ServerOption {
 // SDK global logger.
 func WithServerLogger(l *logger.Logger) ServerOption {
 	return func(b *serverBuild) { b.log = l }
+}
+
+// WithServerErrorDomain sets the errdetails.ErrorInfo.Domain of the status
+// returned for a recovered panic: the service that produced the error,
+// usually its DNS name (e.g. "payments.example.com"). Defaults to "go-sdk".
+// Pass the same value as StatusPolicy.Domain to ToStatusWithPolicy in your
+// handlers so every error from the service carries one domain.
+func WithServerErrorDomain(domain string) ServerOption {
+	return func(b *serverBuild) { b.errorDomain = domain }
 }
 
 // WithUnaryInterceptors appends extra unary interceptors. They run after (inside)

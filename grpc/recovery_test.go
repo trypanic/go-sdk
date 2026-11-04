@@ -32,7 +32,7 @@ func (f *fakeServerStream) SendMsg(any) error            { return nil }
 func (f *fakeServerStream) RecvMsg(any) error            { return nil }
 
 func TestRecoveryUnaryInterceptor_PanicReturnsInternal(t *testing.T) {
-	interceptor := recoveryUnaryInterceptor(nil)
+	interceptor := recoveryUnaryInterceptor(nil, "")
 	_, err := interceptor(context.Background(), nil, &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
 		func(context.Context, any) (any, error) { panic("boom") })
 
@@ -43,7 +43,7 @@ func TestRecoveryUnaryInterceptor_PanicReturnsInternal(t *testing.T) {
 
 func TestRecoveryUnaryInterceptor_NoPanicPassesThrough(t *testing.T) {
 	want := errors.New("handler error")
-	interceptor := recoveryUnaryInterceptor(nil)
+	interceptor := recoveryUnaryInterceptor(nil, "")
 	resp, err := interceptor(context.Background(), "req", &grpc.UnaryServerInfo{FullMethod: "/svc/M"},
 		func(_ context.Context, req any) (any, error) { return req, want })
 
@@ -56,7 +56,7 @@ func TestRecoveryUnaryInterceptor_NoPanicPassesThrough(t *testing.T) {
 }
 
 func TestRecoveryStreamInterceptor_PanicReturnsInternal(t *testing.T) {
-	interceptor := recoveryStreamInterceptor(nil)
+	interceptor := recoveryStreamInterceptor(nil, "")
 	ss := &fakeServerStream{ctx: context.Background()}
 	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
 		func(any, grpc.ServerStream) error { panic("boom") })
@@ -68,7 +68,7 @@ func TestRecoveryStreamInterceptor_PanicReturnsInternal(t *testing.T) {
 
 func TestRecoveryStreamInterceptor_NoPanicPassesThrough(t *testing.T) {
 	want := errors.New("stream error")
-	interceptor := recoveryStreamInterceptor(nil)
+	interceptor := recoveryStreamInterceptor(nil, "")
 	ss := &fakeServerStream{ctx: context.Background()}
 	err := interceptor(nil, ss, &grpc.StreamServerInfo{FullMethod: "/svc/S"},
 		func(any, grpc.ServerStream) error { return want })
