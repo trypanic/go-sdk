@@ -49,6 +49,9 @@ func httpSpanName(method, rawURL string) string {
 }
 
 func httpSpanParts(method, rawURL string) (string, string, string) {
+	if method == "" {
+		method = "GET"
+	}
 	method = strings.ToUpper(method)
 	switch method {
 	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE":

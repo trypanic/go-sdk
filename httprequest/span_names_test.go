@@ -12,3 +12,7 @@ func TestHTTPSpanNameDoesNotIncludeResourceIDs(t *testing.T) {
 	require.Equal(t, "2001:db8::1", hostKeyword("[2001:db8::1]:8443"))
 	require.Equal(t, "2001:db8::1", hostKeyword("[2001:db8::1]"))
 }
+
+func TestHTTPSpanDefaultMethodMatchesNetHTTP(t *testing.T) {
+	require.Equal(t, "external.http.example.com.GET", httpSpanName("", "https://example.com/resource"))
+}
