@@ -445,8 +445,8 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | Task | Phase | Depends on | Status | Owner | Updated | Output | Commit | Reviewer | Reviewed by | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0.1 | Setup | — | DONE | claude-opus-5-5/2026-11-03 | 2026-11-04T00:15Z | sources + branch | | — | — | Branch from `chore/migrate-moon-to-taskfile` (d966f55; contains main). Sources at pinned SHAs in `~/.cache/go-audit-sources`. Tools: go on PATH 1.26.2 (proto resolves 1.27.3 from `.prototools`), proto 0.63.2, task 3.54.0, staticcheck on PATH 2026.1 (proto pins 2026.2.2), semgrep 1.95.0, pre-commit 4.7.0, gcc 15.3.0, skillshare 0.28.2 (pin 0.25.5); gorelease/govulncheck/golangci-lint via `go run`. Skills already installed in `.skillshare/skills`. |
-| P0.2 | Setup | P0.1 | TODO | | | `baseline.md` | | — | | |
-| P1 | Discovery | P0.2 | TODO | | | `discovery.md` | | orchestrator | | |
+| P0.2 | Setup | P0.1 | DONE | claude-opus-5-5/2026-11-03 | 2026-11-04T00:25Z | `baseline.md` | | — | — | V7 FAIL (4× SA1019 logger), V8 FAIL on go1.26.2 (19 stdlib vulns; 0 on go1.27.3), V9 25 issues; rest PASS. Coverage 47.7%. |
+| P1 | Discovery | P0.2 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:25Z | `discovery.md` | | orchestrator | | |
 | P2.C1 | Audit | P1 | TODO | | | `findings/P2.C1.md` | | orchestrator | | errorkit, logger, telemetry |
 | P2.C2 | Audit | P1 | TODO | | | `findings/P2.C2.md` | | orchestrator | | httpclient, httprequest, httpserver(/hertz), llmclient |
 | P2.C3 | Audit | P1 | TODO | | | `findings/P2.C3.md` | | orchestrator | | grpc |
