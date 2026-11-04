@@ -41,9 +41,15 @@ func TestToStatus_ErrorkitCodeMapping(t *testing.T) {
 			if st.Code() != tc.want {
 				t.Fatalf("code = %s, want %s", st.Code(), tc.want)
 			}
-			// message preserved (errorkit formats as "[CODE] reason")
-			if st.Message() != appErr.Error() {
-				t.Fatalf("message = %q, want %q", st.Message(), appErr.Error())
+			// Client errors keep the errorkit message ("[CODE] reason");
+			// server errors (HTTPStatus >= 500) send only the registered
+			// description, never the reason.
+			wantMsg := appErr.Error()
+			if appErr.Metadata.HTTPStatus >= 500 {
+				wantMsg = appErr.Metadata.Description
+			}
+			if st.Message() != wantMsg {
+				t.Fatalf("message = %q, want %q", st.Message(), wantMsg)
 			}
 			// errorkit code surfaced as ErrorInfo.Reason
 			var reason string

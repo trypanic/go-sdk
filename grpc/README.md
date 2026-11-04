@@ -52,6 +52,7 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 | `(*Server).Stop()`                                                       | Immediate hard stop.                                                         |
 | `Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error)` | Dial a connection to wrap with a generated client.                           |
 | `ToStatus(err error) error`                                              | Map an `*errorkit.AppError` to a gRPC status (code + message + `ErrorInfo`). |
+| `ToStatusWithPolicy(err error, p StatusPolicy) error`                    | `ToStatus` with an explicit message policy.                                  |
 
 **Server options:** `WithServerTracing(bool)`, `WithServerRecovery(bool)`,
 `WithServerTracerProvider`, `WithServerPropagator`, `WithServerLogger`,
@@ -67,9 +68,24 @@ missing address/target, `ERR_SYSTEM_UNEXPECTED` for serve/dial failures,
 
 ### Error mapping
 
-`ToStatus` converts an `*errorkit.AppError` into a gRPC status, preserving the
-message and surfacing the errorkit code as an `errdetails.ErrorInfo` (Reason =
-the code). Return it from your handlers (`return nil, sdkgrpc.ToStatus(err)`).
+`ToStatus` converts an `*errorkit.AppError` into a gRPC status and surfaces
+the errorkit code and error ID as an `errdetails.ErrorInfo` (`Reason` = the
+code, `Metadata["id"]` = the error ID, for correlation with server logs).
+Return it from your handlers (`return nil, sdkgrpc.ToStatus(err)`).
+
+The status message depends on the class of the error, so internal details
+never reach a remote caller:
+
+| Class                                                                                       | Status message                                               |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Client error (registered `HTTPStatus` < 500, gRPC code not `Internal`/`Unknown`/`DataLoss`) | the errorkit message, `"[CODE] reason"`                      |
+| Server error (registered `HTTPStatus` >= 500, or gRPC code `Internal`/`Unknown`/`DataLoss`) | the registered `Metadata.Description`, or `"internal error"` |
+
+The reason of a server error is still in your logs (`logger.ErrorCtx`), keyed
+by the same error ID. `ToStatusWithPolicy(err, sdkgrpc.StatusPolicy{ExposeInternalReasons: true})`
+restores the pre-2.0 behavior (the reason on the wire for every class); use it
+only for trusted internal callers, never on an endpoint reachable by untrusted
+clients.
 
 Core `errorkit` codes have an explicit mapping:
 
