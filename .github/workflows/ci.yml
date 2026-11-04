@@ -1,0 +1,151 @@
+# Continuous integration: the gates every change must pass before it is
+# merged, including the release PR (see release.yml).
+#
+# The commands match the local tasks (task test:race, staticanalysis, vuln,
+# tidy:check, release:check). Tool versions are pinned here and in
+# Taskfile.yml; keep them in sync.
+#
+# release-please opens its PR with GITHUB_TOKEN, which does not trigger
+# `pull_request` workflows, so pushes to its branches run CI as well. Make the
+# jobs below required status checks on `main` (branch protection).
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - "release-please--**"
+  pull_request:
+  schedule:
+    # Weekly vulnerability scan: new advisories appear without code changes.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  GO_VERSION: "1.27.x"
+  GOVULNCHECK_VERSION: v1.9.0
+  STATICCHECK_VERSION: v0.8.2 # staticcheck 2026.2.2, as pinned in .prototools
+  GORELEASE_VERSION: v0.0.0-20261014143641-f0251eb4aa3e
+
+jobs:
+  test:
+    name: build, vet, test (race)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (race, shuffled)
+        run: go test -race -shuffle=on -short ./...
+
+  staticanalysis:
+    name: staticanalysis (vet + staticcheck + semgrep)
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: Install staticcheck
+        run: go install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+
+      # Semgrep runs from the digest-pinned Docker image named in the script.
+      - name: Run scripts/staticanalysis.sh
+        env:
+          QG_FULL: "1"
+        run: bash scripts/staticanalysis.sh
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: staticanalysis-reports
+          path: .staticanalysis/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  vuln:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Latest patch of the line: govulncheck reports standard-library
+      # vulnerabilities of the toolchain it runs with.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: govulncheck
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
+  tidy:
+    name: go mod tidy / verify
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: go mod tidy -diff
+        run: go mod tidy -diff
+
+      - name: go mod verify
+        run: go mod verify
+
+  gorelease:
+    name: gorelease (informational)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Reports API changes against the last tag; breaking changes are allowed
+    # when approved, so this job never blocks.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          check-latest: true
+
+      - name: gorelease
+        run: |
+          base=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          go run "golang.org/x/exp/cmd/gorelease@${GORELEASE_VERSION}" -base="${base}"
