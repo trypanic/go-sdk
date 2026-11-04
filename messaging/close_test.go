@@ -133,3 +133,19 @@ func TestPublisherCloseRacingReconnectReturnsNil(t *testing.T) {
 
 	assert.Equal(t, ERR_MQ_CLOSED, requireAppError(t, <-done).Code())
 }
+
+// C5-008: a Close that lands while Subscribe registers for it still makes
+// Subscribe fail with ERR_MQ_CLOSED, without dialing.
+func TestSubscribeRacingCloseFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	b := newFakeBroker()
+	m, err := newPubSub("amqp://fake", b.dial, WithTopology(testTopology()))
+	require.NoError(t, err)
+	m.testHookSubscribeRegistering = func() { _ = m.Close() }
+
+	err = m.Subscribe(context.Background(), "q", "svc", func(context.Context, Message) error { return nil })
+
+	assert.Equal(t, ERR_MQ_CLOSED, requireAppError(t, err).Code())
+	assert.Equal(t, 1, b.dialCount(), "only the publisher dialed")
+}

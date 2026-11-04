@@ -41,6 +41,10 @@ type PubSub struct {
 	lifeOnce sync.Once
 	life     context.Context
 	stop     context.CancelFunc
+
+	// testHookSubscribeRegistering, when set (tests only), runs inside
+	// Subscribe at the point where a racing Close used to be missed.
+	testHookSubscribeRegistering func()
 }
 
 // PubSubOption configures explicit dependencies on a PubSub.
@@ -335,14 +339,19 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 // is called, or an unrecoverable error occurs. After Close it fails with
 // ERR_MQ_CLOSED.
 func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) (err error) {
+	// Register for Close first, then check it: a Close before the check
+	// fails here, a Close after it cancels ctx through the AfterFunc.
 	life := p.lifetime()
-	if life.Err() != nil {
-		return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("pubsub is closed"))
-	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stopOnClose := context.AfterFunc(life, cancel)
 	defer stopOnClose()
+	if p.testHookSubscribeRegistering != nil {
+		p.testHookSubscribeRegistering()
+	}
+	if life.Err() != nil {
+		return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("pubsub is closed"))
+	}
 
 	queue, binding, err := p.getQueueAndBinding(queueName)
 	if err != nil {
