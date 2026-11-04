@@ -51,8 +51,8 @@ Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 - **P4.XP in progress:** `audit/2026-11-XP` in `/tmp/go-sdk-audit-XP`.
-  First four items R-092/R-089/R-080/R-081 committed through `4504ec6`;
-  next R-083. Independent review follows the complete XP sequence.
+  First eight ordered items through R-087 committed at `f9cca24`;
+  R-088 is in validation, then R-090 onward. Independent review follows the complete XP sequence.
 
 ## 2. Pending review details
 

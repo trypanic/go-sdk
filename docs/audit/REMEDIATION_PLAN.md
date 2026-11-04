@@ -1490,7 +1490,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-064 | auto | C5 | `Publish` honors ctx; no dial under the mutex | — | DONE | `9676d59` |
 | R-065 | approval | C5 | Terminal `Close` | APPROVED | DONE | `29e6a03` |
 | R-066 | approval | C5 | Per-key publish retry, single retry layer | APPROVED | DONE | `210cba7` |
-| R-067 | approval | X (post-merge) | Cancellable network constructors | APPROVED | TODO | |
+| R-067 | approval | X (post-merge) | Cancellable network constructors | APPROVED | IN_REVIEW | `d14d52c` |
 | R-068 | approval | C4 | Mongo option precedence | APPROVED | DONE | `29c54ea` |
 | R-069 | auto | C4 | Mongo cursor spans and ping budget | — | DONE | `3752993` |
 | R-070 | auto | C5 | AMQP connection options | — | DONE | `d6601d6` |
@@ -1499,11 +1499,11 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | IN_REVIEW | `39f7e07` |
 | R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | IN_REVIEW | `4504ec6` |
 | R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | TODO | |
-| R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | TODO | |
+| R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | IN_REVIEW | `6f02409` |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | DONE | `ef0d848` |
 | R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
-| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | TODO | |
-| R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | TODO | |
+| R-086 | approval | X (post-merge) | Extensible `httpserver` routing | APPROVED | IN_REVIEW | `bf73dcc` |
+| R-087 | approval | X (post-merge) | Adapter escape hatches | APPROVED | IN_REVIEW | `f9cca24` |
 | R-088 | auto | X (post-merge) | Hertz functional options | — | TODO | |
 | R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | IN_REVIEW | `2ecddb7` |
 | R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | TODO | |
