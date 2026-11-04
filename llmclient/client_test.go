@@ -76,17 +76,36 @@ func TestExecuteAppliesConfiguredTimeoutAsContextDeadline(t *testing.T) {
 	}
 }
 
-func TestExecuteNoDeadlineWhenTimeoutZero(t *testing.T) {
+func TestExecuteNoDeadlineWhenTimeoutNegative(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u", Timeout: -1})
 
 	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, ok := stub.ctx.Deadline(); ok {
-		t.Fatalf("did not expect ctx deadline when Timeout == 0")
+		t.Fatalf("did not expect ctx deadline when Timeout < 0")
+	}
+}
+
+func TestExecuteDefaultDeadlineWhenTimeoutZero(t *testing.T) {
+	t.Parallel()
+
+	stub := &captureRequester{}
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+
+	start := time.Now()
+	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deadline, ok := stub.ctx.Deadline()
+	if !ok {
+		t.Fatal("Timeout == 0 must apply DefaultTimeout, not leave the call unbounded")
+	}
+	if d := deadline.Sub(start); d < DefaultTimeout || d > DefaultTimeout+time.Second {
+		t.Fatalf("deadline offset = %v, want about DefaultTimeout (%v)", d, DefaultTimeout)
 	}
 }
 

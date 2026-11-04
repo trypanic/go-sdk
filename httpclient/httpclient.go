@@ -12,6 +12,7 @@ import (
 // Default configuration values for production use
 const (
 	DefaultTimeout               = 60 * time.Second
+	DefaultDialTimeout           = 10 * time.Second
 	DefaultKeepAlive             = 60 * time.Second
 	DefaultMaxIdleConns          = 500
 	DefaultMaxIdleConnsPerHost   = 50
@@ -59,7 +60,7 @@ type ClientConfig struct {
 func newDefaultConfig() *ClientConfig {
 	return &ClientConfig{
 		Timeout:               DefaultTimeout,
-		DialTimeout:           DefaultTimeout,
+		DialTimeout:           DefaultDialTimeout,
 		KeepAlive:             DefaultKeepAlive,
 		TLSHandshakeTimeout:   DefaultTLSHandshakeTimeout,
 		ResponseHeaderTimeout: DefaultResponseHeaderTimeout,

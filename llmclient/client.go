@@ -61,8 +61,16 @@ type LLMRequestConfig struct {
 type Config struct {
 	APIKey   string
 	Endpoint string
-	Timeout  time.Duration
+	// Timeout bounds each Execute call end to end, every retry included.
+	// Zero applies DefaultTimeout; a negative value disables the
+	// client-side deadline (the caller's context must then bound it).
+	Timeout time.Duration
 }
+
+// DefaultTimeout bounds an Execute call when Config.Timeout is zero. It is
+// long enough for slow generations and stops a stalled upstream from
+// holding the goroutine and connection forever.
+const DefaultTimeout = 5 * time.Minute
 
 // Client provides LLM interaction capabilities. After construction it is safe
 // for concurrent use; its fields are not mutated by Execute.
@@ -92,6 +100,18 @@ func NewWithInstrumenter(httpRequest httprequest.HTTPRequester, cfg Config, inst
 	return WrapWithInstrumenter(NewClient(httpRequest, cfg), instrumenter)
 }
 
+// timeout returns the per-call deadline: Config.Timeout, DefaultTimeout
+// when it is zero, or 0 (none) when it is negative.
+func (c *Client) timeout() time.Duration {
+	switch {
+	case c.cfg.Timeout == 0:
+		return DefaultTimeout
+	case c.cfg.Timeout < 0:
+		return 0
+	}
+	return c.cfg.Timeout
+}
+
 // Execute performs a non-streaming LLM request.
 func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (string, error) {
 	if reqConfig.Model == "" {
@@ -100,9 +120,9 @@ func (c *Client) Execute(ctx context.Context, reqConfig LLMRequestConfig) (strin
 			With(errorkit.WithReason("model is required"))
 	}
 
-	if c.cfg.Timeout > 0 {
+	if timeout := c.timeout(); timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, c.cfg.Timeout)
+		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
 

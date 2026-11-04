@@ -112,7 +112,7 @@ These are returned by `DefaultConfig()` and used by `NewDefaultClient()`.
 | Field | Default | Constant |
 |---|---|---|
 | `Timeout` | `60s` | `DefaultTimeout` |
-| `DialTimeout` | `60s` | `DefaultTimeout` |
+| `DialTimeout` | `10s` | `DefaultDialTimeout` |
 | `KeepAlive` | `60s` | `DefaultKeepAlive` |
 | `TLSHandshakeTimeout` | `10s` | `DefaultTLSHandshakeTimeout` |
 | `ResponseHeaderTimeout` | `10s` | `DefaultResponseHeaderTimeout` |

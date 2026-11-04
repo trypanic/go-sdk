@@ -10,7 +10,7 @@ JSON cleanup are intentionally not supported.
 cfg := llmclient.Config{
     APIKey:   os.Getenv("LLM_API_KEY"),
     Endpoint: "https://api.example.com/v1/chat/completions",
-    Timeout:  30 * time.Second, // 0 = no client-side deadline
+    Timeout:  30 * time.Second, // 0 = DefaultTimeout (5 min); < 0 = no client-side deadline
 }
 ```
 
@@ -38,8 +38,11 @@ content, err := provider.Execute(ctx, llmclient.LLMRequestConfig{
 ```
 
 * `Model` is required; an empty value returns `ERR_VALIDATION_MISSING_FIELD`.
-* When `cfg.Timeout > 0`, `Execute` derives a child context with that deadline
-  for the duration of the HTTP call.
+* `Execute` derives a child context with a deadline of `cfg.Timeout` (or
+  `DefaultTimeout`, 5 minutes, when it is zero) that bounds the whole call,
+  retries included. `SetupForLLM` disables the per-attempt client timeout,
+  so this deadline is what stops a stalled provider. A negative `Timeout`
+  disables it; the caller's context must then carry a deadline.
 * A response without `choices` returns `ERR_EXTERNAL_INVALID_RESPONSE` (not
   retriable).
 * The response body is returned verbatim (no markdown / code-fence stripping).

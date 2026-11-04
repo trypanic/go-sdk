@@ -89,6 +89,7 @@ type RetryConfig struct {
     MaxRetries   int           // Total number of attempts (not retries after first)
     InitialDelay time.Duration // Delay before the second attempt
     MaxDelay     time.Duration // Ceiling for the jittered backoff and for Retry-After
+    MaxElapsed   time.Duration // Bound on the whole Do call (all attempts and waits); 0 = only ctx
     // Also retry non-idempotent requests that may have reached the server.
     RetryNonIdempotent bool
 }
@@ -99,6 +100,8 @@ type RetryConfig struct {
 | `MaxRetries`   | `5`                 | `1` (single attempt)                                |
 | `InitialDelay` | `100ms`             | `100ms`                                             |
 | `MaxDelay`     | `5s`                | `5s`                                                |
+
+**Total time.** Every attempt and every wait spends the same budget: the `ctx` deadline and, when set, `MaxElapsed`. Without either, one `Do` can take up to `MaxRetries` × the client's per-attempt timeout (`http.Client.Timeout`, 60 s by default) plus the waits, so give `ctx` a deadline or set `MaxElapsed`. A wait that would outlast the budget ends the retries early (see `Do`).
 
 When `MaxRetries` is zero in a `RetryConfig` passed to `NewHTTPRequestWithRetry`, the client performs exactly one attempt.
 

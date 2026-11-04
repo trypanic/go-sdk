@@ -49,6 +49,9 @@ type RetryConfig struct {
 	MaxRetries   int
 	InitialDelay time.Duration
 	MaxDelay     time.Duration
+	// MaxElapsed bounds the whole Do call, every attempt and wait
+	// included. Zero means no bound beyond the context's own deadline.
+	MaxElapsed time.Duration
 	// RetryNonIdempotent also retries non-idempotent requests (POST, PATCH,
 	// ...) that may already have reached the server. Enable it only when
 	// the upstream deduplicates or a duplicate is harmless.
@@ -236,6 +239,12 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 
 	if err := validateURL(config.URL); err != nil {
 		return err
+	}
+
+	if rc.MaxElapsed > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, rc.MaxElapsed)
+		defer cancel()
 	}
 
 	for attempt := 0; attempt < rc.MaxRetries; attempt++ {
