@@ -1,37 +1,95 @@
 # go-sdk
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/trypanic/go-sdk.svg)](https://pkg.go.dev/github.com/trypanic/go-sdk)
+
 Opinionated Go SDK for distributed systems — bundles logging, errors, tracing,
 metrics, HTTP, messaging, and storage primitives behind a small, explicit
 API surface.
 
 Module path: `github.com/trypanic/go-sdk` (language floor `go 1.26.1`; see
-[Supported toolchains](#supported-toolchains)).
+[Compatibility](#compatibility)).
+
+## Install
+
+```bash
+go get github.com/trypanic/go-sdk@latest
+```
+
+The SDK is one Go module: `go get` adds every package at the same version,
+and a binary links only the packages it imports.
+
+## Quick start
+
+Structured logging and a classified error, wrapped once at the boundary:
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+
+	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/logger"
+)
+
+func main() {
+	_, cleanup := logger.Init("my-service", "0.1.0")
+	defer cleanup.Close()
+
+	ctx := context.Background()
+	if err := fetchOrder(ctx); err != nil {
+		// Wrap once at the boundary; keep an existing *errorkit.AppError as is.
+		appErr, ok := err.(*errorkit.AppError)
+		if !ok {
+			appErr = errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
+		}
+		logger.ErrorCtx(ctx, appErr, "fetch order failed")
+		return
+	}
+	logger.LogInfoWithTrace(ctx, "order fetched")
+}
+
+func fetchOrder(context.Context) error { return errors.New("upstream unavailable") }
+```
+
+Each package README has its own API and examples; the
+[AGENTS.md bootstrap](./AGENTS.md#3-canonical-service-bootstrap) wires
+logging, tracing, outbound HTTP, Postgres and RabbitMQ together.
 
 ## Package map
 
-```text
-go-sdk/
-├── algorithms/        exponential backoff factory
-├── envs/              caarlos0/env wrapper
-├── errorkit/          typed AppError + registry
-├── grpc/              gRPC server + client factories (Kitex-backed)
-├── httpclient/        net/http.Client factory
-├── httprequest/       retrying HTTP requester
-├── httpserver/        framework-agnostic HTTPServer contracts
-│   └── hertz/         Hertz adapter (only nested package)
-├── ioutils/           dev-only JSON dump helpers
-├── llmclient/         OpenAI-compatible chat client (non-streaming)
-├── logger/            zerolog wrapper + OTLP log provider
-├── marshal/           JSON encoding helpers
-├── messaging/         RabbitMQ pub/sub + topology loader
-├── mongo/             mongo-driver wrapper + tracing
-├── postgres/          pgx pool + StoredProcedure[T] helper
-├── slices/            generic slice helpers
-├── storage/           KV + append-log generic store
-├── stringutils/       normalize + markdown strip
-├── telemetry/         OTel tracer wrapper + Instrumenter
-├── urlkit/            URL build + path join
-└── validators/        input validators
+Import the directory; refer to symbols by the package identifier. Two
+directories declare a different identifier.
+
+| Directory (import path suffix) | Package identifier | Purpose |
+|--------------------------------|--------------------|---------|
+| [`algorithms`](./algorithms)   | `algorithms`       | exponential backoff factory |
+| [`envs`](./envs)               | `envs`             | caarlos0/env wrapper |
+| [`errorkit`](./errorkit)       | `errorkit`         | typed AppError + registry |
+| [`grpc`](./grpc)               | `grpc`             | gRPC server + client factories (Kitex-backed); alias it (e.g. `sdkgrpc`) next to `google.golang.org/grpc` |
+| [`httpclient`](./httpclient)   | `httpclient`       | net/http.Client factory |
+| [`httprequest`](./httprequest) | `httprequest`      | retrying HTTP requester |
+| [`httpserver`](./httpserver)   | `httpserver`       | framework-agnostic HTTPServer contracts |
+| [`httpserver/hertz`](./httpserver/hertz) | `hertz`  | Hertz adapter (only nested package) |
+| [`ioutils`](./ioutils)         | `ioutils`          | dev-only JSON dump helpers |
+| [`llmclient`](./llmclient)     | `llmclient`        | OpenAI-compatible chat client (non-streaming) |
+| [`logger`](./logger)           | `logger`           | zerolog wrapper + OTLP log provider |
+| [`marshal`](./marshal)         | `marshal`          | JSON encoding helpers |
+| [`messaging`](./messaging)     | `messaging`        | RabbitMQ pub/sub + topology loader |
+| [`mongo`](./mongo)             | **`mongodb`**      | mongo-driver wrapper + tracing |
+| [`postgres`](./postgres)       | **`database`**     | pgx pool + StoredProcedure[T] helper |
+| [`slices`](./slices)           | `slices`           | generic slice helpers |
+| [`storage`](./storage)         | `storage`          | KV + append-log generic store |
+| [`stringutils`](./stringutils) | `stringutils`      | normalize + markdown strip |
+| [`telemetry`](./telemetry)     | `telemetry`        | OTel tracer wrapper + Instrumenter |
+| [`urlkit`](./urlkit)           | `urlkit`           | URL build + path join |
+| [`validators`](./validators)   | `validators`       | input validators |
+
+```go
+import "github.com/trypanic/go-sdk/postgres" // package database
+
+pool, err := database.NewPostgresClientFromEnv(database.Config{})
 ```
 
 ## Package status
@@ -69,7 +127,21 @@ go-sdk/
 - **Body capture.** HTTP request and inbound audit middleware redact bodies
   by default; raw capture is an explicit opt-in.
 
-## Supported toolchains
+## Compatibility
+
+### Versioning
+
+The module follows [semantic versioning](https://semver.org) for its whole
+exported API: every package shares the module version (`vX.Y.Z` tags on the
+repository root). Within a major version, minor and patch releases do not
+remove or change exported identifiers; a breaking change ships only in a new
+major version with a new module path (`github.com/trypanic/go-sdk/v2`, …), as
+Go requires. `task release:check` (gorelease) checks this before each
+release. Packages marked **Dev-only** above (`ioutils`) are outside the
+production contract. Security fixes and supported versions:
+[`SECURITY.md`](./SECURITY.md#supported-versions).
+
+### Supported toolchains
 
 Build and test services that use the SDK with the **latest patch release of
 Go 1.26 (1.26.10 or newer) or of Go 1.27**. CI tests both lines
@@ -196,7 +268,16 @@ release.
 
 ## Changelog
 
-See [`CHANGELOG.md`](./CHANGELOG.md) for the full per-phase change log.
+Release notes are generated by release-please from Conventional Commits and
+prepended to [`CHANGELOG.md`](./CHANGELOG.md), one entry per version, when a
+release PR is merged. `build`, `chore`, `ci`, `style` and `test` commits are
+not listed. The file starts with the first release made after v1.0.0; v1.0.0
+itself has no entry.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development setup, the
+local gates, commit conventions and pull request checks.
 
 ## Common issues
 
