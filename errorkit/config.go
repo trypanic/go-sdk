@@ -41,13 +41,7 @@ func currentMaxStackDepth() int {
 }
 
 func clampStackDepth(depth int) int {
-	if depth < 1 {
-		depth = 1
-	}
-	if depth > 100 {
-		depth = 100
-	}
-	return depth
+	return min(max(depth, 1), 100)
 }
 
 // ==============================
