@@ -126,3 +126,27 @@ func TestHandleDeliveryRequeuesWhenCtxAlreadyCancelled(t *testing.T) {
 	require.Equal(t, 1, nacks)
 	assert.Equal(t, []bool{true}, requeues)
 }
+
+// C5-004: a panicking handler must not crash the consumer; the poison message
+// is Nacked without requeue (to the DLX) and is not retried.
+func TestHandleDeliveryRecoversHandlerPanic(t *testing.T) {
+	t.Parallel()
+
+	ack := &fakeAcknowledger{}
+	p := &PubSub{}
+	calls := 0
+	queue := QueueTopology{Name: "q", Retry: &RetryConfig{MaxAttempts: 3, InitialDelay: 1, MaxDelay: 1, BackoffMult: 1}}
+
+	require.NotPanics(t, func() {
+		p.handleDelivery(context.Background(), "q", newTestDelivery(ack), queue, func(context.Context, Message) error {
+			calls++
+			panic("poison")
+		})
+	})
+
+	acks, nacks, requeues := ack.snapshot()
+	assert.Equal(t, 1, calls, "a panic is not retried")
+	assert.Equal(t, 0, acks)
+	require.Equal(t, 1, nacks)
+	assert.Equal(t, []bool{false}, requeues, "poison message goes to the DLX")
+}

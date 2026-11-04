@@ -316,7 +316,7 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	}
 
 	attempt := 0
-	run := func() error {
+	run := func() (err error) {
 		attempt++
 		procCtx, procSpan := p.tracerOrDefault().Start(recvCtx,
 			"messaging.process "+queueName,
@@ -324,7 +324,18 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 		)
 		defer procSpan.End()
 
-		err := handler(procCtx, m)
+		// A panic in the handler is a poison message: record it with its
+		// stack, never retry it, and let the caller dead-letter it.
+		defer func() {
+			if r := recover(); r != nil {
+				panicErr := fmt.Errorf("messaging: handler panicked: %v", r)
+				procSpan.RecordError(panicErr, trace.WithStackTrace(true))
+				procSpan.SetStatus(codes.Error, "handler panicked")
+				err = backoff.Permanent(panicErr)
+			}
+		}()
+
+		err = handler(procCtx, m)
 		if err != nil {
 			procSpan.RecordError(err)
 			procSpan.SetStatus(codes.Error, "handler error")

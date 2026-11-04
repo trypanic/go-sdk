@@ -244,6 +244,7 @@ pubsub, err := messaging.NewPubSub(amqpURL,
 |----------|--------------|
 | `Publish` fails after all retries | Error returned to the caller |
 | Handler returns an error | Message retried per queue config; after exhaustion it is Nacked → DLQ |
+| Handler panics | The panic is recovered and recorded (with its stack) on the process span; the message is not retried and is Nacked without requeue → DLQ |
 | Connection drops during `Subscribe` | Automatic reconnect with exponential backoff |
 | Context cancelled | Subscriber exits cleanly, connection is closed via `defer`; a message being processed is Nacked with requeue (not dead-lettered) and no further retry or backoff wait happens |
 | Marshal / unmarshal failure | Error returned immediately (no retry — it would produce the same result) |
