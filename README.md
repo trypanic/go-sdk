@@ -7,7 +7,7 @@ metrics, HTTP, messaging, and storage primitives behind a small, explicit
 API surface.
 
 Module path: `github.com/trypanic/go-sdk` (language floor `go 1.26.1`; see
-[Compatibility](#compatibility)).
+[Compatibility](#compatibility)). Licensed under the [MIT License](./LICENSE).
 
 ## Install
 
@@ -292,6 +292,10 @@ itself has no entry.
 
 See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the development setup, the
 local gates, commit conventions and pull request checks.
+
+## License
+
+[MIT](./LICENSE) © 2026 trypanic.
 
 ## Common issues
 
