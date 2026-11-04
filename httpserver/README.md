@@ -218,9 +218,12 @@ turn it off.
 | `RecoveryHandler` | Panic-recovery handler installed by `EnableRecovery` |
 | `RequestLoggerMiddleware(base *logger.Logger)` | Per-request logger middleware |
 
-`Shutdown(ctx)` delegates to `*server.Hertz.Shutdown(ctx)`. Calling it
-before `Run()` returns Hertz's `engine is not running` error; this is
-intentional and surfaced verbatim.
+`Shutdown(ctx)` waits until no request is in flight or `ctx` is done;
+only `ctx` bounds it (Hertz's 5 s cap is lifted) and idle keep-alive
+connections do not delay it. It returns `ERR_SYSTEM_TIMEOUT_INTERNAL`
+when `ctx` ends with requests still in flight. Calling it before `Run()`
+returns Hertz's `engine is not running` error; this is intentional and
+surfaced verbatim.
 
 ---
 
@@ -232,7 +235,8 @@ intentional and surfaced verbatim.
 - No adapter handles SIGINT/SIGTERM; the caller decides when to call
   `Shutdown`.
 - `Shutdown(ctx)` triggers graceful drain; the supplied context bounds
-  how long to wait before forcing termination.
+  how long to wait, and a drain cut short by it is reported as
+  `ERR_SYSTEM_TIMEOUT_INTERNAL`.
 - `HTTPContext` is single-goroutine. Do not stash it past the handler.
 
 ---

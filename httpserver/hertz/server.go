@@ -32,7 +32,12 @@ func New(cfg httpserver.ServerConfig) httpserver.HTTPServer {
 func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) httpserver.HTTPServer {
 	srvOpts = applyOptionDefaults(srvOpts)
 
-	opts := []config.Option{server.WithHostPorts(cfg.Address())}
+	opts := []config.Option{
+		server.WithHostPorts(cfg.Address()),
+		// The caller's context bounds Shutdown; Hertz's own cap (5 s by
+		// default) would cut the drain short and still report success.
+		server.WithExitWaitTime(shutdownWaitCeiling),
+	}
 	if cfg.ReadTimeout > 0 {
 		opts = append(opts, server.WithReadTimeout(cfg.ReadTimeout))
 	}
@@ -53,6 +58,13 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		engine = server.Default(opts...)
 	}
 
+	w := &wrapperHertzServer{
+		engine:    engine,
+		config:    cfg,
+		replyOpts: srvOpts.Reply,
+	}
+	engine.Use(w.trackInFlight)
+
 	if srvOpts.EnableRecovery {
 		engine.Use(recovery.Recovery(recovery.WithRecoveryHandler(RecoveryHandler)))
 	}
@@ -70,11 +82,7 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		engine.GET("/health", health())
 	}
 
-	return &wrapperHertzServer{
-		engine:    engine,
-		config:    cfg,
-		replyOpts: srvOpts.Reply,
-	}
+	return w
 }
 
 // applyOptionDefaults backfills any zero-valued fields in srvOpts with

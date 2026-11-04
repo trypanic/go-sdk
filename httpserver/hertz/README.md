@@ -36,8 +36,13 @@ listen (address in use, permission denied) instead of panicking.
 
 ## Shutdown
 
-`Shutdown(ctx)` delegates to `*server.Hertz.Shutdown(ctx)`. Calling it
-before `Run()` returns Hertz's `engine is not running` error verbatim.
+`Shutdown(ctx)` stops accepting connections and waits until no request
+is in flight or `ctx` is done. Only `ctx` bounds the wait (Hertz's own
+5 s `ExitWaitTimeout` is lifted), and idle keep-alive connections do not
+delay it. If `ctx` ends while requests are still in flight, it returns
+`ERR_SYSTEM_TIMEOUT_INTERNAL`, so the caller knows the drain is
+incomplete before closing databases or exporters. Calling it before
+`Run()` returns Hertz's `engine is not running` error verbatim.
 
 ## Quick start
 
