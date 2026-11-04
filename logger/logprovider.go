@@ -98,7 +98,10 @@ func (cfg LogProviderConfig) validate() error {
 }
 
 func (cfg LogProviderConfig) exporterOptions() []otlploggrpc.Option {
-	opts := []otlploggrpc.Option{otlploggrpc.WithEndpoint(cfg.Endpoint)}
+	var opts []otlploggrpc.Option
+	if cfg.Endpoint != "" {
+		opts = append(opts, otlploggrpc.WithEndpoint(cfg.Endpoint))
+	}
 	// Transport security is always set explicitly so the exporter's
 	// OTEL_EXPORTER_OTLP_* environment fallbacks cannot change it.
 	if cfg.Insecure {
@@ -131,7 +134,15 @@ func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHan
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
+	return newLogProvider(ctx, cfg, true)
+}
 
+// newLogProvider builds and registers the provider. With strict false (the
+// InitLogProvider compatibility path) cfg is not validated and a resource
+// error is printed to stderr and tolerated, as InitLogProvider always did:
+// an empty endpoint uses the exporter default and an empty service name
+// yields an empty service.name.
+func newLogProvider(ctx context.Context, cfg LogProviderConfig, strict bool) (*LogProviderHandle, error) {
 	exporter, err := otlploggrpc.New(ctx, cfg.exporterOptions()...)
 	if err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -145,7 +156,9 @@ func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHan
 			semconv.ServiceNameKey.String(cfg.ServiceName),
 		),
 	)
-	if err != nil {
+	if err != nil && !strict {
+		fmt.Fprintf(os.Stderr, "logger: could not create OTel resource: %v — using the partial resource\n", err)
+	} else if err != nil {
 		_ = exporter.Shutdown(ctx)
 		return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
 			errorkit.WithReason("logger: create OTel resource"),
@@ -165,10 +178,12 @@ func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHan
 }
 
 // InitLogProvider is NewLogProvider with a plaintext (Insecure) connection
-// and no headers or timeout, kept for compatibility. It never fails: on error
-// it prints the error to stderr and returns a handle to a provider that
-// exports nothing. Prefer NewLogProvider, which supports TLS and returns
-// errors.
+// and no headers or timeout, kept for compatibility. It never fails and does
+// not validate its arguments: an empty collectorEndpoint uses the exporter
+// default and an empty serviceName an empty service.name, as before
+// NewLogProvider existed. Only if the exporter cannot be created at all does
+// it print the error to stderr and return a handle to a provider that exports
+// nothing. Prefer NewLogProvider, which supports TLS and returns errors.
 //
 // Call it BEFORE logger.Init so that NewOTLPWriter can resolve the global
 // provider. Defer Shutdown (or Close) to flush on exit.
@@ -180,11 +195,11 @@ func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHan
 //	_, cleanup := logger.Init("my-service", version, logger.NewOTLPWriter("my-service"))
 //	defer cleanup.Close()
 func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle {
-	handle, err := NewLogProvider(ctx, LogProviderConfig{
+	handle, err := newLogProvider(ctx, LogProviderConfig{
 		ServiceName: serviceName,
 		Endpoint:    collectorEndpoint,
 		Insecure:    true,
-	})
+	}, false)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "logger: could not create OTLP log provider: %v — logs will not be exported\n", err)
 		return &LogProviderHandle{provider: log.NewLoggerProvider()}

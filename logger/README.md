@@ -253,7 +253,7 @@ defer func() {
 func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle
 ```
 
-Compatibility wrapper: `NewLogProvider` with `Insecure: true` (plaintext) and no headers or timeout. It never returns an error: on failure it prints to stderr and returns a handle to a provider that exports nothing, and the service keeps running without exported logs. There is no blocking dial: an unreachable collector is not detected at startup. Prefer `NewLogProvider`.
+Compatibility wrapper: `NewLogProvider` with `Insecure: true` (plaintext) and no headers or timeout, but without its validation: an empty `collectorEndpoint` uses the exporter default and an empty `serviceName` an empty `service.name`, as in earlier versions. It never returns an error: if the exporter cannot be created it prints to stderr and returns a handle to a provider that exports nothing, and the service keeps running without exported logs. There is no blocking dial: an unreachable collector is not detected at startup. Prefer `NewLogProvider`.
 
 ---
 

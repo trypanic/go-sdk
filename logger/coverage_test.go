@@ -263,15 +263,47 @@ func TestSetupOTLPReturnsHandleAndWriter(t *testing.T) {
 	assert.NoError(t, handle.Close(ctx))
 }
 
-func TestInitLogProviderFallsBackOnInvalidConfig(t *testing.T) {
-	restoreGlobalLoggerProvider(t)
-	before := otel.GetLoggerProvider()
+// TestInitLogProviderNeverFailsOnEmptyArguments: InitLogProvider and
+// SetupOTLP keep their documented never-fail behavior. An empty service name
+// or endpoint (which NewLogProvider rejects) still yields a working,
+// globally registered provider, as before NewLogProvider existed.
+func TestInitLogProviderNeverFailsOnEmptyArguments(t *testing.T) {
+	t.Run("empty service name exports to the collector", func(t *testing.T) {
+		restoreGlobalLoggerProvider(t)
+		collector := startFakeCollector(t)
 
-	handle := InitLogProvider(t.Context(), "", "127.0.0.1:1")
+		handle := InitLogProvider(t.Context(), "", collector.addr)
+		require.NotNil(t, handle)
+		require.Same(t, handle.provider, otel.GetLoggerProvider())
 
-	require.NotNil(t, handle)
-	assert.Equal(t, before, otel.GetLoggerProvider(), "an invalid config must not replace the global provider")
-	assert.NoError(t, handle.Close(t.Context()))
+		_, err := NewOTLPWriter("svc").Write([]byte(`{"level":"info","message":"no name"}`))
+		require.NoError(t, err)
+		ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+		defer cancel()
+		require.NoError(t, handle.Close(ctx))
+
+		methods, _ := collector.calls()
+		assert.Len(t, methods, 1, "records must still be exported")
+	})
+
+	t.Run("empty endpoint registers a provider", func(t *testing.T) {
+		restoreGlobalLoggerProvider(t)
+
+		// Nothing is emitted and the exporter connects lazily: no traffic.
+		handle := InitLogProvider(t.Context(), "svc", "")
+		require.NotNil(t, handle)
+		assert.Same(t, handle.provider, otel.GetLoggerProvider())
+		assert.NoError(t, handle.Close(t.Context()))
+	})
+
+	t.Run("SetupOTLP with empty arguments", func(t *testing.T) {
+		restoreGlobalLoggerProvider(t)
+
+		handle, writer := SetupOTLP(t.Context(), "", "")
+		require.NotNil(t, writer)
+		assert.Same(t, handle.provider, otel.GetLoggerProvider())
+		assert.NoError(t, handle.Close(t.Context()))
+	})
 }
 
 func BenchmarkOTLPWriterWrite(b *testing.B) {
