@@ -171,8 +171,11 @@ func ToStatusWithPolicy(err error, policy StatusPolicy) error {
 		return st.Err()
 	}
 
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		return status.FromContextError(err).Err()
+	if errors.Is(err, context.DeadlineExceeded) {
+		return status.FromContextError(context.DeadlineExceeded).Err()
+	}
+	if errors.Is(err, context.Canceled) {
+		return status.FromContextError(context.Canceled).Err()
 	}
 
 	return status.Convert(err).Err()
@@ -198,4 +201,59 @@ func isServerError(appErr *errorkit.AppError, code codes.Code) bool {
 		return true
 	}
 	return appErr.Metadata.HTTPStatus >= 500
+}
+
+// FromStatus converts a remote gRPC status into a locally classified AppError.
+// A registered ErrorInfo.Reason restores the local code only when its gRPC
+// class matches the received status. Remote retry flags and messages never
+// override local metadata. The original status remains available by unwrapping.
+// Nil, existing AppErrors and errors without a gRPC status pass through.
+func FromStatus(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := errorkit.As(err); ok {
+		return err
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return err
+	}
+	code := fromStatusCode(st.Code())
+	for _, detail := range st.Details() {
+		info, ok := detail.(*errdetails.ErrorInfo)
+		if !ok {
+			continue
+		}
+		candidate := errorkit.ErrorCode(info.Reason)
+		meta, known := errorkit.GetMetadata(candidate)
+		if known && codeFor(&errorkit.AppError{ErrCode: candidate, Metadata: meta}) == st.Code() {
+			code = candidate
+			break
+		}
+	}
+	return errorkit.NewError(code).With(errorkit.WithWrapped(err))
+}
+
+func fromStatusCode(code codes.Code) errorkit.ErrorCode {
+	switch code {
+	case codes.InvalidArgument:
+		return errorkit.ERR_VALIDATION
+	case codes.NotFound:
+		return errorkit.ERR_CLIENT_NOT_FOUND
+	case codes.AlreadyExists:
+		return errorkit.ERR_VALIDATION_DUPLICATE
+	case codes.ResourceExhausted:
+		return errorkit.ERR_CLIENT_RATE_LIMIT
+	case codes.Aborted:
+		return errorkit.ERR_SYSTEM_CONCURRENCY
+	case codes.DeadlineExceeded:
+		return errorkit.ERR_EXTERNAL_SERVICE_TIMEOUT
+	case codes.Unavailable:
+		return errorkit.ERR_EXTERNAL_SERVICE_UNAVAILABLE
+	case codes.Internal, codes.Unknown, codes.DataLoss:
+		return errorkit.ERR_EXTERNAL_SERVICE_ERROR
+	default:
+		return errorkit.ERR_EXTERNAL_INVALID_RESPONSE
+	}
 }

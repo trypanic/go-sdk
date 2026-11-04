@@ -104,3 +104,26 @@ func BuildReply(o ReplyOptions, opts ...OptionReply) *Reply {
 
 // buildReply is the unexported alias used by package tests.
 func buildReply(o ReplyOptions, opts ...OptionReply) *Reply { return BuildReply(o, opts...) }
+
+// StatusFor returns an AppError's registered HTTP failure status, including
+// through wrappers. Nil means 200; unknown errors or invalid statuses mean 500.
+func StatusFor(err error) int {
+	if err == nil {
+		return 200
+	}
+	if appErr, ok := errorkit.As(err); ok {
+		if status := appErr.Metadata.HTTPStatus; status >= 400 && status <= 599 {
+			return status
+		}
+	}
+	return 500
+}
+
+// ReplyError writes a metadata-driven, client-safe error response. A nil error
+// does not write a response. The adapter's WithError hook retains its logging.
+func ReplyError(c HTTPContext, err error) {
+	if err == nil {
+		return
+	}
+	c.Reply(StatusFor(err), c.WithError(err))
+}

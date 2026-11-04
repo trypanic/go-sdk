@@ -310,3 +310,11 @@ redacted audit, health and 404/405 handling. Options include `WithoutTracing`,
 `WithLogger` applies to audit and recovery as well as handler context logging.
 `NewWithOptions` remains the explicit struct profile: its boolean zero values
 are disabled, so initialize that struct with `DefaultServerOptions()` when needed.
+
+### Metadata-driven error replies
+
+Use `httpserver.ReplyError(c, err)` in handlers to select the status from an
+`AppError` anywhere in the error chain and send the adapter's client-safe reply.
+The adapter's `WithError` hook still logs the failure. Nil errors do not write.
+`StatusFor(nil)` returns 200; unknown errors and invalid failure statuses return
+500. Registered 400–599 statuses are preserved. Do not serialize `err.Error()`.

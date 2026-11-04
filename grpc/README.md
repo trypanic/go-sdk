@@ -453,3 +453,27 @@ Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
 `messaging.WithInstrumenter`; each keeps its component scope and uses
 `instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
 Hertz tracing remains an exception: its adapter uses the global provider.
+
+### Receiving remote errors
+
+`FromStatus(err)` converts a received gRPC status into an `AppError` and keeps
+the original status as its wrapped cause. A known `ErrorInfo.Reason` restores
+the registered local code when its gRPC class matches. Remote retry flags,
+messages, IDs and domains never override local classification or public text.
+Unknown or inconsistent details fall back to this mapping:
+
+| gRPC status | Local code |
+| --- | --- |
+| InvalidArgument | ERR_VALIDATION |
+| NotFound | ERR_CLIENT_NOT_FOUND |
+| AlreadyExists | ERR_VALIDATION_DUPLICATE |
+| ResourceExhausted | ERR_CLIENT_RATE_LIMIT |
+| Aborted | ERR_SYSTEM_CONCURRENCY |
+| DeadlineExceeded | ERR_EXTERNAL_SERVICE_TIMEOUT |
+| Unavailable | ERR_EXTERNAL_SERVICE_UNAVAILABLE |
+| Internal, Unknown, DataLoss | ERR_EXTERNAL_SERVICE_ERROR |
+| Other statuses, including Canceled | ERR_EXTERNAL_INVALID_RESPONSE (nonretriable) |
+
+Nil, existing `AppError` values and non-status errors pass through unchanged.
+`ToStatus` sends canonical context cancellation/deadline messages even when
+those errors are wrapped with private diagnostic text.
