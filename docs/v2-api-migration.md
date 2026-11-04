@@ -56,3 +56,11 @@ Span selectors also change: HTTP uses `external.http.<host>.<METHOD>`, LLM
 lifecycle `mongo.client.<operation>`. Models and HTTP paths are attributes;
 resource IDs do not enter operation names. Failed client spans record sanitized
 catalogue descriptions, classification and retryability.
+
+### Local integration infrastructure
+
+Test-only infrastructure binds published ports to `127.0.0.1`, including Ryuk.
+The pinned Testcontainers v0.44.0 helper uses its exported `ReaperProvider`
+hook with one localized deprecation exception because there is no Ryuk
+HostIP option. It preserves upstream session reuse and crash cleanup; this
+is not a public SDK API. See [local integration tests](../CONTRIBUTING.md#local-infrastructure-integration-tests).
