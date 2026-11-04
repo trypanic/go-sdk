@@ -36,6 +36,9 @@ const (
 
 	// ERR_MQ_ERROR indicates a general message queue error
 	ERR_MQ_ERROR errorkit.ErrorCode = "ERR_MQ_ERROR"
+
+	// ERR_MQ_CLOSED indicates use of a PubSub or Publisher after Close
+	ERR_MQ_CLOSED errorkit.ErrorCode = "ERR_MQ_CLOSED"
 )
 
 // ErrorMetadata is the canonical metadata for all messaging-owned error codes.
@@ -129,6 +132,15 @@ var ErrorMetadata = []errorkit.Metadata{
 		Description: "Message queue error",
 		HTTPStatus:  503,
 		Retriable:   true,
+	},
+	{
+		Code:        ERR_MQ_CLOSED,
+		Type:        errorkit.ErrorTypeInternal,
+		Group:       errorkit.GroupMessageQueue,
+		Category:    "message_queue",
+		Description: "Message queue client is closed",
+		HTTPStatus:  503,
+		Retriable:   false,
 	},
 }
 

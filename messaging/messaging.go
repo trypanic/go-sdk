@@ -2,8 +2,12 @@ package messaging
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -17,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -27,9 +32,20 @@ type PubSub struct {
 	publisher  *Publisher
 	topology   *Topology
 	amqpURL    string
+	dial       dialFunc // used by subscribers; nil means dialAMQP
+	connOpts   connOptions
 	tracer     trace.Tracer
 	propagator propagation.TextMapPropagator
 	log        *logger.Logger
+
+	// life is cancelled by Close; every Subscribe stops with it.
+	lifeOnce sync.Once
+	life     context.Context
+	stop     context.CancelFunc
+
+	// testHookSubscribeRegistering, when set (tests only), runs inside
+	// Subscribe at the point where a racing Close used to be missed.
+	testHookSubscribeRegistering func()
 }
 
 // PubSubOption configures explicit dependencies on a PubSub.
@@ -43,6 +59,10 @@ type pubSubBuild struct {
 	topology     *Topology
 	topologyPath string
 	log          *logger.Logger
+	declareTopo  bool
+	conn         connOptions
+
+	topologyFromEnv bool // set by NewPubSubFromEnv
 }
 
 // WithTracer overrides the OpenTelemetry tracer used for publish/consume spans.
@@ -63,29 +83,91 @@ func WithTopology(topo *Topology) PubSubOption {
 	return func(p *pubSubBuild) { p.topology = topo }
 }
 
-// WithTopologyFile supplies an explicit path to a topology JSON file. Takes
-// precedence over the legacy env-var fallback.
+// WithTopologyFile supplies an explicit path to a topology JSON file. It
+// takes precedence over RABBITMQ_TOPOLOGY_FILE in NewPubSubFromEnv.
 func WithTopologyFile(path string) PubSubOption {
 	return func(p *pubSubBuild) { p.topologyPath = path }
 }
 
-// WithLogger injects an explicit logger instance for messaging reconnect/retry
-// diagnostics. When nil, the messaging package falls back to the package-level
-// global logger so existing call sites keep working.
+// WithLogger injects an explicit logger instance for the messaging
+// diagnostics of the publisher and of every subscriber (reconnects, retries,
+// failed acks). They are logged at Warn level with structured fields and the
+// trace IDs of the active span. When nil, the logger stored in the ctx (see
+// logger.CtxOrGlobal) or the package-level global logger is used.
 func WithLogger(l *logger.Logger) PubSubOption {
 	return func(p *pubSubBuild) { p.log = l }
 }
 
-// NewPubSub builds a Messager. The topology source is selected in order:
-//
-//  1. WithTopology — the supplied *Topology is used as-is.
-//  2. WithTopologyFile — the file at the supplied path is loaded.
-//  3. Legacy fallback: RABBITMQ_TOPOLOGY_FILE env var. Returns an error if
-//     none of the three are available; no directory walking is performed.
+// WithTLSConfig sets the TLS configuration used for amqps:// URLs: a private
+// CA (RootCAs), client certificates for mTLS, a minimum TLS version. nil
+// keeps amqp091-go's default (system roots).
+func WithTLSConfig(cfg *tls.Config) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.tls = cfg }
+}
+
+// WithHeartbeat sets the AMQP heartbeat interval of every connection
+// (default DefaultHeartbeat). amqp091-go treats a link as dead after three
+// intervals without traffic, so a shorter interval detects a silent network
+// partition sooner. d <= 0 keeps the default.
+func WithHeartbeat(d time.Duration) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.heartbeat = d }
+}
+
+// WithDialTimeout bounds the TCP connect and the TLS/AMQP handshake of every
+// dial (default DefaultDialTimeout). A Publish ctx deadline that ends sooner
+// still wins. d <= 0 keeps the default.
+func WithDialTimeout(d time.Duration) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.dialTimeout = d }
+}
+
+// WithConnectionName sets the client connection name that the RabbitMQ
+// management UI shows for the publisher and subscriber connections.
+func WithConnectionName(name string) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.name = name }
+}
+
+// WithDeclareTopology makes NewPubSub declare every queue and binding of the
+// topology (including dead-letter queues), not only the exchanges, and
+// declare them again on every publisher reconnect. Without it queues are
+// declared lazily by Subscribe, and a message published to a queue that no
+// subscriber has declared yet is unroutable: Publish returns
+// ERR_MQ_PUBLISH_FAILED for it.
+func WithDeclareTopology() PubSubOption {
+	return func(p *pubSubBuild) { p.declareTopo = true }
+}
+
+// NewPubSub builds a Messager. The topology comes from WithTopology (used
+// as-is) or, failing that, WithTopologyFile (the file is loaded); one of
+// them is required. NewPubSub never reads environment variables: use
+// NewPubSubFromEnv to load the topology from RABBITMQ_TOPOLOGY_FILE.
 //
 // Telemetry dependencies (tracer, propagator) default to the global OTel
 // values when not supplied via options.
 func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
+	ps, err := newPubSub(amqpURL, nil, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return ps, nil
+}
+
+// NewPubSubFromEnv is NewPubSub with the topology loaded from the file named
+// by the RABBITMQ_TOPOLOGY_FILE environment variable (TopologyEnvVar). An
+// explicit WithTopology or WithTopologyFile still takes precedence. It fails
+// with ERR_SYSTEM_CONFIG_INVALID, before dialing, when no topology source is
+// available.
+func NewPubSubFromEnv(amqpURL string, opts ...PubSubOption) (Messager, error) {
+	fromEnv := func(b *pubSubBuild) { b.topologyFromEnv = true }
+	ps, err := newPubSub(amqpURL, nil, append([]PubSubOption{fromEnv}, opts...)...)
+	if err != nil {
+		return nil, err
+	}
+	return ps, nil
+}
+
+// newPubSub is NewPubSub with the publisher dialing through dial (nil means
+// dialAMQP).
+func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, error) {
 	build := &pubSubBuild{}
 	for _, opt := range opts {
 		opt(build)
@@ -96,8 +178,11 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 		return nil, err
 	}
 
-	pub, err := NewPublisher(amqpURL, topo.Exchanges)
-	if err != nil {
+	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial, opts: build.conn, log: build.log}
+	if build.declareTopo {
+		pub.declare = topo
+	}
+	if err := pub.connect(); err != nil {
 		return nil, err
 	}
 
@@ -105,6 +190,8 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 		publisher:  pub,
 		topology:   topo,
 		amqpURL:    amqpURL,
+		dial:       dial,
+		connOpts:   build.conn,
 		tracer:     build.tracer,
 		propagator: build.propagator,
 		log:        build.log,
@@ -114,12 +201,34 @@ func NewPubSub(amqpURL string, opts ...PubSubOption) (Messager, error) {
 func resolveTopology(b *pubSubBuild) (*Topology, error) {
 	switch {
 	case b.topology != nil:
+		if err := b.topology.Validate(); err != nil {
+			return nil, err
+		}
 		return b.topology, nil
 	case b.topologyPath != "":
 		return LoadTopologyFromFile(b.topologyPath)
-	default:
+	case b.topologyFromEnv:
 		return LoadTopologyFromEnv()
+	default:
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("no topology: pass WithTopology or WithTopologyFile, or use NewPubSubFromEnv"),
+		)
 	}
+}
+
+// lifetime returns the context that Close cancels.
+func (p *PubSub) lifetime() context.Context {
+	p.lifeOnce.Do(func() { p.life, p.stop = context.WithCancel(context.Background()) })
+	return p.life
+}
+
+// spanName follows the telemetry.Messaging convention
+// ("messaging.<operation>.<destination>"). The package builds the name itself
+// because it starts spans on a caller-supplied trace.Tracer (WithTracer),
+// which a telemetry.Instrumenter cannot wrap. Queue names come from the
+// topology, so the name is bounded.
+func spanName(op, queue string) string {
+	return "messaging." + op + "." + queue
 }
 
 func (p *PubSub) tracerOrDefault() trace.Tracer {
@@ -166,15 +275,16 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 		)
 	}
 
-	// Producer span (one per PublishCtx call)
+	// Producer span (one per Publish call)
 	ctx, span := p.tracerOrDefault().Start(ctx,
-		"messaging.publish "+queueName,
+		spanName("publish", queueName),
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(
-			attribute.String("messaging.system", "rabbitmq"),
-			attribute.String("messaging.destination", queueName),
+			semconv.MessagingSystemRabbitMQ,
+			semconv.MessagingDestinationName(queueName),
+			semconv.MessagingOperationTypeSend,
+			semconv.MessagingOperationName("publish"),
 			attribute.String("messaging.rabbitmq.exchange", binding.Exchange),
-			attribute.String("messaging.operation", "publish"),
 			attribute.String("event.id", eventMsg.EventID),
 			attribute.String("event.type", eventMsg.EventType),
 			attribute.String("correlation.id", payload.CorrelationID),
@@ -192,33 +302,33 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 		}
 	}
 
-	publishOnce := func() error {
-		for _, rk := range binding.RoutingKeys {
-			// Inject W3C context (TraceContext + Baggage) into AMQP headers
-			headers := amqp.Table{
-				"event_id":       eventMsg.EventID,
-				"event_type":     eventMsg.EventType,
-				"correlation_id": payload.CorrelationID,
-				"event_version":  eventMsg.EventVersion,
-				"service_name":   payload.ServiceName,
-			}
-
-			p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
-
-			if err := p.publisher.PublishWithHeaders(binding.Exchange, rk, data, headers); err != nil {
-				return err
-			}
+	// Each routing key is retried on its own, so a retry never re-sends a
+	// key that was already confirmed. With a retry policy it is the only
+	// retry layer; without one the publisher's reconnect + single retry is.
+	retryOnce := queue.Retry == nil
+	for _, rk := range binding.RoutingKeys {
+		// Inject W3C context (TraceContext + Baggage) into AMQP headers
+		headers := amqp.Table{
+			"event_id":       eventMsg.EventID,
+			"event_type":     eventMsg.EventType,
+			"correlation_id": payload.CorrelationID,
+			"event_version":  eventMsg.EventVersion,
+			"service_name":   payload.ServiceName,
 		}
-		return nil
-	}
+		p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
 
-	if err := executeWithRetry(publishOnce, queue.Retry); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "publish failed")
-		return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
-			errorkit.WithReason("failed to publish"),
-			errorkit.WithWrapped(err),
-		)
+		publishKey := func() error {
+			err := p.publisher.publish(ctx, binding.Exchange, rk, data, headers, retryOnce)
+			if err != nil && !isRetriable(err) {
+				return backoff.Permanent(err) // e.g. ERR_MQ_CLOSED
+			}
+			return err
+		}
+		if err := executeWithRetry(ctx, publishKey, queue.Retry); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "publish failed")
+			return asAppError(err, ERR_MQ_PUBLISH_FAILED, "failed to publish")
+		}
 	}
 
 	return nil
@@ -226,9 +336,24 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 
 // Subscribe blocks and consumes messages for queueName, calling handler for
 // each delivery.  On connection drops the subscriber reconnects with
-// exponential backoff automatically.  Returns when ctx is cancelled or an
-// unrecoverable error occurs.
-func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) error {
+// exponential backoff automatically.  Returns when ctx is cancelled, Close
+// is called, or an unrecoverable error occurs. After Close it fails with
+// ERR_MQ_CLOSED.
+func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) (err error) {
+	// Register for Close first, then check it: a Close before the check
+	// fails here, a Close after it cancels ctx through the AfterFunc.
+	life := p.lifetime()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	stopOnClose := context.AfterFunc(life, cancel)
+	defer stopOnClose()
+	if p.testHookSubscribeRegistering != nil {
+		p.testHookSubscribeRegistering()
+	}
+	if life.Err() != nil {
+		return errorkit.NewError(ERR_MQ_CLOSED).With(errorkit.WithReason("pubsub is closed"))
+	}
+
 	queue, binding, err := p.getQueueAndBinding(queueName)
 	if err != nil {
 		return err
@@ -236,7 +361,7 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 
 	exchange, ok := p.topology.GetExchangeByName(binding.Exchange)
 	if !ok {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("exchange not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("exchange %s referenced by queue %s not found in topology", binding.Exchange, queueName)),
 		)
@@ -244,21 +369,35 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 
 	args := buildQueueArgs(queue)
 
-	sub, err := NewSubscriber(p.amqpURL, exchange, queue, serviceName, args, binding.RoutingKeys)
-	if err != nil {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to create subscriber"),
-			errorkit.WithWrapped(err),
-		)
+	sub := &Subscriber{
+		amqpURL:     p.amqpURL,
+		exchange:    exchange,
+		queue:       queue,
+		consumer:    serviceName,
+		queueArgs:   args,
+		routingKeys: binding.RoutingKeys,
+		opts:        p.connOpts,
+		log:         p.log,
+		dial:        p.dial,
 	}
-	defer sub.Close()
+	if err := sub.connect(); err != nil {
+		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to create subscriber")
+	}
+	defer func() {
+		// A connection left half-open must not hide behind a nil return.
+		if closeErr := sub.Close(); closeErr != nil {
+			if err == nil {
+				err = closeErr
+				return
+			}
+			p.warn(ctx, asAppError(closeErr, ERR_MQ_CONNECTION_FAILED, "subscriber close failed"),
+				"messaging: subscriber close failed for queue "+queueName)
+		}
+	}()
 
 	msgs, err := sub.Consume()
 	if err != nil {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to start consuming"),
-			errorkit.WithWrapped(err),
-		)
+		return asAppError(err, ERR_MQ_CONNECTION_FAILED, "failed to start consuming")
 	}
 
 	for {
@@ -284,19 +423,31 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 }
 
 func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.Delivery, queue QueueTopology, handler MessageHandler) {
+	// The subscription is shutting down: hand the message back to the broker
+	// untouched instead of running the handler against a cancelled ctx.
+	if ctx.Err() != nil {
+		p.reportSettleFailure(ctx, nil, queueName, "nack", msg.Nack(false, true))
+		return
+	}
+
 	carrier := newCarrier(msg.Headers)
 	parentCtx := p.propagatorOrDefault().Extract(ctx, carrier)
 
+	recvAttrs := []attribute.KeyValue{
+		semconv.MessagingSystemRabbitMQ,
+		semconv.MessagingDestinationName(queueName),
+		semconv.MessagingOperationTypeReceive,
+		semconv.MessagingOperationName("receive"),
+		attribute.String("messaging.rabbitmq.exchange", msg.Exchange),
+		semconv.MessagingRabbitMQDestinationRoutingKey(msg.RoutingKey),
+	}
+	if msg.MessageId != "" {
+		recvAttrs = append(recvAttrs, semconv.MessagingMessageID(msg.MessageId))
+	}
 	recvCtx, recvSpan := p.tracerOrDefault().Start(parentCtx,
-		"messaging.receive "+queueName,
+		spanName("receive", queueName),
 		trace.WithSpanKind(trace.SpanKindConsumer),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "rabbitmq"),
-			attribute.String("messaging.destination", queueName),
-			attribute.String("messaging.rabbitmq.exchange", msg.Exchange),
-			attribute.String("messaging.rabbitmq.routing_key", msg.RoutingKey),
-			attribute.String("messaging.operation", "receive"),
-		),
+		trace.WithAttributes(recvAttrs...),
 	)
 	defer recvSpan.End()
 
@@ -309,15 +460,35 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	}
 
 	attempt := 0
-	run := func() error {
+	run := func() (err error) {
 		attempt++
 		procCtx, procSpan := p.tracerOrDefault().Start(recvCtx,
-			"messaging.process "+queueName,
-			trace.WithAttributes(attribute.Int("retry.attempt", attempt)),
+			spanName("process", queueName),
+			trace.WithAttributes(
+				semconv.MessagingSystemRabbitMQ,
+				semconv.MessagingDestinationName(queueName),
+				semconv.MessagingOperationTypeProcess,
+				semconv.MessagingOperationName("process"),
+				attribute.Int("retry.attempt", attempt),
+			),
 		)
 		defer procSpan.End()
 
-		err := handler(procCtx, m)
+		// A panic in the handler is a poison message: record it with its
+		// stack, never retry it, and let the caller dead-letter it.
+		defer func() {
+			if r := recover(); r != nil {
+				panicErr := fmt.Errorf("messaging: handler panicked: %v", r)
+				procSpan.RecordError(panicErr, trace.WithStackTrace(true))
+				procSpan.SetStatus(codes.Error, "handler panicked")
+				errorEvent(procCtx, p.log).Err(panicErr).Str("queue", queueName).
+					Str("stack", string(debug.Stack())).
+					Msg("messaging: handler panicked; message dead-lettered")
+				err = backoff.Permanent(panicErr)
+			}
+		}()
+
+		err = handler(procCtx, m)
 		if err != nil {
 			procSpan.RecordError(err)
 			procSpan.SetStatus(codes.Error, "handler error")
@@ -325,18 +496,62 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 		return err
 	}
 
-	if err := executeWithRetry(run, queue.Retry); err != nil {
+	if err := executeWithRetry(ctx, run, queue.Retry); err != nil {
 		recvSpan.RecordError(err)
+		if ctx.Err() != nil {
+			// Shutdown interrupted processing: requeue so the message is not
+			// dead-lettered (or dropped when the queue has no DLX).
+			recvSpan.SetStatus(codes.Error, "subscription canceled; message requeued")
+			p.reportSettleFailure(recvCtx, recvSpan, queueName, "nack", msg.Nack(false, true))
+			return
+		}
 		recvSpan.SetStatus(codes.Error, "handler failed after retries")
-		_ = msg.Nack(false, false)
+		p.reportSettleFailure(recvCtx, recvSpan, queueName, "nack", msg.Nack(false, false))
 		return
 	}
 
-	_ = msg.Ack(false)
+	p.reportSettleFailure(recvCtx, recvSpan, queueName, "ack", msg.Ack(false))
 }
 
-// Close closes the shared publisher connection.
+// reportSettleFailure makes a failed Ack or Nack (op) visible on span (when
+// non-nil) and in the log. The message stays unacked on the broker, which
+// redelivers it once the channel closes, so its handler can run again.
+func (p *PubSub) reportSettleFailure(ctx context.Context, span trace.Span, queueName, op string, err error) {
+	if err == nil {
+		return
+	}
+	appErr := mqError(ERR_MQ_CHANNEL_ERROR, op+" failed; the broker will redeliver the message", err)
+	if span != nil {
+		span.RecordError(appErr)
+		span.SetStatus(codes.Error, op+" failed")
+	}
+	p.warn(ctx, appErr, fmt.Sprintf("messaging: %s failed for queue %s; the broker will redeliver the message", op, queueName))
+}
+
+// warn logs appErr at Warn level through the WithLogger logger, or the
+// ctx/global logger when none was injected.
+func (p *PubSub) warn(ctx context.Context, appErr error, msg string) {
+	var ae *errorkit.AppError
+	if !errors.As(appErr, &ae) {
+		ae = errorkit.NewError(ERR_MQ_ERROR).With(errorkit.WithWrapped(appErr))
+	}
+	if p.log != nil {
+		p.log.WarnCtx(ctx, ae, msg)
+		return
+	}
+	logger.WarnCtx(ctx, ae, msg)
+}
+
+// Close stops every Subscribe call of this PubSub (each returns nil once its
+// in-flight message is settled; see the README) and closes the shared
+// publisher connection. Close is terminal: Publish and Subscribe then fail
+// with ERR_MQ_CLOSED. Close does not wait for the subscriptions to return.
 func (p *PubSub) Close() error {
+	p.lifetime()
+	p.stop()
+	if p.publisher == nil {
+		return nil
+	}
 	return p.publisher.Close()
 }
 
@@ -349,14 +564,14 @@ func (p *PubSub) Close() error {
 func (p *PubSub) getQueueAndBinding(queueName string) (QueueTopology, Binding, error) {
 	queue, ok := p.topology.GetQueueByName(queueName)
 	if !ok {
-		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("queue not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("queue %s not found in topology", queueName)),
 		)
 	}
 	binding, ok := p.topology.GetBindingByQueue(queueName)
 	if !ok {
-		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("binding not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("no binding found for queue %s in topology", queueName)),
 		)
@@ -366,23 +581,31 @@ func (p *PubSub) getQueueAndBinding(queueName string) (QueueTopology, Binding, e
 
 // executeWithRetry runs fn with exponential backoff when retry is non-nil.
 // If retry is nil fn is called exactly once — no retry wrapper is created.
-// This eliminates the duplicated if/else retry block that previously existed
-// in both Publish and Subscribe.
-func executeWithRetry(fn func() error, retry *RetryConfig) error {
+// The backoff is bound to ctx: once ctx is done no further attempt is made
+// and no backoff delay is waited.
+func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) error {
 	if retry == nil {
-		return fn()
+		err := fn()
+		var permanent *backoff.PermanentError
+		if errors.As(err, &permanent) {
+			return permanent.Err
+		}
+		return err
 	}
+	// Topology.Validate rejects MaxAttempts < 1; clamp anyway so a value that
+	// bypassed validation cannot wrap to an unbounded uint64.
+	attempts := max(retry.MaxAttempts, 1)
 	bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
 		InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,
 		MaxInterval:     time.Duration(retry.MaxDelay) * time.Millisecond,
 		Multiplier:      retry.BackoffMult,
-		MaxRetries:      uint64(retry.MaxAttempts),
+		MaxRetries:      uint64(attempts),
 	})
-	return backoff.Retry(fn, bo)
+	return backoff.Retry(fn, backoff.WithContext(bo, ctx))
 }
 
 // reconnectWithBackoff retries sub.Reconnect with exponential delay until
-// success or ctx cancellation.  Delay starts at DefaultReconnectDelay and
+// success, a non-retriable error (returned as is) or ctx cancellation.  Delay starts at DefaultReconnectDelay and
 // doubles up to MaxReconnectDelay. The log argument may be nil — in that
 // case the package-level global logger is used.
 func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logger) error {
@@ -396,11 +619,12 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 			)
 		case <-time.After(delay):
 			if err := sub.Reconnect(); err != nil {
-				warnReconnect(log, sub.queue.Name, err, delay)
-				delay *= 2
-				if delay > MaxReconnectDelay {
-					delay = MaxReconnectDelay
+				if !isRetriable(err) {
+					// e.g. ERR_MQ_AUTH_FAILED: retrying cannot succeed.
+					return err
 				}
+				warnReconnect(ctx, log, sub.queue.Name, err, delay)
+				delay = min(delay*2, MaxReconnectDelay)
 				continue
 			}
 			return nil
@@ -408,12 +632,9 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 	}
 }
 
-func warnReconnect(log *logger.Logger, queue string, err error, delay time.Duration) {
-	if log != nil {
-		log.Warn("reconnect attempt failed. queue %s, error %s, retry_in %d", queue, err, delay)
-		return
-	}
-	logger.Warn("reconnect attempt failed. queue %s, error %s, retry_in %d", queue, err, delay)
+func warnReconnect(ctx context.Context, log *logger.Logger, queue string, err error, delay time.Duration) {
+	warnEvent(ctx, log).Err(err).Str("queue", queue).Str("retry_in", delay.String()).
+		Msg("messaging: subscriber reconnect attempt failed")
 }
 
 // buildQueueArgs translates the topology QueueTopology into the amqp.Table
@@ -452,4 +673,22 @@ func buildQueueArgs(queue QueueTopology) amqp.Table {
 	}
 
 	return args
+}
+
+// asAppError returns err unchanged when it already is (or wraps) an
+// *errorkit.AppError, so SDK codes and their retriability reach the caller
+// (AGENTS.md §2.1). Any other error is wrapped once with code and reason; a
+// deadline is reported as ERR_MQ_TIMEOUT.
+func asAppError(err error, code errorkit.ErrorCode, reason string) error {
+	var appErr *errorkit.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		code = ERR_MQ_TIMEOUT
+	}
+	return errorkit.NewError(code).With(
+		errorkit.WithReason("%s", reason),
+		errorkit.WithWrapped(err),
+	)
 }
