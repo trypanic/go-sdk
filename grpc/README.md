@@ -71,15 +71,40 @@ missing address/target, `ERR_SYSTEM_UNEXPECTED` for serve/dial failures,
 message and surfacing the errorkit code as an `errdetails.ErrorInfo` (Reason =
 the code). Return it from your handlers (`return nil, sdkgrpc.ToStatus(err)`).
 
-| errorkit code                                                                       | gRPC code           |
-| ----------------------------------------------------------------------------------- | ------------------- |
-| `ERR_VALIDATION*`, `ERR_CLIENT_BAD_REQUEST`                                         | `InvalidArgument`   |
-| `ERR_VALIDATION_DUPLICATE`                                                          | `AlreadyExists`     |
-| `ERR_CLIENT_NOT_FOUND`                                                              | `NotFound`          |
-| `ERR_CLIENT_RATE_LIMIT`                                                             | `ResourceExhausted` |
-| `ERR_SYSTEM_TIMEOUT_INTERNAL`                                                       | `DeadlineExceeded`  |
-| `ERR_SYSTEM_CONCURRENCY`                                                            | `Aborted`           |
-| `ERR_SYSTEM_CONFIG_INVALID`, `ERR_SYSTEM_UNEXPECTED`, `ERR_INTERNAL`, `ERR_UNKNOWN` | `Internal`          |
+Core `errorkit` codes have an explicit mapping:
+
+| errorkit code                                                                                                                                                              | gRPC code           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `ERR_VALIDATION`, `ERR_VALIDATION_INVALID_FORMAT`, `ERR_VALIDATION_MISSING_FIELD`, `ERR_VALIDATION_INCONSISTENT`, `ERR_VALIDATION_BUSINESS_RULE`, `ERR_CLIENT_BAD_REQUEST` | `InvalidArgument`   |
+| `ERR_VALIDATION_DUPLICATE`                                                                                                                                                 | `AlreadyExists`     |
+| `ERR_CLIENT_NOT_FOUND`                                                                                                                                                     | `NotFound`          |
+| `ERR_CLIENT_RATE_LIMIT`                                                                                                                                                    | `ResourceExhausted` |
+| `ERR_SYSTEM_TIMEOUT_INTERNAL`                                                                                                                                              | `DeadlineExceeded`  |
+| `ERR_SYSTEM_CONCURRENCY`                                                                                                                                                   | `Aborted`           |
+| `ERR_SYSTEM_CONFIG_INVALID`, `ERR_SYSTEM_UNEXPECTED`, `ERR_INTERNAL`, `ERR_UNKNOWN`                                                                                        | `Internal`          |
+
+Matching is exact (there is no prefix matching). Any other code — including
+the codes other SDK packages and your service register with
+`errorkit.MustRegister` — is mapped from its registered `Metadata.HTTPStatus`,
+with `Metadata.Retriable` as the tie-breaker:
+
+| `HTTPStatus`             | gRPC code                                         |
+| ------------------------ | ------------------------------------------------- |
+| 401                      | `Unauthenticated`                                 |
+| 403                      | `PermissionDenied`                                |
+| 404                      | `NotFound`                                        |
+| 408, 504                 | `DeadlineExceeded`                                |
+| 409                      | `Aborted` if retriable, otherwise `AlreadyExists` |
+| 429                      | `ResourceExhausted`                               |
+| 499                      | `Canceled`                                        |
+| 501                      | `Unimplemented`                                   |
+| 503                      | `Unavailable`                                     |
+| other 4xx                | `InvalidArgument`                                 |
+| other 5xx (and the rest) | `Unavailable` if retriable, otherwise `Internal`  |
+
+So `ERR_DB_POSTGRES_UNAVAILABLE` (503, retriable) becomes `Unavailable`, which
+gRPC retry policies act on, and `ERR_AUTH_UNAUTHENTICATED` (401) becomes
+`Unauthenticated`.
 
 Non-`errorkit` errors fall back to `status.Convert` (an existing status passes
 through; a plain error becomes `codes.Unknown`).

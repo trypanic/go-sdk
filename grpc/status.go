@@ -14,9 +14,12 @@ import (
 // by this package.
 const defaultErrorDomain = "go-sdk"
 
-// codeFor maps an errorkit error code to the closest gRPC status code.
-func codeFor(c errorkit.ErrorCode) codes.Code {
-	switch c {
+// codeFor maps an errorkit error to the closest gRPC status code. The core
+// errorkit codes have an explicit mapping; any other code (for example one a
+// package registered with errorkit.MustRegister) falls back to its registered
+// Metadata.HTTPStatus and Metadata.Retriable through codeForMetadata.
+func codeFor(appErr *errorkit.AppError) codes.Code {
+	switch appErr.Code() {
 	case errorkit.ERR_VALIDATION,
 		errorkit.ERR_VALIDATION_INVALID_FORMAT,
 		errorkit.ERR_VALIDATION_MISSING_FIELD,
@@ -34,9 +37,50 @@ func codeFor(c errorkit.ErrorCode) codes.Code {
 		return codes.DeadlineExceeded
 	case errorkit.ERR_SYSTEM_CONCURRENCY:
 		return codes.Aborted
+	case errorkit.ERR_SYSTEM_CONFIG_INVALID,
+		errorkit.ERR_SYSTEM_UNEXPECTED,
+		errorkit.ERR_INTERNAL,
+		errorkit.ERR_UNKNOWN:
+		return codes.Internal
 	default:
-		// ERR_SYSTEM_CONFIG_INVALID, ERR_SYSTEM_UNEXPECTED, ERR_INTERNAL,
-		// ERR_UNKNOWN, and any unrecognized code.
+		return codeForMetadata(appErr.Metadata)
+	}
+}
+
+// codeForMetadata maps registered errorkit metadata to a gRPC code: the HTTP
+// status picks the class and Retriable breaks ties, so a retriable server
+// error becomes Unavailable (which gRPC retry policies act on) instead of
+// Internal.
+func codeForMetadata(meta errorkit.Metadata) codes.Code {
+	switch meta.HTTPStatus {
+	case 401:
+		return codes.Unauthenticated
+	case 403:
+		return codes.PermissionDenied
+	case 404:
+		return codes.NotFound
+	case 408, 504:
+		return codes.DeadlineExceeded
+	case 409:
+		if meta.Retriable {
+			return codes.Aborted
+		}
+		return codes.AlreadyExists
+	case 429:
+		return codes.ResourceExhausted
+	case 499:
+		return codes.Canceled
+	case 501:
+		return codes.Unimplemented
+	case 503:
+		return codes.Unavailable
+	}
+	switch {
+	case meta.HTTPStatus >= 400 && meta.HTTPStatus < 500:
+		return codes.InvalidArgument
+	case meta.Retriable:
+		return codes.Unavailable
+	default:
 		return codes.Internal
 	}
 }
@@ -44,7 +88,8 @@ func codeFor(c errorkit.ErrorCode) codes.Code {
 // ToStatus converts an error into a gRPC status error suitable for returning
 // from a handler.
 //
-// An errorkit.AppError is mapped to the gRPC code from codeFor, with its
+// An errorkit.AppError is mapped to a gRPC code (core codes explicitly, any
+// other code from its registered HTTPStatus and Retriable metadata), with its
 // message preserved and its errorkit code surfaced as an errdetails.ErrorInfo
 // (Reason = the code) so callers can read it programmatically. Any other error
 // falls back to status.Convert, which preserves an existing gRPC status or
@@ -56,7 +101,7 @@ func ToStatus(err error) error {
 
 	var appErr *errorkit.AppError
 	if errors.As(err, &appErr) {
-		st := status.New(codeFor(appErr.Code()), appErr.Error())
+		st := status.New(codeFor(appErr), appErr.Error())
 		if withDetail, derr := st.WithDetails(&errdetails.ErrorInfo{
 			Reason: string(appErr.Code()),
 			Domain: defaultErrorDomain,
