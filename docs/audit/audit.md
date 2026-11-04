@@ -457,7 +457,7 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | P2.X2 | Audit | P1 | DONE | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T03:10Z | `findings/P2.X2.md` | | orchestrator | orchestrator claude-opus-5-5 | 19 findings (H3/M8/L8). Re-verified X2-001/002/003 (HIGH) and X2-007/009/011; format OK. Side effect noted by author: pre-commit fetched remote hook repos in a scratch clone. |
 | P2.X3 | Audit | P1 | DONE | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T03:30Z | `findings/P2.X3.md` | | orchestrator | orchestrator claude-opus-5-5 | 11 findings (H1/M5/L5). Re-verified X3-001 (baseline V8), X3-006 (logger links x/net/trace), X3-008 (backoff v4+v5, v4 in algorithms API); go.mod untouched; format OK. |
 | P2.Z | Audit | all P2.* | DONE | orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T05:40Z | `AUDIT_REPORT.md` | | go-reviewer | go-reviewer (loop 2 APPROVE) | Loop 2 after CHANGES_REQUESTED (6 blocking + 6 notes, all addressed): 170 unique (11 merged): H21/M87/L62; C6-009 and C2-017 un-merged; C2-006, C2-017 → HIGH; Needs approval parsed from its own line and unioned on merges; severity criteria in §7.2. Loop-2 non-blocking notes applied: multi-line locations, C4-009/C5-012 partial, C2-017 Hertz wording, disclosure criterion. |
-| P3 | Plan | P2.Z | IN_REVIEW | orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T06:30Z | `REMEDIATION_PLAN.md` | (this commit) | go-reviewer | | 136 items (70 auto / 66 approval); all 181 IDs mapped; every HIGH has an item. |
+| P3 | Plan | P2.Z | IN_REVIEW | orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T07:30Z | `REMEDIATION_PLAN.md` | (this commit) | go-reviewer | | Loop 2 after CHANGES_REQUESTED (5 blocking + notes addressed): 139 items (63 auto / 76 approval); 8 auto items reclassified or split; AGENTS.md edits centralized in R-153; rejected-dependency fallbacks; P4.XP step for X post-merge items; all fields present. |
 | G1 | Gate | P3 | TODO | human | | approvals in plan | | — | | Human sets DONE |
 | P4.C1 | Remediation | G1 | TODO | | | branch `audit/2026-11-C1` | | go-reviewer | | |
 | P4.C2 | Remediation | G1 | TODO | | | branch `audit/2026-11-C2` | | go-reviewer | | |
@@ -467,5 +467,6 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | P4.C6 | Remediation | G1 | TODO | | | branch `audit/2026-11-C6` | | go-reviewer | | |
 | P4.X | Remediation | G1 | TODO | | | branch `audit/2026-11-X` | | go-reviewer | | docs, tooling, cross-cutting |
 | P4.M | Remediation | all P4.C*, P4.X | TODO | | | merged `audit/2026-11` | | — | | |
-| R-DEPS | Remediation | P4.M | TODO | | | `go.mod`/`go.sum` | | go-reviewer | | skip if no approved dep change |
+| P4.XP | Remediation | P4.M | TODO | | | X post-merge items on `audit/2026-11` | | go-reviewer | | sequential, after P4.M (see REMEDIATION_PLAN.md cross-cluster rule) |
+| R-DEPS | Remediation | P4.XP | TODO | | | `go.mod`/`go.sum` | | go-reviewer | | skip if no approved dep change |
 | P5 | Validation | R-DEPS | TODO | | | `REMEDIATION_REPORT.md` | | — | | |
