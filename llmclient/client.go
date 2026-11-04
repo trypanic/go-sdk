@@ -151,7 +151,7 @@ func (c *Client) timeout() time.Duration {
 func (c *Client) Execute(ctx context.Context, reqConfig RequestConfig) (result string, err error) {
 	if c.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = llmSpan(c.instrumenter, ctx, reqConfig.Model)
+		ctx, span = llmSpan(ctx, c.instrumenter, reqConfig.Model)
 		defer func() { telemetry.End(span, err) }()
 	}
 

@@ -79,7 +79,7 @@ func TestLLMSpanNamesStayBounded(t *testing.T) {
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	instr := telemetry.NewInstrumenter(telemetry.InstrumenterConfig{TracerProvider: provider})
 	for _, model := range []string{"m1", "m2", ""} {
-		_, span := llmSpan(instr, t.Context(), model)
+		_, span := llmSpan(t.Context(), instr, model)
 		span.End()
 	}
 	for _, span := range recorder.Ended() {

@@ -33,12 +33,12 @@ type tracingHTTPRequester struct {
 }
 
 func (t *tracingHTTPRequester) Do(ctx context.Context, config RequestConfig, out any) (err error) {
-	ctx, span := httpSpan(t.instrumenter, ctx, config)
+	ctx, span := httpSpan(ctx, t.instrumenter, config)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Do(ctx, config, out)
 }
 
-func httpSpan(i *telemetry.Instrumenter, ctx context.Context, config RequestConfig) (context.Context, telemetry.Span) {
+func httpSpan(ctx context.Context, i *telemetry.Instrumenter, config RequestConfig) (context.Context, telemetry.Span) {
 	host, method, path := httpSpanParts(config.Method, config.URL)
 	return i.External(ctx, "http."+host, method, telemetry.WithSpanKind(trace.SpanKindClient), telemetry.WithString("server.address", host), telemetry.WithString("http.request.method", method), telemetry.WithString("url.path", path))
 }

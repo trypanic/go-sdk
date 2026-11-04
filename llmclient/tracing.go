@@ -29,12 +29,12 @@ type tracingLLMProvider struct {
 }
 
 func (t *tracingLLMProvider) Execute(ctx context.Context, reqConfig RequestConfig) (result string, err error) {
-	ctx, span := llmSpan(t.instrumenter, ctx, reqConfig.Model)
+	ctx, span := llmSpan(ctx, t.instrumenter, reqConfig.Model)
 	defer func() { telemetry.End(span, err) }()
 	return t.inner.Execute(ctx, reqConfig)
 }
 
-func llmSpan(i *telemetry.Instrumenter, ctx context.Context, model string) (context.Context, telemetry.Span) {
+func llmSpan(ctx context.Context, i *telemetry.Instrumenter, model string) (context.Context, telemetry.Span) {
 	return i.External(ctx, "llm", "execute", telemetry.WithSpanKind(trace.SpanKindClient), telemetry.WithString("gen_ai.request.model", model))
 }
 

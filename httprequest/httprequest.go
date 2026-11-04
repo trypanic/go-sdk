@@ -228,7 +228,7 @@ func NewWithOptions(client *http.Client, opts ...Option) *Request {
 func (h *Request) Do(ctx context.Context, config RequestConfig, out any) (err error) {
 	if h.instrumenter != nil {
 		var span telemetry.Span
-		ctx, span = httpSpan(h.instrumenter, ctx, config)
+		ctx, span = httpSpan(ctx, h.instrumenter, config)
 		defer func() { telemetry.End(span, err) }()
 	}
 
