@@ -105,7 +105,11 @@ handlers run one message at a time, so a larger window would only buffer the
 backlog in process memory (`0` means *unlimited* to RabbitMQ).
 
 Both sides open their connections with an AMQP heartbeat interval
-(`DefaultHeartbeat`, 60 s) so dead TCP links are detected quickly.
+(`DefaultHeartbeat`, 60 s, or `WithHeartbeat`).  amqp091-go declares a link
+dead after **three** intervals without traffic, so with the default a silent
+network partition is detected after up to ~180 s; only then does the
+subscriber's reconnect delay start.  Lower the interval with `WithHeartbeat`
+for faster detection.
 
 ### Delivery Guarantee
 
@@ -179,7 +183,30 @@ pubsub, err = messaging.NewPubSub(
     messaging.WithPropagator(myPropagator),
     messaging.WithLogger(myLogger),
 )
+
+// TLS with a private CA / mTLS, and connection tuning:
+pubsub, err = messaging.NewPubSub(
+    "amqps://user:pass@rabbitmq:5671/",
+    messaging.WithTLSConfig(&tls.Config{RootCAs: caPool, Certificates: []tls.Certificate{clientCert}, MinVersion: tls.VersionTLS12}),
+    messaging.WithHeartbeat(10*time.Second),
+    messaging.WithDialTimeout(5*time.Second),
+    messaging.WithConnectionName("order-service"),
+)
 ```
+
+### Connection Options
+
+Every option applies to the publisher connection and to each subscriber
+connection.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `WithTLSConfig(*tls.Config)` | amqp091-go default (system roots) | TLS settings for `amqps://` URLs: private CA, client certificates (mTLS), minimum version |
+| `WithHeartbeat(d)` | `DefaultHeartbeat` (60 s) | AMQP heartbeat interval; a link is dead after three missed intervals |
+| `WithDialTimeout(d)` | `DefaultDialTimeout` (30 s) | Bounds the TCP connect and the TLS/AMQP handshake of every dial; a `Publish` `ctx` deadline that ends sooner still wins |
+| `WithConnectionName(name)` | none | Connection name shown in the RabbitMQ management UI |
+
+A non-positive duration keeps the default.
 
 ### Publishing
 

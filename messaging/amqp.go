@@ -43,6 +43,7 @@ type Publisher struct {
 	closed    bool             // Close was called; terminal
 	exchanges []Exchange       // declared on every (re)connect
 	declare   *Topology        // when non-nil, its queues and bindings are declared on every (re)connect
+	opts      connOptions
 	amqpURL   string
 	dial      dialFunc // nil means dialAMQP
 }
@@ -95,7 +96,7 @@ func errPublisherClosed() *errorkit.AppError {
 // the exchanges (and, with declare, the queues and bindings). It does not
 // touch the publisher state.
 func (p *Publisher) open(ctx context.Context) (publisherLink, error) {
-	conn, err := p.dial.open(ctx, p.amqpURL)
+	conn, err := p.dial.open(ctx, p.amqpURL, p.opts)
 	if err != nil {
 		return publisherLink{}, mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
@@ -423,6 +424,7 @@ type Subscriber struct {
 	queueArgs   amqp.Table
 	routingKeys []string
 	amqpURL     string
+	opts        connOptions
 	dial        dialFunc // nil means dialAMQP
 }
 
@@ -451,7 +453,7 @@ func NewSubscriber(
 }
 
 func (s *Subscriber) connect() error {
-	conn, err := s.dial.open(context.Background(), s.amqpURL)
+	conn, err := s.dial.open(context.Background(), s.amqpURL, s.opts)
 	if err != nil {
 		return mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}

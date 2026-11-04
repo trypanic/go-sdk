@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ type PubSub struct {
 	topology   *Topology
 	amqpURL    string
 	dial       dialFunc // used by subscribers; nil means dialAMQP
+	connOpts   connOptions
 	tracer     trace.Tracer
 	propagator propagation.TextMapPropagator
 	log        *logger.Logger
@@ -52,6 +54,7 @@ type pubSubBuild struct {
 	topologyPath string
 	log          *logger.Logger
 	declareTopo  bool
+	conn         connOptions
 }
 
 // WithTracer overrides the OpenTelemetry tracer used for publish/consume spans.
@@ -83,6 +86,34 @@ func WithTopologyFile(path string) PubSubOption {
 // global logger so existing call sites keep working.
 func WithLogger(l *logger.Logger) PubSubOption {
 	return func(p *pubSubBuild) { p.log = l }
+}
+
+// WithTLSConfig sets the TLS configuration used for amqps:// URLs: a private
+// CA (RootCAs), client certificates for mTLS, a minimum TLS version. nil
+// keeps amqp091-go's default (system roots).
+func WithTLSConfig(cfg *tls.Config) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.tls = cfg }
+}
+
+// WithHeartbeat sets the AMQP heartbeat interval of every connection
+// (default DefaultHeartbeat). amqp091-go treats a link as dead after three
+// intervals without traffic, so a shorter interval detects a silent network
+// partition sooner. d <= 0 keeps the default.
+func WithHeartbeat(d time.Duration) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.heartbeat = d }
+}
+
+// WithDialTimeout bounds the TCP connect and the TLS/AMQP handshake of every
+// dial (default DefaultDialTimeout). A Publish ctx deadline that ends sooner
+// still wins. d <= 0 keeps the default.
+func WithDialTimeout(d time.Duration) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.dialTimeout = d }
+}
+
+// WithConnectionName sets the client connection name that the RabbitMQ
+// management UI shows for the publisher and subscriber connections.
+func WithConnectionName(name string) PubSubOption {
+	return func(p *pubSubBuild) { p.conn.name = name }
 }
 
 // WithDeclareTopology makes NewPubSub declare every queue and binding of the
@@ -125,7 +156,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 		return nil, err
 	}
 
-	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial}
+	pub := &Publisher{amqpURL: amqpURL, exchanges: topo.Exchanges, dial: dial, opts: build.conn}
 	if build.declareTopo {
 		pub.declare = topo
 	}
@@ -138,6 +169,7 @@ func newPubSub(amqpURL string, dial dialFunc, opts ...PubSubOption) (*PubSub, er
 		topology:   topo,
 		amqpURL:    amqpURL,
 		dial:       dial,
+		connOpts:   build.conn,
 		tracer:     build.tracer,
 		propagator: build.propagator,
 		log:        build.log,
@@ -303,6 +335,7 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 		consumer:    serviceName,
 		queueArgs:   args,
 		routingKeys: binding.RoutingKeys,
+		opts:        p.connOpts,
 		dial:        p.dial,
 	}
 	if err := sub.connect(); err != nil {

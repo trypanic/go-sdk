@@ -2,6 +2,7 @@ package messaging
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"time"
 
@@ -52,24 +53,48 @@ func dialAMQP(url string, cfg amqp.Config) (amqpConnection, error) {
 	return realConnection{conn: conn}, nil
 }
 
-// defaultDialTimeout bounds the TCP connect and the TLS/AMQP handshake of a
-// dial, matching amqp091-go's own default.
-const defaultDialTimeout = 30 * time.Second
+// connOptions are the connection settings shared by the publisher and the
+// subscribers of a PubSub. Zero values mean the package defaults.
+type connOptions struct {
+	heartbeat   time.Duration
+	dialTimeout time.Duration
+	tls         *tls.Config
+	name        string
+}
 
-// open opens a connection to url with the package defaults, through d when
-// it is non-nil. ctx bounds the TCP connect and the handshake; an ended ctx
-// never dials.
-func (d dialFunc) open(ctx context.Context, url string) (amqpConnection, error) {
+// config builds the amqp.Config of one dial bounded by ctx.
+func (o connOptions) config(ctx context.Context) amqp.Config {
+	heartbeat := DefaultHeartbeat
+	if o.heartbeat > 0 {
+		heartbeat = o.heartbeat
+	}
+	timeout := DefaultDialTimeout
+	if o.dialTimeout > 0 {
+		timeout = o.dialTimeout
+	}
+	cfg := amqp.Config{
+		Heartbeat:       heartbeat,
+		TLSClientConfig: o.tls,
+		Dial:            ctxDialer(ctx, timeout),
+	}
+	if o.name != "" {
+		cfg.Properties = amqp.NewConnectionProperties()
+		cfg.Properties.SetClientConnectionName(o.name)
+	}
+	return cfg
+}
+
+// open opens a connection to url with the options o, through d when it is
+// non-nil. ctx bounds the TCP connect and the handshake; an ended ctx never
+// dials.
+func (d dialFunc) open(ctx context.Context, url string, o connOptions) (amqpConnection, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if d == nil {
 		d = dialAMQP
 	}
-	return d(url, amqp.Config{
-		Heartbeat: DefaultHeartbeat,
-		Dial:      ctxDialer(ctx, defaultDialTimeout),
-	})
+	return d(url, o.config(ctx))
 }
 
 // ctxDialer returns an amqp.Config.Dial func whose TCP connect is cancelled
