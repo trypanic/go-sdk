@@ -219,3 +219,35 @@ func TestFileStorageCorruptLines(t *testing.T) {
 		})
 	}
 }
+
+// TestFileStorageGarbledLastLine covers a crash that left garbled bytes in
+// the last line even though it ends with a newline: that append never
+// returned, so the line is dropped like a torn one instead of making the
+// whole key ERR_STORAGE_CORRUPTED.
+func TestFileStorageGarbledLastLine(t *testing.T) {
+	t.Parallel()
+
+	store, dir := newIntFileStorage(t)
+	path := filepath.Join(dir, fileNameForKey("k"))
+	writeFixture(t, path, "1\n2\n{\"tr\x00\x00\n")
+
+	requireList(t, store, "k", []int{1, 2})
+	three := 3
+	if _, err := store.Append("k", &three); err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	if got := readFile(t, path); got != "1\n2\n3\n" {
+		t.Fatalf("file after Append = %q, want %q", got, "1\n2\n3\n")
+	}
+}
+
+// TestFileStorageGarbledOnlyLineIsCorrupt: the first line is written by an
+// atomic rename, so it cannot be a torn append.
+func TestFileStorageGarbledOnlyLineIsCorrupt(t *testing.T) {
+	t.Parallel()
+
+	store, dir := newIntFileStorage(t)
+	writeFixture(t, filepath.Join(dir, fileNameForKey("k")), "not-json\n")
+	_, _, err := store.List("k")
+	requireCode(t, err, ERR_STORAGE_CORRUPTED)
+}

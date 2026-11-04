@@ -171,13 +171,14 @@ with at least one complete line.
 
 Later items are appended as a single write of one line followed by `fsync`;
 `Append` returns only after the sync. A crash in the middle of an append can
-leave an unterminated last line. That `Append` never returned, so reads ignore
-the bytes after the last newline, and the next `Append` rewrites the file
-atomically without them.
+leave an unterminated or garbled last line. That `Append` never returned, so
+reads ignore the bytes after the last newline and a last line that does not
+decode, and the next `Append` rewrites the file atomically without them.
 
-A zero-length file, a file without a single complete line, or a complete line
-that does not decode can only be the result of lost or damaged data, so
-reading it returns `ERR_STORAGE_CORRUPTED` instead of a partial list.
+A zero-length file, a file without a single complete line, a first line that
+does not decode, or an undecodable line followed by valid ones can only be the
+result of lost or damaged data, so reading it returns `ERR_STORAGE_CORRUPTED`
+instead of a partial list.
 
 ### Concurrency
 

@@ -417,11 +417,13 @@ func readRegularFile(name string) ([]byte, error) {
 }
 
 // decodeLines decodes a JSON Lines file. Files are created atomically with
-// at least one complete line, so an empty file or one without a single
-// newline is corrupt (ERR_STORAGE_CORRUPTED), as is any complete line that
-// does not decode. Bytes after the last newline are the remains of an
-// append torn by a crash: that Append never returned, so they are ignored
-// and reported as sourceTorn for the next Append to rewrite.
+// at least one complete line, so an empty file, one without a single
+// newline, or one whose first line does not decode is corrupt
+// (ERR_STORAGE_CORRUPTED), as is any undecodable line in the middle. The
+// last line can only come from an append: bytes after the last newline, or
+// a last line that does not decode (garbled by a crash), are the remains of
+// an Append that never returned, so they are ignored and reported as
+// sourceTorn for the next Append to rewrite.
 func decodeLines[T any](data []byte) ([]T, fileSource, error) {
 	if len(data) == 0 {
 		// Reading a zero-length file as an empty list would let the next
@@ -437,10 +439,14 @@ func decodeLines[T any](data []byte) ([]T, fileSource, error) {
 		source = sourceTorn
 	}
 
-	items := make([]T, 0, bytes.Count(data[:end+1], []byte{'\n'}))
+	lines := bytes.Count(data[:end+1], []byte{'\n'})
+	items := make([]T, 0, lines)
 	for line := range bytes.Lines(data[:end+1]) {
 		var item T
 		if err := json.Unmarshal(line, &item); err != nil {
+			if len(items) > 0 && len(items) == lines-1 {
+				return items, sourceTorn, nil
+			}
 			return nil, sourceNone, corruptError("failed to decode storage file", err)
 		}
 		items = append(items, item)
