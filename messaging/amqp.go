@@ -243,6 +243,14 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 // reconnect, the publish and the confirm; when it ends the returned error
 // wraps ctx.Err() (ERR_MQ_TIMEOUT for a deadline).
 func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey string, body []byte, headers amqp.Table) error {
+	return p.publish(ctx, exchange, routingKey, body, headers, true)
+}
+
+// publish is one publish attempt. With retryOnce, a failed publish
+// reconnects and retries once; without it the failure is returned and the
+// caller's retry policy is the only retry layer. Either way a channel whose
+// publish failed is not reused.
+func (p *Publisher) publish(ctx context.Context, exchange, routingKey string, body []byte, headers amqp.Table, retryOnce bool) error {
 	if err := p.acquire(ctx); err != nil {
 		return err
 	}
@@ -266,6 +274,10 @@ func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return publishCtxError(ctxErr)
 		}
+		if !retryOnce {
+			p.markBroken()
+			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message", err)
+		}
 		// Channel may have died between the connection check and Publish.
 		// Reconnect once and retry.
 		logger.Info("publish failed, attempting reconnect + single retry. error %s", err)
@@ -278,10 +290,18 @@ func (p *Publisher) PublishWithContext(ctx context.Context, exchange, routingKey
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return publishCtxError(ctxErr)
 			}
+			p.markBroken()
 			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
 		}
 	}
 	return p.awaitConfirm(ctx, conf, l.returns)
+}
+
+// markBroken makes the next publish replace the current link.
+func (p *Publisher) markBroken() {
+	p.mu.Lock()
+	p.broken = true
+	p.mu.Unlock()
 }
 
 // errNotConfirmed is wrapped when the broker nacks a message or the channel
@@ -295,9 +315,7 @@ func (p *Publisher) awaitConfirm(ctx context.Context, conf publishConfirmation, 
 	acked, err := conf.WaitContext(ctx)
 	if err != nil {
 		// The answer may still arrive: do not let the next publish read it.
-		p.mu.Lock()
-		p.broken = true
-		p.mu.Unlock()
+		p.markBroken()
 		return publishCtxError(err)
 	}
 	if !acked {

@@ -231,33 +231,33 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 		}
 	}
 
-	publishOnce := func() error {
-		for _, rk := range binding.RoutingKeys {
-			// Inject W3C context (TraceContext + Baggage) into AMQP headers
-			headers := amqp.Table{
-				"event_id":       eventMsg.EventID,
-				"event_type":     eventMsg.EventType,
-				"correlation_id": payload.CorrelationID,
-				"event_version":  eventMsg.EventVersion,
-				"service_name":   payload.ServiceName,
-			}
-
-			p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
-
-			if err := p.publisher.PublishWithContext(ctx, binding.Exchange, rk, data, headers); err != nil {
-				if !isRetriable(err) {
-					return backoff.Permanent(err) // e.g. ERR_MQ_CLOSED
-				}
-				return err
-			}
+	// Each routing key is retried on its own, so a retry never re-sends a
+	// key that was already confirmed. With a retry policy it is the only
+	// retry layer; without one the publisher's reconnect + single retry is.
+	retryOnce := queue.Retry == nil
+	for _, rk := range binding.RoutingKeys {
+		// Inject W3C context (TraceContext + Baggage) into AMQP headers
+		headers := amqp.Table{
+			"event_id":       eventMsg.EventID,
+			"event_type":     eventMsg.EventType,
+			"correlation_id": payload.CorrelationID,
+			"event_version":  eventMsg.EventVersion,
+			"service_name":   payload.ServiceName,
 		}
-		return nil
-	}
+		p.propagatorOrDefault().Inject(ctx, newCarrier(headers))
 
-	if err := executeWithRetry(ctx, publishOnce, queue.Retry); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "publish failed")
-		return asAppError(err, ERR_MQ_PUBLISH_FAILED, "failed to publish")
+		publishKey := func() error {
+			err := p.publisher.publish(ctx, binding.Exchange, rk, data, headers, retryOnce)
+			if err != nil && !isRetriable(err) {
+				return backoff.Permanent(err) // e.g. ERR_MQ_CLOSED
+			}
+			return err
+		}
+		if err := executeWithRetry(ctx, publishKey, queue.Retry); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "publish failed")
+			return asAppError(err, ERR_MQ_PUBLISH_FAILED, "failed to publish")
+		}
 	}
 
 	return nil
