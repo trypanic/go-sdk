@@ -10,6 +10,7 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [Quick Start](#quick-start)
   - [Configuration / Settings](#configuration--settings)
     - [Environment Detection](#environment-detection)
+    - [Redaction](#redaction)
     - [No Additional Config Structs](#no-additional-config-structs)
   - [API Reference](#api-reference)
     - [Init](#init)
@@ -122,6 +123,33 @@ func main() {
 Both environments add `timestamp` (Unix epoch) and `caller` (file:line) to every log line automatically.
 
 **Dev console** pretty-prints `service_name`, `service_version`, and all extra fields below the log line using blue ANSI color; `stack_trace` frames are JSON-marshalled inline.
+
+### Redaction
+
+Every logger built by `Init` or `New` passes each JSON log line through a redacting writer before it reaches stdout, the console writer or an `OTLPWriter`. The built-in policy:
+
+| Rule | Applies to | Result |
+| ---- | ---------- | ------ |
+| Sensitive key | Any field (at any nesting level, including inside JSON strings) whose key, lower-cased with non-alphanumerics removed, ends with `password`, `passwd`, `pwd`, `secret`, `token`, `authorization`, `cookie`, `apikey`, `privatekey`, `credential`, `credentials` or `dsn` (so `access_token`, `Proxy-Authorization`, `Set-Cookie`, `X-Api-Key`, `postgres_dsn` all match) | Whole value replaced by `*****` |
+| Email key | Keys ending with `email` | Domain masked: `jane@*****` |
+| URL userinfo | Every other string value, including the message and `wrapped_error` | `scheme://user:password@host` becomes `scheme://user:*****@host` |
+| JSON in a string | String values holding one JSON document (for example a captured request body) | Compacted and redacted recursively |
+
+Keys that merely contain these words (`max_tokens`, `author`) are not masked. The fallback logger used before `Init` does not redact.
+
+`Config.Redactor func(key string, value any) any` extends the policy for a `New` logger: it is called for every object field after the built-in rules, with the already-redacted value, and its result is logged. It can add masking (for example for `ssn`) but cannot undo the built-in masking.
+
+```go
+l := logger.New(logger.Config{
+    Env: logger.Prod,
+    Redactor: func(key string, value any) any {
+        if key == "ssn" {
+            return "[redacted]"
+        }
+        return value
+    },
+})
+```
 
 ### No Additional Config Structs
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -142,7 +143,7 @@ func renderConsoleInlineValue(fieldKey string, value any) string {
 	case string:
 		return normalizeConsoleString(fieldKey, v)
 	case json.Number:
-		if shouldRedactPasswordField(fieldKey) {
+		if shouldRedactSecretField(fieldKey) {
 			return maskedPasswordValue
 		}
 		return v.String()
@@ -151,12 +152,12 @@ func renderConsoleInlineValue(fieldKey string, value any) string {
 	default:
 		toJSON, err := json.Marshal(v)
 		if err == nil {
-			if redacted, ok := compactAndRedactJSON(string(toJSON)); ok {
+			if redacted, ok := compactAndRedactJSON(string(toJSON), nil); ok {
 				return redacted
 			}
 			return string(toJSON)
 		}
-		if shouldRedactPasswordField(fieldKey) {
+		if shouldRedactSecretField(fieldKey) {
 			return maskedPasswordValue
 		}
 		if shouldRedactEmailField(fieldKey) {
@@ -182,7 +183,7 @@ func normalizeConsoleString(fieldKey, value string) string {
 		return ""
 	}
 
-	if shouldRedactPasswordField(fieldKey) {
+	if shouldRedactSecretField(fieldKey) {
 		return maskedPasswordValue
 	}
 
@@ -190,7 +191,7 @@ func normalizeConsoleString(fieldKey, value string) string {
 		return maskEmailDomain(trimmed)
 	}
 
-	if compacted, ok := compactAndRedactJSON(trimmed); ok {
+	if compacted, ok := compactAndRedactJSON(trimmed, nil); ok {
 		return compacted
 	}
 
@@ -201,7 +202,10 @@ func normalizeConsoleString(fieldKey, value string) string {
 	return trimmed
 }
 
-func compactAndRedactJSON(value string) (string, bool) {
+// compactAndRedactJSON decodes value as a single JSON document, applies the
+// redaction policy (see redactStructuredValue) and re-encodes it compactly.
+// It reports false when value is not exactly one JSON document.
+func compactAndRedactJSON(value string, custom func(key string, value any) any) (string, bool) {
 	decoder := json.NewDecoder(strings.NewReader(value))
 	decoder.UseNumber()
 
@@ -215,7 +219,7 @@ func compactAndRedactJSON(value string) (string, bool) {
 		return "", false
 	}
 
-	redacted, err := json.Marshal(redactStructuredValue("", payload))
+	redacted, err := json.Marshal(redactStructuredValue("", payload, custom))
 	if err != nil {
 		return "", false
 	}
@@ -223,8 +227,19 @@ func compactAndRedactJSON(value string) (string, bool) {
 	return string(redacted), true
 }
 
-func redactStructuredValue(fieldKey string, value any) any {
-	if shouldRedactPasswordField(fieldKey) {
+// redactStructuredValue applies the built-in redaction policy to value,
+// the value of the field fieldKey, recursively:
+//
+//   - a sensitive key (see shouldRedactSecretField) masks the whole value;
+//   - an email key keeps only the local part of the address;
+//   - a string holding a JSON document is redacted recursively;
+//   - any other string has the password of every URL userinfo masked.
+//
+// When custom is non-nil it is called for every object field after the
+// built-in policy, with the already-redacted value, and its result is
+// stored; it can add masking but cannot undo the built-in one.
+func redactStructuredValue(fieldKey string, value any, custom func(key string, value any) any) any {
+	if shouldRedactSecretField(fieldKey) {
 		return maskedPasswordValue
 	}
 
@@ -232,26 +247,43 @@ func redactStructuredValue(fieldKey string, value any) any {
 	case map[string]any:
 		redacted := make(map[string]any, len(v))
 		for key, nestedValue := range v {
-			redacted[key] = redactStructuredValue(key, nestedValue)
+			nested := redactStructuredValue(key, nestedValue, custom)
+			if custom != nil {
+				nested = custom(key, nested)
+			}
+			redacted[key] = nested
 		}
 		return redacted
 	case []any:
 		redacted := make([]any, len(v))
 		for index, nestedValue := range v {
-			redacted[index] = redactStructuredValue(fieldKey, nestedValue)
+			redacted[index] = redactStructuredValue(fieldKey, nestedValue, custom)
 		}
 		return redacted
 	case string:
 		if shouldRedactEmailField(fieldKey) {
 			return maskEmailDomain(v)
 		}
-		if compacted, ok := compactAndRedactJSON(strings.TrimSpace(v)); ok {
+		if compacted, ok := compactAndRedactJSON(strings.TrimSpace(v), custom); ok {
 			return compacted
 		}
-		return v
+		return maskURLUserinfo(v)
 	default:
 		return value
 	}
+}
+
+// urlUserinfoPassword matches "scheme://user:password@" so the password can
+// be masked wherever a URL appears inside a string value.
+var urlUserinfoPassword = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.\-]*://[^\s/?#@:]*):[^\s/?#@]*@`)
+
+// maskURLUserinfo replaces the password of every URL userinfo in s with
+// the mask, keeping the scheme, user and host.
+func maskURLUserinfo(s string) string {
+	if !strings.Contains(s, "://") {
+		return s
+	}
+	return urlUserinfoPassword.ReplaceAllString(s, "${1}:"+maskedPasswordValue+"@")
 }
 
 func shouldRedactEmailField(fieldKey string) bool {
@@ -259,9 +291,31 @@ func shouldRedactEmailField(fieldKey string) bool {
 	return normalized == "email" || normalized == "emailaddress" || strings.HasSuffix(normalized, "email")
 }
 
-func shouldRedactPasswordField(fieldKey string) bool {
+// sensitiveKeySuffixes lists the normalized (lower-case, letters and digits
+// only) key suffixes whose values are always masked: "Proxy-Authorization",
+// "set_cookie", "X-Api-Key" or "postgres_dsn" all match.
+var sensitiveKeySuffixes = []string{
+	"password", "passwd", "pwd",
+	"secret",
+	"token",
+	"authorization",
+	"cookie",
+	"apikey",
+	"privatekey",
+	"credential", "credentials",
+	"dsn",
+}
+
+// shouldRedactSecretField reports whether the value of fieldKey must be
+// masked entirely.
+func shouldRedactSecretField(fieldKey string) bool {
 	normalized := normalizeSensitiveFieldKey(fieldKey)
-	return normalized == "password" || normalized == "passwd" || normalized == "pwd" || strings.HasSuffix(normalized, "password")
+	for _, suffix := range sensitiveKeySuffixes {
+		if strings.HasSuffix(normalized, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeSensitiveFieldKey(fieldKey string) string {
@@ -304,7 +358,13 @@ func newLogger(env Environment, appName, version string) zerolog.Logger {
 // built concurrently or with different environments do not affect each
 // other (or any other zerolog logger in the process).
 func newLoggerWithWriter(w io.Writer, env Environment) zerolog.Logger {
-	return zerolog.New(newRedactingWriter(w)).
+	return newLoggerWithRedactor(w, env, nil)
+}
+
+// newLoggerWithRedactor is newLoggerWithWriter with an optional custom
+// redactor applied after the built-in policy (Config.Redactor).
+func newLoggerWithRedactor(w io.Writer, env Environment, custom func(key string, value any) any) zerolog.Logger {
+	return zerolog.New(newRedactingWriter(w, custom)).
 		Level(levelFor(env)).
 		Hook(timestampHook{})
 }
@@ -333,12 +393,15 @@ func applyGlobalSettings(env Environment) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 }
 
+// redactingWriter applies the redaction policy to every JSON log line before
+// passing it to next.
 type redactingWriter struct {
-	next io.Writer
+	next   io.Writer
+	custom func(key string, value any) any
 }
 
-func newRedactingWriter(next io.Writer) io.Writer {
-	return redactingWriter{next: next}
+func newRedactingWriter(next io.Writer, custom func(key string, value any) any) io.Writer {
+	return redactingWriter{next: next, custom: custom}
 }
 
 func (w redactingWriter) Write(p []byte) (int, error) {
@@ -347,7 +410,7 @@ func (w redactingWriter) Write(p []byte) (int, error) {
 		return w.next.Write(p)
 	}
 
-	redacted, ok := compactAndRedactJSON(trimmed)
+	redacted, ok := compactAndRedactJSON(trimmed, w.custom)
 	if !ok {
 		return w.next.Write(p)
 	}

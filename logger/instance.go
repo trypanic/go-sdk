@@ -30,6 +30,14 @@ type Config struct {
 	// zerolog.MultiLevelWriter. The OTLP path requires InitLogProvider to
 	// have run first.
 	OTLPWriter *OTLPWriter
+
+	// Redactor, when non-nil, extends the built-in redaction policy (see
+	// the package README, "Redaction"). It is called for every JSON object
+	// field of each log line, at every nesting level, after the built-in
+	// policy, with the already-redacted value; its return value is logged
+	// instead. It cannot undo built-in masking. It must be safe for
+	// concurrent use.
+	Redactor func(key string, value any) any
 }
 
 // Logger is the explicit instance API. It owns a *zerolog.Logger and exposes
@@ -56,7 +64,7 @@ func New(cfg Config) *Logger {
 		w = zerolog.MultiLevelWriter(base, cfg.OTLPWriter)
 	}
 
-	return &Logger{zl: newLoggerWithWriter(w, env)}
+	return &Logger{zl: newLoggerWithRedactor(w, env, cfg.Redactor)}
 }
 
 // Zerolog exposes the underlying zerolog.Logger for low-level event building.
