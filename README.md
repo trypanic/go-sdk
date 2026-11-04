@@ -145,10 +145,14 @@ from [Conventional Commits](https://www.conventionalcommits.org) (enforced by a
 1. Each push to `main` updates an open **release PR** that bumps the version
    (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE:` → major) and
    prepends the new entry to [`CHANGELOG.md`](./CHANGELOG.md).
-2. Merging the release PR creates the tag and the GitHub Release.
-3. The [`release`](./.github/workflows/release.yml) workflow then verifies the
-   tagged tree and attaches a CycloneDX SBOM, a source archive and
-   `checksums.txt`, and warms the Go module proxy.
+2. The release PR is merged only when [`ci`](./.github/workflows/ci.yml) is
+   green on it: build, vet, race tests, static analysis, govulncheck and
+   module checks gate the release, before any tag exists.
+3. Merging the release PR creates the tag and the GitHub Release.
+4. The [`release`](./.github/workflows/release.yml) workflow then smoke-checks
+   the tagged tree and attaches a CycloneDX SBOM, a source archive and
+   `checksums.txt`, and warms the Go module proxy. It can be re-run for an
+   existing tag with `workflow_dispatch`.
 
 Before merging a release PR:
 
