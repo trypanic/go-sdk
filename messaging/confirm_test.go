@@ -58,12 +58,14 @@ func TestPublishReturnsErrorWhenUnroutable(t *testing.T) {
 }
 
 // C5-002: a return left over from an earlier publish is not attributed to
-// the next one.
+// the next one. A return stays unread only when the broker nacks the
+// returned message (awaitConfirm stops at the nack).
 func TestPublishIgnoresStaleReturn(t *testing.T) {
 	t.Parallel()
 
 	b := newFakeBroker()
 	b.unroutable = func(attempt int) bool { return attempt == 1 }
+	b.nack = func(attempt int) bool { return attempt == 1 }
 	p := newFakePubSub(b, testTopology())
 
 	require.Error(t, p.Publish(context.Background(), "q", Event{}))
