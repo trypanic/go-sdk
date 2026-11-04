@@ -47,8 +47,7 @@ func TestAppendLogConformance_AppendNilReturnsError(t *testing.T) {
 			if list != nil {
 				t.Fatalf("Append(nil) list = %v, want nil", *list)
 			}
-			var appErr *errorkit.AppError
-			if !errors.As(err, &appErr) {
+			if _, ok := errors.AsType[*errorkit.AppError](err); !ok {
 				t.Fatalf("expected *errorkit.AppError, got %T", err)
 			}
 			if _, ok, err := store.List("k"); ok || err != nil {

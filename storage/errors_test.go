@@ -15,8 +15,8 @@ func requireCode(t *testing.T, err error, want errorkit.ErrorCode) *errorkit.App
 	if err == nil {
 		t.Fatalf("expected %s, got nil", want)
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T: %v", err, err)
 	}
 	if appErr.Code() != want {

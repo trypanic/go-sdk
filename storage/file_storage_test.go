@@ -118,8 +118,8 @@ func TestFileStorageEmptyFileIsCorruption(t *testing.T) {
 	if _, err := fs.Append("k", &v); err == nil {
 		t.Fatal("Append on a zero-length file must return an error")
 	}
-	var appErr *errorkit.AppError
-	if _, _, err := fs.List("k"); !errors.As(err, &appErr) {
+	_, _, err = fs.List("k")
+	if _, ok := errors.AsType[*errorkit.AppError](err); !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 }
