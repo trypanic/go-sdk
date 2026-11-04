@@ -1,6 +1,6 @@
 # httprequest — Retrying HTTP Client with Structured Error Mapping
 
-Package `httprequest` wraps `net/http` with automatic exponential-backoff retries, OpenTelemetry span events per attempt, and structured `errorkit` errors mapped from every HTTP status code and network condition.
+Package `httprequest` wraps `net/http` with automatic retries (exponential backoff with full jitter, `Retry-After` honored), OpenTelemetry span events per attempt, and structured `errorkit` errors mapped from every HTTP status code and network condition.
 
 ---
 
@@ -43,7 +43,7 @@ import (
     "github.com/trypanic/go-sdk/httprequest"
 )
 
-// 1. Build a requester with default retry settings (5 retries, 100 ms → 5 s backoff)
+// 1. Build a requester with default retry settings (5 attempts, jittered backoff capped at 100 ms → 5 s)
 requester := httprequest.New(http.DefaultClient)
 
 // 2. Describe the request
@@ -88,7 +88,7 @@ type RequestConfig struct {
 type RetryConfig struct {
     MaxRetries   int           // Total number of attempts (not retries after first)
     InitialDelay time.Duration // Delay before the second attempt
-    MaxDelay     time.Duration // Ceiling for exponential backoff
+    MaxDelay     time.Duration // Ceiling for the jittered backoff and for Retry-After
     // Also retry non-idempotent requests that may have reached the server.
     RetryNonIdempotent bool
 }
@@ -153,8 +153,9 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 3. Calls `executeRequest`, which builds the `http.Request`, sends it, checks the status, and decodes the body.
 4. On success (2xx), returns `nil`.
 5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable` and whether resending is safe (see **Retryability** below). Errors that are not retriable, or not safe to resend, are returned immediately.
-6. Waits for the current delay using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
-7. Doubles the delay for the next attempt, capped at `MaxDelay`.
+6. Picks the wait before the next attempt. When the response carried a `Retry-After` header (delay-seconds or HTTP-date, typically on 429 and 503), the wait is exactly that value; if it exceeds `MaxDelay`, the error is returned without retrying, because an earlier retry would fail by design. Otherwise the wait is a random duration in `[0, backoff]` ("full jitter"), so clients that failed together do not retry in lockstep. If the wait would outlast the `ctx` deadline, the last error is returned at once instead of sleeping into a timeout.
+7. Waits using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
+8. Doubles the backoff ceiling for the next attempt (`InitialDelay`, `2×`, `4×`, …), capped at `MaxDelay`.
 
 **`out` decoding rules** (driven by the reflected type of `out`):
 

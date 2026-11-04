@@ -254,7 +254,7 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 		}
 
 		// Execute request
-		err := h.executeRequest(ctx, config, out)
+		retryAfter, err := h.executeRequest(ctx, config, out)
 		if err == nil {
 			return nil // Success
 		}
@@ -266,8 +266,13 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 			return err
 		}
 
-		// Wait before retry with exponential backoff
-		if !h.waitForRetry(ctx, currentDelay) {
+		// Wait before retry: Retry-After when the server sent one, else
+		// exponential backoff with full jitter.
+		delay, ok := retryDelay(ctx, currentDelay, retryAfter, rc.MaxDelay)
+		if !ok {
+			return err
+		}
+		if !h.waitForRetry(ctx, delay) {
 			return h.buildNetworkError(ctx.Err(), config.URL, config.Body)
 		}
 
@@ -282,7 +287,8 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 	return lastErr
 }
 
-// nextDelay doubles delay capped at max.
+// nextDelay doubles the backoff cap, bounded by max. The actual wait is a
+// random fraction of it (see retryDelay).
 func nextDelay(currentDelay, max time.Duration) time.Duration {
 	d := currentDelay * 2
 	if d > max {
@@ -291,20 +297,21 @@ func nextDelay(currentDelay, max time.Duration) time.Duration {
 	return d
 }
 
-// executeRequest performs a single HTTP request attempt.
-func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) error {
+// executeRequest performs a single HTTP request attempt. For a non-2xx
+// response it also returns the wait requested by its Retry-After header.
+func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, out any) (time.Duration, error) {
 	start := time.Now()
 
 	// Build request
 	req, err := h.buildRequest(ctx, config)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Execute request
 	res, err := h.client.Do(req)
 	if err != nil {
-		return h.buildNetworkError(err, config.URL, config.Body)
+		return 0, h.buildNetworkError(err, config.URL, config.Body)
 	}
 	defer drainAndClose(res.Body)
 
@@ -315,7 +322,8 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, bodyBytes)
 		}
-		return h.buildHTTPError(res, bodyBytes, config.Body)
+		return parseRetryAfter(res.Header.Get("Retry-After"), time.Now()),
+			h.buildHTTPError(res, bodyBytes, config.Body)
 	}
 
 	// Process successful response
@@ -335,13 +343,13 @@ func (h *HTTPRequest) executeRequest(ctx context.Context, config RequestConfig, 
 		if h.auditLog {
 			h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, auditBody(respBuf, body.read))
 		}
-		return err
+		return 0, err
 	}
 
 	if h.auditLog {
 		h.logHTTPAudit(ctx, start, config, req.Header, res.StatusCode, res.Header, nil)
 	}
-	return nil
+	return 0, nil
 }
 
 // buildRequest creates an http.Request from RequestConfig.
