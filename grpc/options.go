@@ -69,20 +69,28 @@ func WithServerLogger(l *logger.Logger) ServerOption {
 	return func(b *serverBuild) { b.log = l }
 }
 
-// WithUnaryInterceptors appends extra unary interceptors. They run after the
-// recovery interceptor, in the order given.
+// WithUnaryInterceptors appends extra unary interceptors. They run after (inside)
+// the recovery interceptor, in the order given, so recovery also catches
+// their panics.
 func WithUnaryInterceptors(in ...grpc.UnaryServerInterceptor) ServerOption {
 	return func(b *serverBuild) { b.unary = append(b.unary, in...) }
 }
 
-// WithStreamInterceptors appends extra stream interceptors. They run after the
-// recovery interceptor, in the order given.
+// WithStreamInterceptors appends extra stream interceptors. They run after
+// (inside) the recovery interceptor, in the order given, so recovery also
+// catches their panics.
 func WithStreamInterceptors(in ...grpc.StreamServerInterceptor) ServerOption {
 	return func(b *serverBuild) { b.stream = append(b.stream, in...) }
 }
 
 // WithRawServerOptions passes raw grpc.ServerOption values straight through to
 // grpc.NewServer, for anything this package does not expose directly.
+//
+// Do not add interceptors here: grpc.UnaryInterceptor and
+// grpc.StreamInterceptor passed this way run outside (before) the recovery
+// interceptor, so a panic in them is not recovered and crashes the process.
+// Use WithUnaryInterceptors / WithStreamInterceptors, which run inside
+// recovery.
 func WithRawServerOptions(o ...grpc.ServerOption) ServerOption {
 	return func(b *serverBuild) { b.raw = append(b.raw, o...) }
 }

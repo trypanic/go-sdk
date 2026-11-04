@@ -68,8 +68,10 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 		so = append(so, grpc.MaxConcurrentStreams(cfg.MaxConcurrentStreams))
 	}
 
-	// Interceptor chains: recovery runs outermost (so it also catches panics
-	// from user interceptors), then the user-supplied interceptors in order.
+	// Interceptor chains: recovery runs first (so it also catches panics
+	// from the WithUnary/StreamInterceptors interceptors), then those in
+	// order. A raw grpc.UnaryInterceptor/StreamInterceptor passed through
+	// WithRawServerOptions is prepended by grpc-go and runs outside recovery.
 	var unary []grpc.UnaryServerInterceptor
 	var stream []grpc.StreamServerInterceptor
 	if b.recovery {

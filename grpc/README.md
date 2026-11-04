@@ -131,19 +131,32 @@ status passes through; a plain error becomes `codes.Unknown`).
 
 ## Defaults
 
-| Setting                                  | Default            | Notes                                                                                                                                         |
-| ---------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tracing                                  | on                 | `otelgrpc` stats handler; instruments **all four** call modes.                                                                                |
-| Recovery                                 | on                 | Unary **and** streaming handlers; a panic becomes `codes.Internal`, server stays up.                                                          |
-| Transport security                       | **required**       | Set `ServerConfig.Creds` / `ClientConfig.Creds`, or opt into plaintext with `With*Insecure()`; see [Transport security](#transport-security). |
-| `MaxConcurrentStreams`                   | unlimited          | Streams per connection; each holds a goroutine. **Set it (e.g. 100–1000) on servers reachable by untrusted clients.**                         |
-| Keepalive                                | gRPC defaults      | Zero-valued keepalive fields preserve stock gRPC behavior.                                                                                    |
-| `MaxConnectionAge` / `MaxConnectionIdle` | **infinity (off)** | Opt-in. Setting them terminates healthy long-lived streams — leave unset unless you want connections recycled.                                |
+| Setting                                  | Default            | Notes                                                                                                                                                                                                   |
+| ---------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tracing                                  | on                 | `otelgrpc` stats handler; instruments **all four** call modes.                                                                                                                                          |
+| Recovery                                 | on                 | Unary **and** streaming handlers and the `With{Unary,Stream}Interceptors` interceptors; a panic becomes `codes.Internal`, server stays up. See [Interceptors and recovery](#interceptors-and-recovery). |
+| Transport security                       | **required**       | Set `ServerConfig.Creds` / `ClientConfig.Creds`, or opt into plaintext with `With*Insecure()`; see [Transport security](#transport-security).                                                           |
+| `MaxConcurrentStreams`                   | unlimited          | Streams per connection; each holds a goroutine. **Set it (e.g. 100–1000) on servers reachable by untrusted clients.**                                                                                   |
+| Keepalive                                | gRPC defaults      | Zero-valued keepalive fields preserve stock gRPC behavior.                                                                                                                                              |
+| `MaxConnectionAge` / `MaxConnectionIdle` | **infinity (off)** | Opt-in. Setting them terminates healthy long-lived streams — leave unset unless you want connections recycled.                                                                                          |
 
 > **Observability note:** the stats handler emits traces tied to the injected
 > (or global) tracer provider + propagator, and RPC metrics to the global
 > OpenTelemetry `MeterProvider` (a no-op unless your app installed one). The SDK
 > `telemetry` package covers tracing only.
+
+## Interceptors and recovery
+
+Add server interceptors with `WithUnaryInterceptors` / `WithStreamInterceptors`.
+They run in the order given, **inside** the recovery interceptor, so a panic in
+one of them becomes `codes.Internal` and the server stays up.
+
+> **Do not** pass `grpc.UnaryInterceptor(...)` or `grpc.StreamInterceptor(...)`
+> through `WithRawServerOptions`: grpc-go runs such an interceptor **before**
+> the whole chain, outside recovery, so a panic in it crashes the process.
+
+Recovery only covers the handler goroutine. A goroutine your handler starts
+(e.g. a separate send loop in a bidi handler) must recover its own panics.
 
 ## Transport security
 
