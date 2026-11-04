@@ -15,7 +15,7 @@ import (
 func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
 	// Get the type of out
 	outValue := reflect.ValueOf(out)
-	if outValue.Kind() != reflect.Ptr {
+	if outValue.Kind() != reflect.Pointer {
 		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 			With(errorkit.WithReason("'out' parameter must be a pointer"))
 	}
@@ -40,7 +40,7 @@ func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
 		return h.decodeBool(body, out)
 	case reflect.Slice:
 		// Check if it's []byte
-		if outType == reflect.TypeOf([]byte{}) {
+		if outType == reflect.TypeFor[[]byte]() {
 			return h.decodeBytes(body, out)
 		}
 		// Otherwise decode as JSON
