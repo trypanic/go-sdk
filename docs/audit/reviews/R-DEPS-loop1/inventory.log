@@ -1,0 +1,8 @@
+$ python /tmp/DEPS-review1/inventory.py
+Traceback (most recent call last):
+  File "/tmp/DEPS-review1/inventory.py", line 12, in <module>
+    normal=go('normal-test-deps',['list','-deps','-test','./...']);tagged=go('integration-test-deps',['list','-deps','-test','-tags=integration','./...']);packages=go('packages',['list','./...'])
+  File "/tmp/DEPS-review1/inventory.py", line 5, in go
+    p=subprocess.run(['go',*args],cwd=cwd,capture_output=True,text=True);(out/(name+'.txt')).write_text(p.stdout+p.stderr);assert p.returncode==0,(name,p.stderr);return p.stdout
+                                                                                                                                  ^^^^^^^^^^^^^^^
+AssertionError: ('normal-test-deps', 'open /home/trypanic/.cache/go-build/b7/b7f59dcdda0e1d04e500f2fad130bdb09550b5e0931b93e4e19fab4a14a7e7ba-a: read-only file system\n')

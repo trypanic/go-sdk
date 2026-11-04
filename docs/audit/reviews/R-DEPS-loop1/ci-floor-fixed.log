@@ -1,0 +1,2 @@
+$ env GOTOOLCHAIN=local /home/trypanic/.go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.linux-amd64/bin/go version
+go version go1.26.10 linux/amd64

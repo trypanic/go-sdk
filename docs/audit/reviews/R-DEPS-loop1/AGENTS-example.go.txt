@@ -1,0 +1,75 @@
+package main
+
+import (
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
+    "github.com/trypanic/go-sdk/v2/errorkit"
+    "github.com/trypanic/go-sdk/v2/httpclient"
+    "github.com/trypanic/go-sdk/v2/httprequest"
+    "github.com/trypanic/go-sdk/v2/logger"
+    "github.com/trypanic/go-sdk/v2/logger/otlp"
+    "github.com/trypanic/go-sdk/v2/messaging"
+    "github.com/trypanic/go-sdk/v2/postgres"
+    "github.com/trypanic/go-sdk/v2/telemetry"
+)
+
+func main() {
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+    if err := run(ctx); err != nil {
+        logFailure(ctx, err, "service failed")
+        os.Exit(1)
+    }
+}
+
+func run(ctx context.Context) error {
+    const serviceName = "my-service"
+    startup, cancel := context.WithTimeout(ctx, 20*time.Second)
+    defer cancel()
+
+    provider, err := otlp.NewProvider(startup, otlp.Config{
+        ServiceName: serviceName,
+        Endpoint: os.Getenv("OTEL_COLLECTOR_ENDPOINT"), // TLS by default
+    })
+    if err != nil { return err }
+    defer func() {
+        shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        defer cancel()
+        if err := provider.Close(shutdown); err != nil {
+            logFailure(shutdown, err, "log provider shutdown failed")
+        }
+    }()
+    _, cleanup := logger.Init(serviceName, "0.1.0", otlp.NewWriter(serviceName))
+    defer cleanup.Close()
+
+    instr := telemetry.NewInstrumenter(telemetry.InstrumenterConfig{ScopeName: serviceName})
+    httpClient := httpclient.NewDefaultClient()
+    defer httpClient.CloseIdleConnections()
+    requester := httprequest.NewWithInstrumenter(httpClient, instr)
+
+    pool, err := postgres.NewFromEnvContext(startup, postgres.Config{})
+    if err != nil { return err }
+    defer pool.Close()
+
+    // Topology: explicit options win; only this FromEnv family reads the env file.
+    mq, err := messaging.NewPubSubFromEnvContext(startup, os.Getenv("RABBITMQ_URL"),
+        messaging.WithInstrumenter(instr))
+    if err != nil { return err }
+    defer func() {
+        if err := mq.Close(); err != nil { logFailure(ctx, err, "messaging shutdown failed") }
+    }()
+
+    _ = requester // inject into the application's handlers
+    <-ctx.Done()
+    return nil
+}
+
+func logFailure(ctx context.Context, err error, message string) {
+    appErr, ok := errorkit.As(err)
+    if !ok { appErr = errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err)) }
+    logger.ErrorCtx(ctx, appErr, message)
+}

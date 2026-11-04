@@ -1,0 +1,5 @@
+$ sh /tmp/DEPS-review1/loopback-assertion.sh
+# github.com/trypanic/go-sdk/v2/internal/integrationtest
+internal/integrationtest/container.go:54:32: cannot use binding.HostIP (variable of struct type netip.Addr) as string value in argument to net.ParseIP
+FAIL	github.com/trypanic/go-sdk/v2/postgres [build failed]
+FAIL

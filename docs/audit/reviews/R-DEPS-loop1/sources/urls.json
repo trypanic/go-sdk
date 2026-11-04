@@ -1,0 +1,11 @@
+{
+  "archive-advisory.json": "https://vuln.go.dev/ID/GO-2026-6253.json",
+  "crypto-advisory.json": "https://vuln.go.dev/ID/GO-2026-5932.json",
+  "crypto-tags.txt": "https://proxy.golang.org/golang.org/x/crypto/@v/list",
+  "testcontainers.mod": "https://raw.githubusercontent.com/testcontainers/testcontainers-go/v0.44.0/go.mod",
+  "archive.mod": "https://raw.githubusercontent.com/moby/go-archive/v0.3.0/go.mod",
+  "user.mod": "https://raw.githubusercontent.com/moby/sys/user/v0.4.1/user/go.mod",
+  "testcontainers-license.txt": "https://raw.githubusercontent.com/testcontainers/testcontainers-go/v0.44.0/LICENSE",
+  "archive-021.json": "https://api.github.com/repos/moby/go-archive/releases/tags/v0.2.1",
+  "user-release.json": "https://api.github.com/repos/moby/sys/releases/tags/user/v0.4.1"
+}

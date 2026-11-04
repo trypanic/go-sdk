@@ -1,0 +1,39 @@
+{"name": "build", "command": ["go", "build", "./..."], "exit": 0, "seconds": 0.16}
+{"name": "release-comparison", "command": ["task", "release:check", "RELEASE_VERSION=v2.0.0"], "exit": 201, "seconds": 0.23}
+{"name": "integration", "command": ["go", "test", "-v", "-race", "-tags", "integration", "-run", "Integration", "-count=2", "-shuffle=on", "-timeout=5m", "./postgres", "./mongo", "./messaging"], "exit": 1, "seconds": 0.91}
+{"name": "gates", "command": ["task", "check"], "exit": 201, "seconds": 4.11}
+{"name": "release-comparison-authorized", "command": ["task", "release:check", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 8.37}
+{"name": "integration-authorized", "command": ["go", "test", "-v", "-race", "-tags", "integration", "-run", "Integration", "-count=2", "-shuffle=on", "-timeout=5m", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 7.78}
+{"name": "gates-authorized", "command": ["task", "check"], "exit": 0, "seconds": 18.93}
+{"name": "floor-short", "command": ["env", "GOTOOLCHAIN=go1.26.10", "go", "test", "-count=1", "-short", "./..."], "exit": 0, "seconds": 1.66}
+{"name": "unit-task", "command": ["task", "test"], "exit": 0, "seconds": 1.53}
+{"name": "tagged-vuln", "command": ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "-tags=integration", "-test", "./..."], "exit": 0, "seconds": 5.15}
+{"name": "release-initial", "command": ["task", "release:check", "BASE=none", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 6.93}
+{"name": "mandatory-disabled", "command": ["sh", "/tmp/DEPS-review1/mandatory.sh"], "exit": 1, "seconds": 4.12}
+{"name": "bindings", "command": ["sh", "/tmp/DEPS-review1/bindings.sh"], "exit": 0, "seconds": 3.71}
+{"name": "coverage", "command": ["go", "test", "-short", "-count=1", "-coverprofile=/tmp/DEPS-review1/coverage.out", "./..."], "exit": 0, "seconds": 2.02}
+{"name": "lint", "command": ["env", "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download", "GOSUMDB=off", "task", "lint"], "exit": 0, "seconds": 1.23}
+{"name": "floor-tagged-short", "command": ["env", "GOTOOLCHAIN=go1.26.10", "go", "test", "-count=1", "-tags", "integration", "-short", "./..."], "exit": 0, "seconds": 2.7}
+{"name": "inventory", "command": ["python", "/tmp/DEPS-review1/inventory.py"], "exit": 1, "seconds": 0.23}
+{"name": "inventory-authorized", "command": ["python", "/tmp/DEPS-review1/inventory.py"], "exit": 0, "seconds": 0.55}
+{"name": "mutation-chunked", "command": ["go", "test", "-race", "-short", "-count=1", "-run", "TestChunkedJSONTrailingLimit", "./httprequest"], "exit": 1}
+{"name": "mutation-setup-lifetime", "command": ["go", "test", "-race", "-short", "-count=1", "-run", "TestSubscribeOutlivesConstructionContext", "./messaging"], "exit": 1}
+{"name": "guard-no-docker", "command": ["env", "DOCKER_HOST=unix:///tmp/DEPS-review1/no-docker.sock", "go", "test", "-v", "-short", "-tags", "integration", "-run", "Integration", "-count=1", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 0.5}
+{"name": "tagged-staticcheck", "command": ["staticcheck", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.25}
+{"name": "tagged-vet", "command": ["go", "vet", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.2}
+{"name": "ci-floor-fixed", "command": ["env", "GOTOOLCHAIN=local", "/home/trypanic/.go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.linux-amd64/bin/go", "version"], "exit": 0, "seconds": 0.01}
+{"name": "ci-floor-auto", "command": ["env", "GOTOOLCHAIN=auto", "/home/trypanic/.go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.linux-amd64/bin/go", "version"], "exit": 1, "seconds": 0.01}
+{"name": "ci-gorelease", "command": ["go", "run", "golang.org/x/exp/cmd/gorelease@v0.0.0-20261014143641-f0251eb4aa3e", "-base=v1.0.1"], "exit": 1, "seconds": 9.72}
+{"name": "hooks-isolated", "command": ["sh", "/tmp/DEPS-review1/hooks.sh"], "exit": 0, "seconds": 12.03}
+{"name": "ryuk-bindings", "command": ["python", "/tmp/DEPS-review1/ryuk-inspect.py"], "exit": 0, "seconds": 3.27}
+{"name": "ci-floor-auto-authorized", "command": ["env", "GOTOOLCHAIN=auto", "/home/trypanic/.go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.linux-amd64/bin/go", "version"], "exit": 0, "seconds": 6.86}
+{"name": "formatting", "command": ["gofmt", "-l", "."], "exit": 0, "seconds": 0.03}
+{"name": "xp-head", "command": ["go", "test", "-race", "-short", "-count=5", "-run", "TestChunkedJSONTrailingLimit|TestSubscribeOutlivesConstructionContext", "./httprequest", "./messaging"], "exit": 0, "seconds": 1.49}
+{"name": "loopback-assertion", "command": ["sh", "/tmp/DEPS-review1/loopback-assertion.sh"], "exit": 1, "seconds": 0.1}
+{"name": "ci-floor-vuln-auto", "command": ["python", "/tmp/DEPS-review1/ci-floor-scan.py"], "exit": 0, "seconds": 5.47}
+{"name": "loopback-assertion-runtime", "command": ["sh", "/tmp/DEPS-review1/loopback-assertion.sh"], "exit": 1, "seconds": 2.34}
+{"name": "README-example-build", "command": ["go", "build", "-o", "/tmp/DEPS-review1/README-example", "/tmp/DEPS-review1/README-example.go"], "exit": 0}
+{"name": "README-example-vet", "command": ["go", "vet", "/tmp/DEPS-review1/README-example.go"], "exit": 0}
+{"name": "AGENTS-example-build", "command": ["go", "build", "-o", "/tmp/DEPS-review1/AGENTS-example", "/tmp/DEPS-review1/AGENTS-example.go"], "exit": 0}
+{"name": "AGENTS-example-vet", "command": ["go", "vet", "/tmp/DEPS-review1/AGENTS-example.go"], "exit": 0}
+{"name": "cleanup", "command": ["docker", "ps", "-a", "--filter", "label=org.testcontainers=true", "--format", "{{.ID}} {{.Image}} {{.Status}}"], "exit": 0, "seconds": 0.01}

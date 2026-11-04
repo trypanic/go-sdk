@@ -1,0 +1,21 @@
+{
+  "500f8bb67a99": {
+    "image": "testcontainers/ryuk:0.14.0",
+    "ports": {
+      "8080/tcp": [
+        {
+          "HostIp": "0.0.0.0",
+          "HostPort": "32811"
+        },
+        {
+          "HostIp": "::",
+          "HostPort": "32811"
+        }
+      ]
+    },
+    "privileged": false,
+    "mounts": [
+      "/var/run/docker.sock:/var/run/docker.sock"
+    ]
+  }
+}
