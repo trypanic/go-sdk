@@ -1498,7 +1498,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | DONE | `f50efe1` |
 | R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | DONE | `39f7e07` |
 | R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | DONE | `4504ec6` |
-| R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | IN_PROGRESS | |
+| R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | IN_REVIEW | `ac8ab8e` |
 | R-083 | approval | X (post-merge) | One tracing injection story | APPROVED | DONE | `6f02409` |
 | R-084 | auto | C5 | Messaging publisher uses the injected logger | — | DONE | `ef0d848` |
 | R-085 | approval | C2 (policy text in X) | No log-and-return in library code | APPROVED | TODO | |
@@ -1530,7 +1530,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-122 | auto | C2 | Hertz adapter and `llmclient` tests | — | DONE | `c4aeca1` |
 | R-123 | auto | C3 | gRPC tests and hygiene | — | DONE | `9c3e2ea` |
 | R-124 | auto | C4 | Postgres, Mongo and storage unit tests | — | DONE | `9d911c4` |
-| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | APPROVED | IN_PROGRESS | |
+| R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | APPROVED | IN_REVIEW | `5ac4a99` |
 | R-126 | auto | C5 | Messaging unit tests | — | DONE | `8b259a5` |
 | R-127 | auto | C6 | Utility package tests | — | DONE | `6b94faf` |
 | R-130 | auto | C1 | Cheap redaction path | — | DONE | `330963c` |
@@ -1559,8 +1559,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-157 | approval | X | Release provenance and tidy checks | APPROVED | DONE | `1aa63f3` |
 | R-158 | auto | X | `deps:outdated` sees all requirements | — | DONE | `278819b` |
 | R-159 | approval | X | Hertz OTel contrib module (deferred) | DEFERRED | TODO | |
-| R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | APPROVED | IN_PROGRESS | |
-| R-160 | approval | R-DEPS | Module path `github.com/trypanic/go-sdk/v2` | APPROVED | IN_PROGRESS | |
+| R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | APPROVED | IN_REVIEW | `7bcccb8` |
+| R-160 | approval | R-DEPS | Module path `github.com/trypanic/go-sdk/v2` | APPROVED | IN_REVIEW | `1f40242` |
 
 Totals: 140 items — 63 `auto`, 77 `approval` (G1: all approved, R-152 = MIT, R-159 DEFERRED).
 

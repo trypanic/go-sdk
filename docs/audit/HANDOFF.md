@@ -52,8 +52,10 @@ CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 - **P4.XP DONE:** approved `6a390d4`, merged `55be1c0`; post-merge V1-V5 pass.
   Review: `reviews/P4.XP-loop1.md`; complete validation: `validation/P4.XP.md`.
-- **R-DEPS IN_PROGRESS:** one sequential remediator, branch
-  `audit/2026-11-DEPS` in `/tmp/go-sdk-audit-DEPS`, after P4.XP approval.
+- **R-DEPS IN_REVIEW:** one sequential remediator, branch
+  `audit/2026-11-DEPS` in `/tmp/go-sdk-audit-DEPS`, clean head `ac8ab8e`.
+  All author gates passed, including real integration and Go1.26.10; fresh
+  independent review loop1 is pending. Report: `validation/R-DEPS.md`.
   Scope: toolchain, tagged-only crypto decision, testcontainers suites,
   `/v2` module migration, and exact minor XP review followups. Root owns ledger.
 
