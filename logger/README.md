@@ -11,7 +11,7 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [Configuration / Settings](#configuration--settings)
     - [Environment Detection](#environment-detection)
     - [Redaction](#redaction)
-    - [No Additional Config Structs](#no-additional-config-structs)
+    - [Configuration Sources](#configuration-sources)
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
@@ -69,7 +69,7 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `Panic`              | func            | `Error` + `os.Exit(1)` (non-zero exit so supervisors detect failure) |
 | `New`                | func            | Builds an explicit `*Logger` instance from `Config` without touching the global |
 | `Logger`             | struct          | Instance API: `Info`, `Warn`, `Error`, `InfoCtx`, `ErrorCtx`, `WarnCtx`, `WithFields`, `IntoContext`, `Zerolog` |
-| `Config`             | struct          | Instance config: `AppName`, `Version`, `Env`, `Writer`, `OTLPWriter` |
+| `Config`             | struct          | Instance config: `AppName`, `Version`, `Env`, `Writer`, `OTLPWriter`, `Redactor` |
 | `Warn`               | func            | Printf-style Warn via the global logger                            |
 | `Info`               | func            | Printf-style Info via the global logger                            |
 | `ErrorCtx`           | func            | Error log with context logger and live OTel `trace_id` / `span_id` |
@@ -94,12 +94,11 @@ import (
     "github.com/trypanic/go-sdk/errorkit"
 )
 
-func init() {
+func main() {
+    // Set ENVIRONMENT=development for console output; the default is JSON (Prod).
     _, cleanup := logger.Init("my-service", "1.0.0")
     defer cleanup.Close()
-}
 
-func main() {
     logger.Info("Starting %s", "my-service")
 
     if err := doWork(); err != nil {
@@ -130,9 +129,9 @@ the console output on a workstation. With `local`, the console omits
 `service_name`/`service_version`; the variable is read once when the writer is
 built.
 
-Both environments add a `time` field to every log line automatically: the UTC time as an RFC 3339 string with nanosecond precision (`2026-11-03T10:00:00.123456789Z`). The Dev console renders it as local `HH:MM:SS`. Earlier versions wrote whole Unix epoch seconds. `caller` (file:line) is also added to every log line.
+Both environments add a `time` field to every log line automatically: the UTC time as an RFC 3339 string with nanosecond precision (`2026-11-03T10:00:00.123456789Z`). The Dev console renders it as local `HH:MM:SS`. Earlier versions wrote whole Unix epoch seconds. No `caller` field is added.
 
-**Dev console** pretty-prints `service_name`, `service_version`, and all extra fields below the log line using blue ANSI color; `stack_trace` frames are JSON-marshalled inline.
+**Dev console** prints the extra fields on the same line, after the message and a ` | ` separator: `service_name` and `service_version` first (omitted when `ENVIRONMENT=local`), then every other field sorted by key, with field names in blue. JSON values such as `stack_trace` are compacted inline and redacted.
 
 ### Redaction
 
@@ -163,12 +162,11 @@ l := logger.New(logger.Config{
 })
 ```
 
-### No Additional Config Structs
+### Configuration Sources
 
-The logger has no `Config` struct. All behavior is controlled by:
-
-- The `ENVIRONMENT` environment variable (see table above).
-- The optional `*OTLPWriter` variadic argument to `Init`.
+- `Init` (global logger) is controlled by the `ENVIRONMENT` environment variable (see the table above) and its optional `*OTLPWriter` argument.
+- `New` (instance logger) takes a `Config` struct: `AppName`, `Version`, `Env` (empty means `DetectEnv()`), `Writer` (overrides the environment's writer), `OTLPWriter` and `Redactor`. See [Instance API](#instance-api).
+- The OTLP export is configured by `LogProviderConfig` (see [NewLogProvider](#newlogprovider)).
 
 ---
 
@@ -272,7 +270,7 @@ Returns an `*OTLPWriter` backed by the global OTEL `LoggerProvider`. Each `Write
 - Severity mapped from the `"level"` field.
 - Body from `"message"`.
 - Trace correlation: `trace_id` and `span_id` fields written by `WithTrace` / `ErrorCtx` are promoted to OTEL first-class fields via a reconstructed `SpanContext` passed to `Emit`.
-- All other fields (`error_code`, `reason`, `stack_trace`, etc.) become log attributes visible in SigNoz's log detail panel.
+- All other fields (`error_code`, `reason`, `stack_trace`, etc.) become log attributes shown with the record in your observability backend.
 
 `level`, `time`, `message`, `trace_id`, `span_id`, and `caller` are excluded from the attributes list (they map to dedicated OTEL fields or are omitted for noise reduction).
 
@@ -690,12 +688,12 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 | `github.com/rs/zerolog`                                            | Structured JSON / console logging engine                                    |
 | `go.opentelemetry.io/otel/trace`                                   | Extracts `SpanContext` from `context.Context`                               |
 | `go.opentelemetry.io/otel/log`                                     | OTEL `LogRecord` and `LoggerProvider` API                                   |
-| `go.opentelemetry.io/otel/log/global`                              | Registers and retrieves the global `LoggerProvider`                         |
+| `go.opentelemetry.io/otel`                                         | Registers and retrieves the global `LoggerProvider` (`otel.SetLoggerProvider` / `otel.GetLoggerProvider`) |
 | `go.opentelemetry.io/otel/sdk/log`                                 | `log.LoggerProvider`, `NewBatchProcessor`                                   |
 | `go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc`      | gRPC OTLP log exporter                                                      |
 | `go.opentelemetry.io/otel/sdk/resource`                            | Attaches `service.name` semantic attribute to the provider                  |
 | `go.opentelemetry.io/otel/semconv/v1.21.0`                         | `semconv.ServiceNameKey` constant                                           |
-| `google.golang.org/grpc`                                           | gRPC dial for OTLP export                                                   |
+| `google.golang.org/grpc`                                           | gRPC transport and TLS credentials for the OTLP export                      |
 | `github.com/trypanic/go-sdk/errorkit` | Structured error type consumed by `WithErrorKit`, `Error`, `ErrorCtx`, etc. |
 
 The core `logger` package has **no web-framework dependency**. Per-request middleware for specific frameworks lives in the corresponding adapter package (e.g. `httpserver.RequestLoggerMiddleware` for Hertz). Consumers that do not use those frameworks never pull them in.

@@ -39,11 +39,10 @@ func WithErrorKit(event *zerolog.Event, appErr *errorkit.AppError) *zerolog.Even
 		Int("http_status", appErr.Metadata.HTTPStatus).
 		Bool("retriable", appErr.Metadata.Retriable)
 
-	// FIX: trace_id was previously emitted here from appErr.TraceID, which
-	// caused a field collision when WithTrace had already written trace_id from
-	// the live OTel span context. The live span always wins, so this field is
-	// no longer written here. Use logger.TraceIDFromCtx(ctx) if you need to
-	// store the trace ID inside the AppError itself (e.g. for queue messages).
+	// trace_id is deliberately not written from appErr.TraceID: WithTrace
+	// owns it and takes it from the live OTel span, so the two never
+	// collide. Use logger.TraceIDFromCtx(ctx) to store the trace ID inside
+	// the AppError itself (e.g. for queue messages).
 
 	if appErr.Reason != "" {
 		event = event.Str("reason", appErr.Reason)

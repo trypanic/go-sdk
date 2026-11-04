@@ -64,13 +64,13 @@ func Warn(msg string, args ...any) {
 // enriched with the active OpenTelemetry trace_id and span_id.
 //
 // This is the primary error logging function for service handlers.
-// All log lines will be linkable to the corresponding trace in SigNoz.
+// Every line carries the trace and span IDs, so the tracing backend can link
+// it to the request's trace.
 //
 // Usage:
 //
 //	logger.ErrorCtx(ctx, appErr, "Order processing failed")
 func ErrorCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: WithTrace was missing — trace_id/span_id were never injected.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Error())
 	WithErrorKit(event, appErr).Msg(msg)
 }
@@ -84,7 +84,6 @@ func ErrorCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
 //
 //	logger.WarnCtx(ctx, appErr, "Cache miss — using fallback")
 func WarnCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: WithTrace was missing — trace_id/span_id were never injected.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Warn())
 	WithErrorKit(event, appErr).Msg(msg)
 }

@@ -28,6 +28,7 @@ A structured, type-safe error handling library for Go. Every error carries a uni
     - [Stack depth](#stack-depth)
     - [Custom ID generator](#custom-id-generator)
     - [ULID utilities](#ulid-utilities)
+  - [Concurrency](#concurrency)
   - [Registering New Error Codes](#registering-new-error-codes)
     - [Step 1 — Declare the constant in `codes.go`](#step-1--declare-the-constant-in-codesgo)
     - [Step 2 — Register metadata in `registry.go`](#step-2--register-metadata-in-registrygo)
@@ -459,6 +460,17 @@ maxID := errorkit.MaxULID(endTime)
 `ParseULID` and `ValidateULID` accept upper- and lower-case IDs; generated IDs are upper case. `ValidateULID` rejects timestamps before 2000 and more than 1 year in the future.
 
 Generated ULIDs are strictly increasing in generation order, also within one millisecond, under concurrent use and when the system clock steps backwards (the last timestamp is kept and the random part incremented).
+
+---
+
+## Concurrency
+
+- `NewError`, the registries (global and `Registry`), `Factory` and the
+  configuration setters (`SetMaxStackDepth`, `InitFromEnv`, `SetIDGenerator`,
+  `DisableColors`, `EnableColors`) are safe for concurrent use.
+- An `*AppError` is not: `With` modifies it in place. Build it in one
+  goroutine and share it only once it is complete; never keep a
+  package-level `*AppError` as a sentinel and call `With` on it.
 
 ---
 

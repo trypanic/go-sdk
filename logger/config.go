@@ -18,6 +18,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Blue and Reset are the ANSI escape codes the Dev console writer uses to
+// color field names.
 const (
 	Blue  = "\033[34m"
 	Reset = "\033[0m"

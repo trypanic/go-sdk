@@ -13,24 +13,24 @@ import (
 )
 
 // OTLPWriter is a zerolog io.Writer that converts each JSON log line into an
-// OTEL LogRecord and emits it via the global LoggerProvider.
-//
-// It ships logs over the same gRPC connection already used for traces,
-// so no extra network config is required.
+// OTEL LogRecord and emits it via the global LoggerProvider (set up by
+// NewLogProvider or InitLogProvider, which own the exporter connection).
 //
 // Trace correlation works automatically: trace_id and span_id written by
-// WithTrace() / ErrorCtx() are promoted to OTEL first-class fields, which
-// is what SigNoz uses to link a log line to its trace waterfall.
+// WithTrace() / ErrorCtx() are promoted to the record's first-class trace
+// fields, which observability backends use to link a log line to its trace.
+// It is safe for concurrent use.
 type OTLPWriter struct {
 	logger log.Logger
 }
 
-// NewOTLPWriter creates an OTLPWriter for the given service name.
-// The service name should match provider.WithServiceName() in main.go
-// so SigNoz groups logs and traces under the same service.
+// NewOTLPWriter creates an OTLPWriter for the given service name, used as
+// the instrumentation scope. Use the same service name as the log provider
+// and the trace provider so the backend groups logs and traces under one
+// service.
 //
-// Must be called AFTER the OTEL LoggerProvider has been initialised
-// (i.e. after initLogProvider in main.go).
+// Must be called AFTER the log provider has been created (NewLogProvider or
+// InitLogProvider): the writer binds to the global provider at construction.
 //
 // Usage:
 //
@@ -104,8 +104,8 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 	}
 
 	// ── Attributes: all remaining fields ─────────────────────────────────────
-	// Emit every other zerolog field as a log attribute so SigNoz surfaces
-	// them in the log detail panel (error_code, reason, stack_trace, etc.)
+	// Emit every other zerolog field as a log attribute so the backend shows
+	// them with the record (error_code, reason, stack_trace, etc.)
 	attrs := make([]attribute.KeyValue, 0, len(fields))
 	for k, v := range fields {
 		if isRecordField(k) {
