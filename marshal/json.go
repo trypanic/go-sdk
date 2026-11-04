@@ -8,19 +8,11 @@ import (
 )
 
 func NoEscape(v any) (string, error) {
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	encoder.SetEscapeHTML(false)
-
-	err := encoder.Encode(v)
+	b, err := NoEscapeBytes(v)
 	if err != nil {
-		return "", errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to marshal JSON without escaping"),
-			errorkit.WithWrapped(err),
-		)
+		return "", err
 	}
-
-	return buf.String(), nil
+	return string(b), nil
 }
 
 func NoEscapeBytes(v any) ([]byte, error) {
@@ -28,8 +20,7 @@ func NoEscapeBytes(v any) ([]byte, error) {
 	encoder := json.NewEncoder(&buf)
 	encoder.SetEscapeHTML(false)
 
-	err := encoder.Encode(v)
-	if err != nil {
+	if err := encoder.Encode(v); err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
 			errorkit.WithReason("failed to marshal JSON without escaping"),
 			errorkit.WithWrapped(err),

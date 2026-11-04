@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/marshal"
 )
 
 func TestWriteJSONEncodesWithoutHTMLEscape(t *testing.T) {
@@ -103,5 +104,36 @@ func TestSaveJSONCreatesOwnerOnlyFile(t *testing.T) {
 	}
 	if perm := info.Mode().Perm(); perm != 0o600 {
 		t.Fatalf("file mode = %v, want 0600", perm)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("disk full") }
+
+func TestWriteJSONReturnsErrorOnWriteFailure(t *testing.T) {
+	t.Parallel()
+
+	err := WriteJSON(failingWriter{}, map[string]int{"n": 1})
+	if appErr, ok := errors.AsType[*errorkit.AppError](err); !ok || appErr.Code() != errorkit.ERR_INTERNAL {
+		t.Fatalf("expected ERR_INTERNAL, got %v", err)
+	}
+}
+
+// WriteJSON and marshal.NoEscapeBytes share one encoding rule.
+func TestWriteJSONMatchesMarshalNoEscapeBytes(t *testing.T) {
+	t.Parallel()
+
+	v := map[string]any{"q": "<a>&", "n": []int{1, 2}}
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, v); err != nil {
+		t.Fatalf("WriteJSON: %v", err)
+	}
+	want, err := marshal.NoEscapeBytes(v)
+	if err != nil {
+		t.Fatalf("NoEscapeBytes: %v", err)
+	}
+	if !bytes.Equal(buf.Bytes(), want) {
+		t.Fatalf("WriteJSON = %q, NoEscapeBytes = %q", buf.Bytes(), want)
 	}
 }
