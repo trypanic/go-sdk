@@ -504,3 +504,21 @@ module proxy; both are network access the work order forbids for tests.
   staticcheck, semgrep, race or vulnerabilities can land unnoticed.
 - **Single-module weight.** Without a module split (approval, likely v2),
   every consumer keeps inheriting the full dependency graph (X3-004).
+
+
+## 11. Findings discovered during remediation
+
+These findings supplement the frozen P2 totals above.
+
+### C2-028 — Hertz ignored the configured NoMethod handler
+
+- Area: G (Public API) · Severity: MEDIUM · Effort: S
+- Location: `httpserver/hertz/server.go` engine construction before `f91fca8`.
+- Problem: `EnableNoMethod` installed a handler but did not enable Hertz's
+  method-not-allowed routing; POST to a GET-only route returned 404 and
+  skipped custom NoMethod handlers, contradicting the documented 405 contract.
+- Evidence: `f91fca8` adds `WithHandleMethodNotAllowed(EnableNoMethod)` and
+  default/custom-handler regressions in `nomethod_test.go`. Independent C2
+  loop-2 review reran the NoMethod tests with the race detector; exit 0.
+- Resolution: fixed in `f91fca8` under R-122 (coverage gap C2-020).
+- Breaking: no (restores the documented contract) · Needs approval: no.
