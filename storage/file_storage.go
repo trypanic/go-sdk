@@ -34,6 +34,11 @@ const (
 // and common filesystems limit a file name to 255 bytes.
 const MaxFileKeyLength = (255 - len(fileExt)) / 2
 
+// legacyMaxFileKeyLength is the key limit of earlier versions, whose ".json"
+// names are one byte shorter. Keys of this length can still be listed,
+// deleted and cleared, but not appended to.
+const legacyMaxFileKeyLength = (255 - len(legacyFileExt)) / 2
+
 // FileStorage is an append-log file store. Each key maps to one JSON Lines
 // file with one item per line. Append adds a line in place; List reads the
 // lines back. Keys are hex-encoded so that arbitrary byte sequences map to
@@ -144,7 +149,7 @@ func (s *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
 // List returns the list stored at key. The bool is false (and error is nil)
 // when the key is absent.
 func (s *FileStorage[T]) List(key string) (*[]T, bool, error) {
-	if err := validateFileKey(key); err != nil {
+	if err := validateReadKey(key); err != nil {
 		return nil, false, err
 	}
 	s.mu.RLock()
@@ -162,13 +167,16 @@ func (s *FileStorage[T]) List(key string) (*[]T, bool, error) {
 
 // Delete removes the files at key. A missing key is not an error.
 func (s *FileStorage[T]) Delete(key string) error {
-	if err := validateFileKey(key); err != nil {
+	if err := validateReadKey(key); err != nil {
 		return err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, filename := range []string{s.pathFor(key), s.legacyPathFor(key)} {
+	for _, filename := range []string{s.currentPathFor(key), s.legacyPathFor(key)} {
+		if filename == "" {
+			continue
+		}
 		if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return ioError("failed to delete storage file", err)
 		}
@@ -188,7 +196,7 @@ func (s *FileStorage[T]) Clear() error {
 		return ioError("failed to read storage directory", err)
 	}
 	for _, entry := range entries {
-		if _, ok := ownedKey(entry); !ok {
+		if _, _, ok := ownedKey(entry); !ok {
 			continue
 		}
 		if err := os.Remove(filepath.Join(s.baseDir, entry.Name())); err != nil {
@@ -207,16 +215,34 @@ func (s *FileStorage[T]) GetAll() (map[string][]T, error) {
 	if err != nil {
 		return nil, ioError("failed to read storage directory", err)
 	}
-	out := make(map[string][]T)
+	// Read by the names found in the directory, so a key is never probed
+	// under a name that cannot exist (a 125-byte legacy key has no
+	// ".jsonl" name within the 255-byte limit).
+	type keyFiles struct{ current, legacy string }
+	files := make(map[string]*keyFiles)
+	var keys []string
 	for _, entry := range entries {
-		key, ok := ownedKey(entry)
+		key, legacy, ok := ownedKey(entry)
 		if !ok {
 			continue
 		}
-		if _, done := out[key]; done {
-			continue // both formats exist; readKey already chose
+		f := files[key]
+		if f == nil {
+			f = &keyFiles{}
+			files[key] = f
+			keys = append(keys, key)
 		}
-		items, source, err := s.readKey(key)
+		path := filepath.Join(s.baseDir, entry.Name())
+		if legacy {
+			f.legacy = path
+		} else {
+			f.current = path
+		}
+	}
+
+	out := make(map[string][]T, len(keys))
+	for _, key := range keys {
+		items, source, err := s.readFiles(files[key].current, files[key].legacy)
 		if err != nil {
 			return nil, err
 		}
@@ -230,6 +256,15 @@ func (s *FileStorage[T]) GetAll() (map[string][]T, error) {
 // pathFor returns the path of the key's current-format file.
 func (s *FileStorage[T]) pathFor(key string) string {
 	return filepath.Join(s.baseDir, fileNameForKey(key))
+}
+
+// currentPathFor is pathFor, or "" for a legacy-only key whose ".jsonl"
+// name would exceed the file-name limit.
+func (s *FileStorage[T]) currentPathFor(key string) string {
+	if len(key) > MaxFileKeyLength {
+		return ""
+	}
+	return s.pathFor(key)
 }
 
 // legacyPathFor returns the path of the key's legacy array-format file.
@@ -249,12 +284,12 @@ func legacyFileNameForKey(key string) string {
 }
 
 // ownedKey reports whether a directory entry is a storage file of this
-// FileStorage (a regular file named exactly as fileNameForKey or
-// legacyFileNameForKey would name it) and returns its key. GetAll and Clear
-// share this ownership rule.
-func ownedKey(entry os.DirEntry) (string, bool) {
+// FileStorage (named exactly as fileNameForKey or legacyFileNameForKey would
+// name it) and returns its key and whether it is the legacy format. GetAll
+// and Clear share this ownership rule.
+func ownedKey(entry os.DirEntry) (key string, legacy bool, ok bool) {
 	if entry.IsDir() {
-		return "", false
+		return "", false, false
 	}
 	name := entry.Name()
 	for _, ext := range []string{fileExt, legacyFileExt} {
@@ -264,11 +299,11 @@ func ownedKey(entry os.DirEntry) (string, bool) {
 		}
 		raw, err := hex.DecodeString(stem)
 		if err != nil || hex.EncodeToString(raw) != stem {
-			return "", false
+			return "", false, false
 		}
-		return string(raw), true
+		return string(raw), ext == legacyFileExt, true
 	}
-	return "", false
+	return "", false, false
 }
 
 // fileSource says where readKey found a key's items.
@@ -298,18 +333,31 @@ var errNotRegular = errors.New("storage: not a regular file")
 // slice and sourceNone. Symlinks and other non-regular files are never read.
 // Caller must hold the lock.
 func (s *FileStorage[T]) readKey(key string) ([]T, fileSource, error) {
+	return s.readFiles(s.currentPathFor(key), s.legacyPathFor(key))
+}
+
+// readFiles implements readKey for explicit paths; an empty path is skipped.
+func (s *FileStorage[T]) readFiles(current, legacy string) ([]T, fileSource, error) {
 	notRegular := false
-	data, err := readRegularFile(s.pathFor(key))
-	switch {
-	case err == nil:
-		return decodeLines[T](data)
-	case errors.Is(err, errNotRegular):
-		notRegular = true
-	case !errors.Is(err, os.ErrNotExist):
-		return nil, sourceNone, ioError("failed to read storage file", err)
+	if current != "" {
+		data, err := readRegularFile(current)
+		switch {
+		case err == nil:
+			return decodeLines[T](data)
+		case errors.Is(err, errNotRegular):
+			notRegular = true
+		case !errors.Is(err, os.ErrNotExist):
+			return nil, sourceNone, ioError("failed to read storage file", err)
+		}
+	}
+	if legacy == "" {
+		if notRegular {
+			return []T{}, sourceNotRegular, nil
+		}
+		return []T{}, sourceNone, nil
 	}
 
-	data, err = readRegularFile(s.legacyPathFor(key))
+	data, err := readRegularFile(legacy)
 	switch {
 	case err == nil:
 		items, err := decodeLegacy[T](data)

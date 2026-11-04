@@ -59,9 +59,15 @@ func TestStorageErrorCodes(t *testing.T) {
 		if appErr.Metadata.Retriable {
 			t.Fatal("over-long key must not be retriable")
 		}
-		_, _, err = fs.List(key)
+		// List and Delete also accept the 125-byte keys that earlier
+		// versions wrote (see TestFileStorageLegacyKeyOf125Bytes); one byte
+		// more is rejected everywhere.
+		tooLong := strings.Repeat("k", legacyMaxFileKeyLength+1)
+		_, err = fs.Append(tooLong, &v)
 		requireCode(t, err, errorkit.ERR_VALIDATION)
-		requireCode(t, fs.Delete(key), errorkit.ERR_VALIDATION)
+		_, _, err = fs.List(tooLong)
+		requireCode(t, err, errorkit.ERR_VALIDATION)
+		requireCode(t, fs.Delete(tooLong), errorkit.ERR_VALIDATION)
 	})
 
 	t.Run("longest accepted FileStorage key works", func(t *testing.T) {

@@ -37,12 +37,34 @@ func nilInputError(reason string) *errorkit.AppError {
 	)
 }
 
-// validateFileKey rejects keys whose encoded file name would exceed the
-// 255-byte file-name limit of common filesystems.
+// validateFileKey rejects keys that Append cannot write: the encoded
+// ".jsonl" name would exceed the 255-byte file-name limit of common
+// filesystems.
 func validateFileKey(key string) error {
-	if len(key) > MaxFileKeyLength {
+	switch {
+	case len(key) <= MaxFileKeyLength:
+		return nil
+	case len(key) <= legacyMaxFileKeyLength:
+		return errorkit.NewError(errorkit.ERR_VALIDATION).With(
+			errorkit.WithReason("key is %d bytes long; FileStorage writes keys of at most %d bytes "+
+				"(keys of %d bytes written by earlier versions can still be listed and deleted)",
+				len(key), MaxFileKeyLength, legacyMaxFileKeyLength),
+		)
+	default:
 		return errorkit.NewError(errorkit.ERR_VALIDATION).With(
 			errorkit.WithReason("key is %d bytes long; FileStorage accepts at most %d", len(key), MaxFileKeyLength),
+		)
+	}
+}
+
+// validateReadKey rejects keys that no version of FileStorage could have
+// written. List and Delete accept the legacy limit so that keys written by
+// earlier versions stay reachable.
+func validateReadKey(key string) error {
+	if len(key) > legacyMaxFileKeyLength {
+		return errorkit.NewError(errorkit.ERR_VALIDATION).With(
+			errorkit.WithReason("key is %d bytes long; FileStorage accepts at most %d (%d for keys written by earlier versions)",
+				len(key), MaxFileKeyLength, legacyMaxFileKeyLength),
 		)
 	}
 	return nil

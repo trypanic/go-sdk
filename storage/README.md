@@ -131,6 +131,12 @@ hex-encoded file name (two characters per key byte plus `.jsonl`) must fit the
 255-byte file-name limit of common filesystems. `Append`, `List` and `Delete`
 check the length before touching the disk.
 
+Earlier versions accepted 125-byte keys (their `.json` name is one byte
+shorter). Such keys stay readable: `List`, `GetAll`, `Delete` and `Clear` reach
+their legacy `.json` file, while `Append` to them returns a non-retriable
+`errorkit.ERR_VALIDATION` that names the limit, because their `.jsonl` name
+would not fit. Keys longer than 125 bytes are rejected by every method.
+
 ### Filename encoding
 
 Keys are hex-encoded so that two keys that differ only in unsafe characters
