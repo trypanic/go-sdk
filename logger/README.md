@@ -120,7 +120,7 @@ func main() {
 | `production`, `prod`     | `Prod`            | `Info`    | JSON to stdout            |
 | anything else (or unset) | `Dev`             | `Debug`   | Colored console to stdout |
 
-Both environments add `timestamp` (Unix epoch) and `caller` (file:line) to every log line automatically.
+Both environments add a `time` field to every log line automatically: the UTC time as an RFC 3339 string with nanosecond precision (`2026-11-03T10:00:00.123456789Z`). The Dev console renders it as local `HH:MM:SS`. Earlier versions wrote whole Unix epoch seconds. `caller` (file:line) is also added to every log line.
 
 **Dev console** pretty-prints `service_name`, `service_version`, and all extra fields below the log line using blue ANSI color; `stack_trace` frames are JSON-marshalled inline.
 
@@ -216,7 +216,8 @@ func NewOTLPWriter(serviceName string) *OTLPWriter
 
 Returns an `*OTLPWriter` backed by the global OTEL `LoggerProvider`. Each `Write` call receives one complete JSON log line from zerolog and converts it to an OTEL `LogRecord`:
 
-- Timestamp from the `"time"` field (Unix epoch seconds).
+- Timestamp from the `"time"` field (RFC 3339 with nanoseconds; Unix epoch seconds from older SDK versions are still accepted).
+- Numeric fields keep their precision: integers become `Int64` attributes (exact above 2^53), other numbers `Float64`.
 - Severity mapped from the `"level"` field.
 - Body from `"message"`.
 - Trace correlation: `trace_id` and `span_id` fields written by `WithTrace` / `ErrorCtx` are promoted to OTEL first-class fields via a reconstructed `SpanContext` passed to `Emit`.

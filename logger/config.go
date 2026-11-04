@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -47,9 +48,9 @@ func DetectEnv() Environment {
 func newWriter(env Environment, appName, version string) io.Writer {
 	if env == Dev {
 		return zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: "15:04:05",
-			NoColor:    false,
+			Out:             os.Stdout,
+			NoColor:         false,
+			FormatTimestamp: formatConsoleTimestamp,
 			FormatFieldName: func(i any) string {
 				return ""
 			},
@@ -387,20 +388,55 @@ func levelFor(env Environment) zerolog.Level {
 	return zerolog.DebugLevel
 }
 
-// timestampHook stamps every event with the current time as Unix epoch
-// seconds, independently of zerolog.TimeFieldFormat.
+// timestampHook stamps every event with the current time in UTC as an
+// RFC 3339 string with nanosecond precision (time.RFC3339Nano),
+// independently of zerolog.TimeFieldFormat, so log lines keep their order
+// and correlate with span timestamps.
 type timestampHook struct{}
 
 func (timestampHook) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
-	e.Int64(zerolog.TimestampFieldName, zerolog.TimestampFunc().Unix())
+	var buf [64]byte
+	e.Bytes(zerolog.TimestampFieldName, zerolog.TimestampFunc().UTC().AppendFormat(buf[:0], time.RFC3339Nano))
 }
+
+// formatConsoleTimestamp renders the "time" field as local HH:MM:SS for the
+// Dev console writer. It parses the RFC 3339 value written by timestampHook
+// itself, so it does not depend on zerolog.TimeFieldFormat; numeric values
+// are read as Unix epoch seconds.
+func formatConsoleTimestamp(i any) string {
+	var ts time.Time
+	switch v := i.(type) {
+	case string:
+		parsed, err := time.Parse(time.RFC3339Nano, v)
+		if err != nil {
+			return v
+		}
+		ts = parsed
+	case json.Number:
+		sec, err := v.Int64()
+		if err != nil {
+			return v.String()
+		}
+		ts = time.Unix(sec, 0)
+	default:
+		return fmt.Sprint(i)
+	}
+	return consoleTimestampColor + ts.Local().Format(consoleTimeFormat) + Reset
+}
+
+const (
+	consoleTimeFormat     = "15:04:05"
+	consoleTimestampColor = "\033[90m"
+)
 
 // applyGlobalSettings sets zerolog's process-wide level and time format for
 // env. Only Init calls it: Init is the one SDK function allowed to mutate
-// zerolog globals (AGENTS.md §2.3).
+// zerolog globals (AGENTS.md §2.3). The time format matches what SDK
+// loggers write (RFC 3339 with nanoseconds), so zerolog loggers built
+// outside the SDK with .Timestamp() produce the same format.
 func applyGlobalSettings(env Environment) {
 	zerolog.SetGlobalLevel(levelFor(env))
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.TimeFieldFormat = time.RFC3339Nano
 }
 
 // redactingWriter applies the redaction policy to every JSON log line before

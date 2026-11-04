@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"time"
@@ -46,8 +47,11 @@ func NewOTLPWriter(serviceName string) *OTLPWriter {
 // log line from zerolog (zerolog guarantees one Write per event).
 func (w *OTLPWriter) Write(p []byte) (int, error) {
 	// Parse the zerolog JSON so we can extract fields into the OTEL record.
+	// UseNumber keeps integers above 2^53 exact (see anyToLogValue).
 	var fields map[string]any
-	if err := json.Unmarshal(p, &fields); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(p))
+	decoder.UseNumber()
+	if err := decoder.Decode(&fields); err != nil {
 		// Malformed line — emit as plain text so nothing is silently lost.
 		var r log.Record
 		r.SetTimestamp(time.Now())
@@ -60,12 +64,8 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 	var r log.Record
 
 	// ── Timestamp ────────────────────────────────────────────────────────────
-	// zerolog writes Unix epoch seconds (TimeFormatUnix) into the "time" field.
-	if ts, ok := fields["time"].(float64); ok {
-		r.SetTimestamp(time.Unix(int64(ts), 0))
-	} else {
-		r.SetTimestamp(time.Now())
-	}
+	// SDK loggers write RFC 3339 with nanoseconds into the "time" field.
+	r.SetTimestamp(parseLogTime(fields["time"]))
 
 	// ── Severity ─────────────────────────────────────────────────────────────
 	if lvl, ok := fields["level"].(string); ok {
@@ -106,13 +106,9 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 	// ── Attributes: all remaining fields ─────────────────────────────────────
 	// Emit every other zerolog field as a log attribute so SigNoz surfaces
 	// them in the log detail panel (error_code, reason, stack_trace, etc.)
-	skip := map[string]bool{
-		"level": true, "time": true, "message": true,
-		"trace_id": true, "span_id": true, "caller": true,
-	}
 	attrs := make([]attribute.KeyValue, 0, len(fields))
 	for k, v := range fields {
-		if skip[k] {
+		if isRecordField(k) {
 			continue
 		}
 		attrs = append(attrs, attribute.KeyValue{
@@ -124,6 +120,34 @@ func (w *OTLPWriter) Write(p []byte) (int, error) {
 
 	w.logger.Emit(emitCtx, r)
 	return len(p), nil
+}
+
+// isRecordField reports whether key maps to a dedicated OTEL record field
+// (or is dropped) instead of becoming an attribute.
+func isRecordField(key string) bool {
+	switch key {
+	case "level", "time", "message", "trace_id", "span_id", "caller":
+		return true
+	default:
+		return false
+	}
+}
+
+// parseLogTime converts the "time" field to the record timestamp: an RFC 3339
+// string (what SDK loggers write) or a number of Unix epoch seconds (the
+// format of older SDK versions). Anything else yields the current time.
+func parseLogTime(v any) time.Time {
+	switch t := v.(type) {
+	case string:
+		if ts, err := time.Parse(time.RFC3339Nano, t); err == nil {
+			return ts
+		}
+	case json.Number:
+		if sec, err := t.Int64(); err == nil {
+			return time.Unix(sec, 0)
+		}
+	}
+	return time.Now()
 }
 
 // zerologLevelToOTEL maps zerolog level strings to OTEL log severity numbers.
@@ -151,6 +175,14 @@ func anyToLogValue(v any) attribute.Value {
 	switch val := v.(type) {
 	case string:
 		return attribute.StringValue(val)
+	case json.Number:
+		if i, err := val.Int64(); err == nil {
+			return attribute.Int64Value(i)
+		}
+		if f, err := val.Float64(); err == nil {
+			return attribute.Float64Value(f)
+		}
+		return attribute.StringValue(val.String())
 	case float64:
 		return attribute.Float64Value(val)
 	case bool:
