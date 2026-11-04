@@ -73,6 +73,18 @@ func (c cursorAdapter) All(ctx context.Context, results any) error {
 	return nil
 }
 
+func (c cursorAdapter) Next(ctx context.Context) bool { return c.cursor.Next(ctx) }
+
+// Decode decodes the current document; a failure is ERR_DB_MONGO_DECODE_FAILED.
+func (c cursorAdapter) Decode(v any) error {
+	return WrapDecodeError(c.cursor.Decode(v), "find")
+}
+
+// Err classifies the error that stopped iteration with WrapOperationError.
+func (c cursorAdapter) Err() error {
+	return WrapOperationError(c.cursor.Err(), "find")
+}
+
 func (c cursorAdapter) Close(ctx context.Context) error {
 	return c.cursor.Close(ctx)
 }
@@ -97,6 +109,13 @@ func (s singleResultAdapter) Decode(v any) error {
 type bulkWriteResultAdapter struct {
 	result *mongo.BulkWriteResult
 }
+
+func (r bulkWriteResultAdapter) GetInsertedCount() int64       { return r.result.InsertedCount }
+func (r bulkWriteResultAdapter) GetMatchedCount() int64        { return r.result.MatchedCount }
+func (r bulkWriteResultAdapter) GetModifiedCount() int64       { return r.result.ModifiedCount }
+func (r bulkWriteResultAdapter) GetDeletedCount() int64        { return r.result.DeletedCount }
+func (r bulkWriteResultAdapter) GetUpsertedCount() int64       { return r.result.UpsertedCount }
+func (r bulkWriteResultAdapter) GetUpsertedIDs() map[int64]any { return r.result.UpsertedIDs }
 
 type updateResultAdapter struct {
 	result *mongo.UpdateResult

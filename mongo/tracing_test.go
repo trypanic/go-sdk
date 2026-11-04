@@ -77,6 +77,9 @@ func (c *recordingCursor) All(ctx context.Context, _ any) error {
 	return nil
 }
 func (c *recordingCursor) Close(context.Context) error { return nil }
+func (c *recordingCursor) Next(context.Context) bool   { return false }
+func (c *recordingCursor) Decode(any) error            { return nil }
+func (c *recordingCursor) Err() error                  { return nil }
 
 type cursorCollection struct {
 	stubCollection

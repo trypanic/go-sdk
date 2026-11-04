@@ -144,6 +144,12 @@ func (c tracingCursor) All(ctx context.Context, results any) error {
 	return c.inner.All(ctx, results)
 }
 
+// Next, Decode and Err pass through without a span per document; the
+// driver's getMore round trips run under the caller's context.
+func (c tracingCursor) Next(ctx context.Context) bool { return c.inner.Next(ctx) }
+func (c tracingCursor) Decode(v any) error            { return c.inner.Decode(v) }
+func (c tracingCursor) Err() error                    { return c.inner.Err() }
+
 func (c tracingCursor) Close(ctx context.Context) error {
 	return c.inner.Close(ctx)
 }

@@ -43,7 +43,27 @@ type InsertManyResult interface {
 	GetInsertedIDs() []any
 }
 
+// Cursor iterates over the documents returned by Find. Stream large
+// results with Next/Decode/Err instead of buffering them with All:
+//
+//	defer cursor.Close(ctx)
+//	for cursor.Next(ctx) {
+//		var doc Product
+//		if err := cursor.Decode(&doc); err != nil {
+//			return err // ERR_DB_MONGO_DECODE_FAILED
+//		}
+//	}
+//	return cursor.Err() // nil, or the classified iteration error
 type Cursor interface {
+	// Next advances to the next document. It returns false when the cursor
+	// is exhausted or an error occurred; check Err afterwards.
+	Next(ctx context.Context) bool
+	// Decode decodes the current document into v.
+	Decode(v any) error
+	// Err returns the error that stopped iteration, if any.
+	Err() error
+	// All decodes every remaining document into results (a pointer to a
+	// slice) and closes the cursor.
 	All(ctx context.Context, results any) error
 	Close(ctx context.Context) error
 }
@@ -52,10 +72,17 @@ type SingleResult interface {
 	Decode(v any) error
 }
 
-// BulkWriteResult is a marker interface for bulk write operation results.
-// The mongo driver does not expose a typed interface for BulkWriteResult,
-// so this is an empty interface used for consistent return types.
-type BulkWriteResult interface{}
+// BulkWriteResult reports the counts of a BulkWrite operation.
+type BulkWriteResult interface {
+	GetInsertedCount() int64
+	GetMatchedCount() int64
+	GetModifiedCount() int64
+	GetDeletedCount() int64
+	GetUpsertedCount() int64
+	// GetUpsertedIDs maps the index of each upserting write model to the
+	// _id of the upserted document.
+	GetUpsertedIDs() map[int64]any
+}
 
 type UpdateResult interface {
 	GetMatchedCount() int64

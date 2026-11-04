@@ -18,6 +18,7 @@ package itself imports no telemetry package by default.
 - [API Reference](#api-reference)
   - [ClientPort](#clientport)
   - [Collection](#collection)
+  - [Cursor](#cursor)
 - [Tracing](#tracing)
 - [Error Handling](#error-handling)
 - [Real-World Usage](#real-world-usage)
@@ -202,8 +203,44 @@ type Collection interface {
 
 Result interfaces (`InsertOneResult`, `UpdateResult`, etc.) expose only the
 fields callers typically need (`GetInsertedID`, `GetMatchedCount`,
-`GetModifiedCount`, `GetDeletedCount`, `GetInsertedIDs`). The full
-`*mongo.SingleResult` is returned via `SingleResult.Decode`.
+`GetModifiedCount`, `GetDeletedCount`, `GetInsertedIDs`). `BulkWriteResult`
+exposes `GetInsertedCount`, `GetMatchedCount`, `GetModifiedCount`,
+`GetDeletedCount`, `GetUpsertedCount` and `GetUpsertedIDs`. `SingleResult.Decode`
+decodes the document returned by `FindOne`.
+
+### Cursor
+
+```go
+type Cursor interface {
+    Next(ctx) bool
+    Decode(v any) error
+    Err() error
+    All(ctx, results any) error
+    Close(ctx) error
+}
+```
+
+`All` buffers every remaining document. For large results, stream them:
+
+```go
+cursor, err := client.Collection("products").Find(ctx, bson.D{})
+if err != nil {
+    return err
+}
+defer cursor.Close(ctx)
+
+for cursor.Next(ctx) {
+    var p Product
+    if err := cursor.Decode(&p); err != nil {
+        return err // ERR_DB_MONGO_DECODE_FAILED
+    }
+    process(p)
+}
+return cursor.Err() // nil, or the iteration error classified by WrapOperationError
+```
+
+Fakes and other implementations of `Cursor` and `BulkWriteResult` must
+implement every method listed above.
 
 ---
 

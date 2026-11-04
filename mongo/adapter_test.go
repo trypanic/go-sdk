@@ -138,3 +138,72 @@ func TestCursorAdapterAllRejectsNonSlice(t *testing.T) {
 	var out namedDoc
 	requireCode(t, newCursor(t, nil, nil).All(context.Background(), &out), ERR_DB_MONGO_DECODE_FAILED)
 }
+
+// TestCursorAdapterStreams covers C4-021: Cursor exposed only All, so every
+// Find had to materialize the whole result in memory.
+func TestCursorAdapterStreams(t *testing.T) {
+	t.Parallel()
+
+	var cursor Cursor = newCursor(t, []any{bson.D{{Key: "name", Value: "a"}}, bson.D{{Key: "name", Value: "b"}}}, nil)
+	var names []string
+	for cursor.Next(t.Context()) {
+		var doc namedDoc
+		if err := cursor.Decode(&doc); err != nil {
+			t.Fatalf("Decode: %v", err)
+		}
+		names = append(names, doc.Name)
+	}
+	if err := cursor.Err(); err != nil {
+		t.Fatalf("Err: %v", err)
+	}
+	if err := cursor.Close(t.Context()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if len(names) != 2 || names[0] != "a" || names[1] != "b" {
+		t.Fatalf("names = %v, want [a b]", names)
+	}
+}
+
+func TestCursorAdapterStreamErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("decode failure", func(t *testing.T) {
+		t.Parallel()
+		var cursor Cursor = newCursor(t, []any{bson.D{{Key: "name", Value: int32(7)}}}, nil)
+		if !cursor.Next(t.Context()) {
+			t.Fatal("Next = false, want a document")
+		}
+		var doc namedDoc
+		requireCode(t, cursor.Decode(&doc), ERR_DB_MONGO_DECODE_FAILED)
+	})
+
+	t.Run("iteration failure", func(t *testing.T) {
+		t.Parallel()
+		cause := context.DeadlineExceeded
+		var cursor Cursor = newCursor(t, []any{bson.D{{Key: "name", Value: "a"}}}, cause)
+		if cursor.Next(t.Context()) {
+			t.Fatal("Next = true, want false after an iteration error")
+		}
+		appErr := requireCode(t, cursor.Err(), ERR_DB_MONGO_TIMEOUT)
+		if !errors.Is(appErr, cause) {
+			t.Fatalf("cause not wrapped: %v", appErr)
+		}
+	})
+}
+
+func TestBulkWriteResultAdapterGetters(t *testing.T) {
+	t.Parallel()
+
+	var result BulkWriteResult = bulkWriteResultAdapter{result: &mongo.BulkWriteResult{
+		InsertedCount: 1, MatchedCount: 2, ModifiedCount: 3, DeletedCount: 4, UpsertedCount: 5,
+		UpsertedIDs: map[int64]any{7: "id-7"},
+	}}
+	if result.GetInsertedCount() != 1 || result.GetMatchedCount() != 2 || result.GetModifiedCount() != 3 ||
+		result.GetDeletedCount() != 4 || result.GetUpsertedCount() != 5 {
+		t.Fatalf("counts = %d %d %d %d %d, want 1 2 3 4 5", result.GetInsertedCount(), result.GetMatchedCount(),
+			result.GetModifiedCount(), result.GetDeletedCount(), result.GetUpsertedCount())
+	}
+	if ids := result.GetUpsertedIDs(); len(ids) != 1 || ids[7] != "id-7" {
+		t.Fatalf("upserted IDs = %v, want map[7:id-7]", ids)
+	}
+}
