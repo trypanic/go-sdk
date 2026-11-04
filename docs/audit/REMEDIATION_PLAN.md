@@ -1551,7 +1551,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-149 | auto | X | Ignore `.moon/` | — | TODO | |
 | R-150 | approval | X | Local gates match CI | APPROVED | TODO | |
 | R-151 | approval | X | SECURITY.md accuracy and reporting policy | APPROVED | TODO | |
-| R-152 | approval | X | LICENSE | PENDING | TODO | |
+| R-152 | approval | X | LICENSE | APPROVED (MIT) | TODO | |
 | R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | TODO | |
 | R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | TODO | |
 | R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | TODO | |
@@ -1562,7 +1562,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-DEPS | approval | R-DEPS | `go.mod` changes (incl. the toolchain part of HIGH X3-001) | APPROVED | TODO | |
 | R-160 | approval | R-DEPS | Module path `github.com/trypanic/go-sdk/v2` | APPROVED | TODO | |
 
-Totals: 140 items — 63 `auto`, 77 `approval` (G1: all approved except R-152 PENDING, R-159 DEFERRED).
+Totals: 140 items — 63 `auto`, 77 `approval` (G1: all approved, R-152 = MIT, R-159 DEFERRED).
 
 ## 10. Coverage of findings
 
@@ -1757,9 +1757,9 @@ The owner approved, in the session chat on 2026-11-04, **every `approval`
 item, including breaking changes**; the next release is **2.0.0**.
 Consequences recorded here so P4 workers apply them consistently:
 
-- **Approval column.** All `approval` items are `APPROVED`, except R-152
-  (licence: the owner must name the licence; `PENDING`) and R-159
-  (deferred, not triggered; `DEFERRED`).
+- **Approval column.** All `approval` items are `APPROVED`; R-152 uses the
+  **MIT** licence (owner's answer, 2026-11-04); R-159 stays `DEFERRED`
+  (not triggered).
 - **Go semantic import versioning.** A 2.0.0 tag requires the module path
   `github.com/trypanic/go-sdk/v2`. New item **R-160** (cluster R-DEPS, last)
   changes `go.mod` and every internal import. Commits that break the API
