@@ -134,8 +134,12 @@ file, but their read-modify-write cycles are not coordinated, so one
 ```go
 all, err := fs.GetAll()     // map[original-key][]T
 _ = fs.Delete("k")          // unlink (missing → no-op)
-_ = fs.Clear()              // unlink every *.json in baseDir
+_ = fs.Clear()              // unlink every storage file of this store
 ```
+
+`Clear` removes only the files the store owns: those whose names are
+hex-encoded keys followed by `.json` (the files `GetAll` returns). Other files
+in `baseDir`, such as `config.json`, are left untouched.
 
 ---
 

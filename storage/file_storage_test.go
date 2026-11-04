@@ -159,3 +159,45 @@ func assertNoTempFiles(t *testing.T, dir string) {
 		}
 	}
 }
+
+// TestFileStorageClearKeepsForeignFiles covers C4-014: Clear removed every
+// *.json file in baseDir, including files the store did not create. It now
+// removes exactly the files GetAll reports.
+func TestFileStorageClearKeepsForeignFiles(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	fs, err := NewFileStorage[int](dir)
+	if err != nil {
+		t.Fatalf("NewFileStorage: %v", err)
+	}
+	foreign := []string{"config.json", "notes.txt", "abc.json"}
+	for _, name := range foreign {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(`{}`), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	for _, key := range []string{"a", "b/c"} {
+		v := 1
+		if _, err := fs.Append(key, &v); err != nil {
+			t.Fatalf("Append %q: %v", key, err)
+		}
+	}
+
+	if err := fs.Clear(); err != nil {
+		t.Fatalf("Clear: %v", err)
+	}
+
+	all, err := fs.GetAll()
+	if err != nil {
+		t.Fatalf("GetAll after Clear: %v", err)
+	}
+	if len(all) != 0 {
+		t.Fatalf("GetAll after Clear = %v, want empty", all)
+	}
+	for _, name := range foreign {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("foreign file %s removed by Clear: %v", name, err)
+		}
+	}
+}

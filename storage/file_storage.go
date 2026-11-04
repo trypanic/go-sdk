@@ -107,7 +107,9 @@ func (fs *FileStorage[T]) Delete(key string) error {
 	return nil
 }
 
-// Clear removes every storage file managed by this FileStorage.
+// Clear removes every storage file managed by this FileStorage: the files
+// whose names are hex-encoded keys (the files GetAll returns). Other files
+// in baseDir are left alone.
 func (fs *FileStorage[T]) Clear() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -117,11 +119,10 @@ func (fs *FileStorage[T]) Clear() error {
 		return ioError("failed to read storage directory", err)
 	}
 	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".json") {
+		if _, ok := ownedKey(entry); !ok {
 			continue
 		}
-		if err := os.Remove(filepath.Join(fs.baseDir, name)); err != nil {
+		if err := os.Remove(filepath.Join(fs.baseDir, entry.Name())); err != nil {
 			return ioError("failed to delete storage file", err)
 		}
 	}
@@ -139,15 +140,11 @@ func (fs *FileStorage[T]) GetAll() (map[string][]T, error) {
 		return nil, ioError("failed to read storage directory", err)
 	}
 	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".json") {
-			continue
-		}
-		key, ok := keyFromFileName(name)
+		key, ok := ownedKey(entry)
 		if !ok {
 			continue
 		}
-		slice, err := fs.readUnsafe(filepath.Join(fs.baseDir, name))
+		slice, err := fs.readUnsafe(filepath.Join(fs.baseDir, entry.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -165,6 +162,17 @@ func (fs *FileStorage[T]) pathFor(key string) string {
 // maps to a distinct filename, regardless of any characters it contains.
 func fileNameForKey(key string) string {
 	return hex.EncodeToString([]byte(key)) + ".json"
+}
+
+// ownedKey reports whether a directory entry is a storage file of this
+// FileStorage (a regular file named by fileNameForKey) and returns its key.
+// GetAll and Clear share this ownership rule.
+func ownedKey(entry os.DirEntry) (string, bool) {
+	name := entry.Name()
+	if entry.IsDir() || !strings.HasSuffix(name, ".json") {
+		return "", false
+	}
+	return keyFromFileName(name)
 }
 
 // keyFromFileName decodes a filename produced by fileNameForKey back to the
