@@ -2,13 +2,13 @@
 
 This SDK runs three Go static-analysis tools — `go vet`, `staticcheck`, and
 `semgrep` — through a single shell script. The script is wired into both
-`pre-commit` (staged-files mode) and `moon` (full-repo mode), and the same
+`pre-commit` (staged-files mode) and `task` (full-repo mode), and the same
 tools run again in CI.
 
 ## Canonical entry point
 
 ```bash
-moon run repo:staticanalysis
+task staticanalysis
 ```
 
 This invokes [`staticanalysis.sh`](./staticanalysis.sh) with `QG_FULL=1`
@@ -46,7 +46,7 @@ Docker variant uses the configured rule packs (`.semgrep.yml`, `p/golang`,
 
 | Variable             | Effect                                                  |
 |----------------------|---------------------------------------------------------|
-| `QG_FULL=1`          | Scan whole repo (set by the `moon` task).               |
+| `QG_FULL=1`          | Scan whole repo (set by the `task` runner).               |
 | `QG_SKIP_VET=1`      | Skip `go vet`.                                          |
 | `QG_SKIP_SC=1`       | Skip `staticcheck`.                                     |
 | `QG_SKIP_SEMGREP=1`  | Skip `semgrep`.                                         |
@@ -80,19 +80,18 @@ Use **semgrep** for org policy. Use **staticcheck** for type-correct Go bugs.
 ## One-time setup (per developer)
 
 ```bash
-# 1. Install tools
-pipx install semgrep==1.95.0     # or: brew install semgrep
-pipx install pre-commit          # or: brew install pre-commit
-go install golang.org/x/tools/cmd/goimports@latest
-go install honnef.co/go/tools/cmd/staticcheck@latest
+# 1. Install tools (versions pinned in .prototools)
+proto trust .prototools
+proto install                    # go, python, task, staticcheck, skillshare, sentrux
+task tools:install               # goimports, pre-commit, semgrep
 
 # 2. Install git hooks
-moon run repo:precommit-install
+task precommit:install
 # (equivalent to: pre-commit install --install-hooks)
 
 # 3. Sanity check on the whole tree
-moon run repo:staticanalysis
-moon run repo:precommit-run
+task staticanalysis
+task precommit:run
 ```
 
 Docker is optional but recommended — without it the script falls back to the
@@ -139,7 +138,7 @@ The `code-quality` workflow runs two jobs:
     the GitHub Security tab and as a JSON artifact (30-day retention).
 
 `go vet` is not a separate CI job — it runs as part of the staged pre-commit
-hook and as step 1 of the local `moon run repo:staticanalysis` task.
+hook and as step 1 of the local `task staticanalysis` task.
 
 ## "Plan before commit" workflow
 
@@ -167,7 +166,7 @@ pre-commit fires
 Re-generate the plan files manually at any time:
 
 ```bash
-moon run repo:staticanalysis            # whole repo
+task staticanalysis            # whole repo
 bash staticanalysis.sh                  # staged files only
 QG_VERBOSE=1 bash staticanalysis.sh     # stream tool stderr live
 ```
@@ -180,7 +179,7 @@ in `.semgrep.yml` in the same PR and justify it in the commit body.
 ## Adding a new rule
 
 1. Add to `.semgrep.yml` with `severity: WARNING` first.
-2. Run `moon run repo:staticanalysis` and review
+2. Run `task staticanalysis` and review
    `.staticanalysis/plan.semgrep.md`.
 3. Fix all existing offenders.
 4. Promote to `severity: ERROR` in a follow-up commit.

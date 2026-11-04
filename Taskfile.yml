@@ -1,0 +1,181 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+#
+# Task runner for go-sdk (https://taskfile.dev).
+# Toolchain versions (go, python, task, staticcheck, skillshare, sentrux) are
+# pinned in .prototools and installed by proto (third-party plugins live in
+# github.com/trypanic/proto-plugins); this file only orchestrates.
+#
+#   task --list                          # list documented tasks
+#   task deps:update                     # update deps of every SDK package
+#   task deps:update -- postgres mongo   # update deps of selected packages
+#   task deps:outdated -- logger         # report available updates (read-only)
+version: "3"
+
+vars:
+  STATICANALYSIS_SCRIPT: .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+  # Top-level SDK packages (first path segment of every package in the module).
+  ALL_PACKAGES:
+    sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
+  # Packages selected on the command line (`task <name> -- a b`), or all of them.
+  PACKAGES: '{{if .CLI_ARGS}}{{.CLI_ARGS}}{{else}}{{.ALL_PACKAGES}}{{end}}'
+  # Upgrade policy passed to `go get`: "-u" (minor + patch) or "-u=patch".
+  UPGRADE: '{{.UPGRADE | default "-u"}}'
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  # ---------------------------------------------------------------- tooling
+
+  tools:install:
+    desc: Install the toolchain pinned in .prototools, plus goimports, pre-commit and semgrep
+    preconditions:
+      - sh: command -v proto
+        msg: "proto is not installed: https://moonrepo.dev/docs/proto/install"
+    cmds:
+      - proto install
+      - go install golang.org/x/tools/cmd/goimports@latest
+      # Python CLIs go into the proto-managed Python pinned in .prototools;
+      # its bin/ directory must be on PATH (see README "Common issues").
+      - python -m pip install --upgrade pre-commit semgrep==1.95.0 git-cliff==2.14.2
+
+  skills:install:
+    desc: Install agent skills and sync them across agents (was moon install-skills)
+    preconditions:
+      - sh: command -v skillshare
+        msg: "skillshare is not installed; run `task tools:install`"
+    cmds:
+      - skillshare install
+      - skillshare sync
+
+  # ------------------------------------------------------------ quality gates
+
+  precommit:install:
+    desc: Install pre-commit hooks into .git/hooks (was moon precommit-install)
+    preconditions:
+      - sh: command -v pre-commit
+        msg: "pre-commit is not installed; run `task tools:install`"
+    cmds:
+      - pre-commit install --install-hooks
+
+  precommit:run:
+    desc: Run every pre-commit hook against all tracked files (was moon precommit-run)
+    preconditions:
+      - sh: command -v pre-commit
+        msg: "pre-commit is not installed; run `task tools:install`"
+    cmds:
+      - pre-commit run --all-files
+
+  staticanalysis:
+    desc: Run vet + staticcheck + semgrep on the whole repo (was moon staticanalysis)
+    preconditions:
+      - sh: test -f {{.STATICANALYSIS_SCRIPT}}
+        msg: "{{.STATICANALYSIS_SCRIPT}} not found; run `task skills:install`"
+    env:
+      QG_FULL: "1"
+    cmds:
+      - bash {{.STATICANALYSIS_SCRIPT}}
+
+  test:
+    desc: Run unit tests in parallel for one, several or all packages (task test -- logger mongo)
+    deps:
+      - for: { var: PACKAGES }
+        task: test:package
+        vars: { PACKAGE: "{{.ITEM}}" }
+
+  test:package:
+    internal: true
+    label: "test:{{.PACKAGE}}"
+    cmds:
+      - go test -short ./{{.PACKAGE}}/...
+
+  check:
+    desc: Run the full local gate (unit tests, static analysis, pre-commit hooks)
+    cmds:
+      - task: test
+      - task: staticanalysis
+      - task: precommit:run
+
+  # ----------------------------------------------------------------- release
+
+  changelog:
+    desc: Preview the changelog entry for commits since the last tag (git-cliff; CHANGELOG.md is written by release-please)
+    preconditions:
+      - sh: command -v git-cliff
+        msg: "git-cliff is not installed; run `task tools:install`"
+    cmds:
+      - git-cliff --unreleased --strip all
+
+  release:check:
+    desc: Diff the public API against the last tag and suggest the next semver version (gorelease)
+    vars:
+      BASE:
+        sh: git describe --tags --abbrev=0 --match 'v[0-9]*'
+    preconditions:
+      - sh: test -z "$(git status --porcelain)"
+        msg: "gorelease needs a clean working tree; commit or stash your changes first"
+    cmds:
+      - go run golang.org/x/exp/cmd/gorelease@latest -base={{.BASE}}
+
+  # ------------------------------------------------------------ dependencies
+
+  packages:
+    desc: List the SDK packages that the deps:* and test tasks accept
+    silent: true
+    cmds:
+      - for: { var: ALL_PACKAGES }
+        cmd: echo {{.ITEM}}
+
+  deps:outdated:
+    desc: Report available dependency updates, in parallel, for one, several or all packages (read-only)
+    deps:
+      - for: { var: PACKAGES }
+        task: deps:outdated:package
+        vars: { PACKAGE: "{{.ITEM}}" }
+
+  deps:outdated:package:
+    internal: true
+    label: "outdated:{{.PACKAGE}}"
+    silent: true
+    cmds:
+      - |
+        modules=$(go list -deps -f '{{"{{"}}with .Module{{"}}"}}{{"{{"}}if not .Main{{"}}"}}{{"{{"}}.Path{{"}}"}}{{"{{"}}end{{"}}"}}{{"{{"}}end{{"}}"}}' ./{{.PACKAGE}}/... | sort -u)
+        if [ -z "$modules" ]; then echo "[{{.PACKAGE}}] no external modules"; exit 0; fi
+        updates=$(go list -m -u -f '{{"{{"}}if .Update{{"}}"}}{{"{{"}}.Path{{"}}"}} {{"{{"}}.Version{{"}}"}} -> {{"{{"}}.Update.Version{{"}}"}}{{"{{"}}end{{"}}"}}' $modules | sed '/^$/d')
+        if [ -z "$updates" ]; then echo "[{{.PACKAGE}}] up to date"; else echo "$updates" | sed 's|^|[{{.PACKAGE}}] |'; fi
+
+  deps:update:
+    desc: Update the deps of one, several or all packages, then verify each package in parallel (task deps:update -- postgres mongo; UPGRADE=-u=patch for patch-only)
+    preconditions:
+      - sh: |
+          for p in {{.PACKAGES}}; do
+            case " {{.ALL_PACKAGES}} " in *" $p "*) ;; *) echo "unknown package: $p" >&2; exit 1;; esac
+          done
+        msg: "valid packages: {{.ALL_PACKAGES}}"
+    cmds:
+      # All packages share one go.mod, so the upgrade is a single `go get`
+      # call: concurrent `go get` runs would race on go.mod/go.sum. The go
+      # command already downloads and resolves modules in parallel.
+      - go get {{.UPGRADE}} {{range $p := splitList " " (trim .PACKAGES)}}./{{$p}}/... {{end}}
+      - go mod tidy
+      # Build and test each updated package concurrently.
+      - task: deps:verify
+        vars: { PACKAGES: "{{.PACKAGES}}" }
+      - git --no-pager diff --stat -- go.mod go.sum
+
+  deps:verify:
+    internal: true
+    deps:
+      - for: { var: PACKAGES }
+        task: deps:verify:package
+        vars: { PACKAGE: "{{.ITEM}}" }
+
+  deps:verify:package:
+    internal: true
+    label: "verify:{{.PACKAGE}}"
+    cmds:
+      - go build ./{{.PACKAGE}}/...
+      - go vet ./{{.PACKAGE}}/...
+      - go test -short ./{{.PACKAGE}}/...

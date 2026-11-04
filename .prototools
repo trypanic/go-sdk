@@ -1,16 +1,14 @@
-go = "1.26.2"
-skillshare = "0.19.5"
-staticcheck = "2026.1.0"
+go = "1.27.3"
+skillshare = "0.25.5"
+staticcheck = "2026.2.2"
 sentrux = "0.5.7"
-python = "3.11.15"
-moon = "2.2.4"
+python = "3.15.2"
+task = "3.54.0"
 
 
 [env]
-MOON_LOG = "off"
 file = ".env.shared"
 ENVIRONMENT = "local"
-ENABLE_MOON = "true"
 
 [settings]
 auto-clean = true
@@ -18,6 +16,7 @@ auto-install = true
 telemetry = false
 
 [plugins.tools]
-skillshare = "https://raw.githubusercontent.com/trypanic/proto/main/plugins/skillshare.toml"
-staticcheck = "https://raw.githubusercontent.com/trypanic/proto/main/plugins/staticcheck.toml"
-sentrux = "https://raw.githubusercontent.com/trypanic/proto/main/plugins/sentrux.toml"
+skillshare = "https://raw.githubusercontent.com/trypanic/proto-plugins/main/plugins/skillshare.toml"
+staticcheck = "https://raw.githubusercontent.com/trypanic/proto-plugins/main/plugins/staticcheck.toml"
+sentrux = "https://raw.githubusercontent.com/trypanic/proto-plugins/main/plugins/sentrux.toml"
+task = "https://raw.githubusercontent.com/trypanic/proto-plugins/main/plugins/task.toml"
