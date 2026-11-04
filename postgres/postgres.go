@@ -11,8 +11,13 @@ import (
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
+// Config configures NewPostgresClient. Zero pool-tuning fields keep the pgx
+// defaults.
 type Config struct {
-	DSN             string        // Example: database://user:pass@localhost:5432/mydb
+	// DSN is a postgres:// or postgresql:// URL (for example
+	// "postgres://user:pass@localhost:5432/mydb") or a key/value string.
+	// Required.
+	DSN             string
 	MaxConnLifetime time.Duration // e.g. time.Hour
 	MaxConnIdleTime time.Duration // e.g. time.Minute
 	MaxConns        int32
@@ -36,10 +41,7 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
 
 	poolCfg, err := pgxpool.ParseConfig(normalizePostgresDSN(cfg.DSN))
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("parse config"),
-			errorkit.WithPayload(err),
-		)
+		return nil, poolError("parse config", err)
 	}
 
 	// Pool tuning. Only override pgx's parsed defaults when the caller
@@ -64,19 +66,13 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error) {
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("connect to database"),
-			errorkit.WithPayload(err),
-		)
+		return nil, poolError("connect to database", err)
 	}
 
 	// Verify connection
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("ping database"),
-			errorkit.WithPayload(err),
-		)
+		return nil, poolError("ping database", err)
 	}
 
 	return pool, nil
@@ -95,34 +91,60 @@ func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error) {
 	return NewPostgresClient(cfg)
 }
 
+// poolError builds the error returned by the pool constructors. The driver
+// error is classified and attached with WithWrapped so errors.Is/errors.As
+// keep working, and the payload carries only its Error() text, which pgx
+// redacts. The error value itself is never used as payload:
+// *pgconn.ParseConfigError exports the unredacted connection string and
+// *pgconn.ConnectError cannot be marshaled.
+func poolError(reason string, err error) *errorkit.AppError {
+	return classifyPgError(err, reason).With(errorkit.WithPayload(err.Error()))
+}
+
+// normalizePostgresDSN percent-encodes the user and password of a
+// postgres:// or postgresql:// URL so that raw '@', '/', '?' and '#'
+// characters in the password parse. Other DSN forms are returned unchanged.
+//
+// The userinfo ends at the last '@' before the first '/', '?' or '#' that
+// follows the first '@'. When no '@' appears before the first '/', '?' or
+// '#' and that prefix already reads as host[:port] (for example
+// "db:5432/app@x", where '@' belongs to the database name), the DSN is left
+// unchanged. The function is idempotent.
 func normalizePostgresDSN(dsn string) string {
-	schemeEnd := strings.Index(dsn, "://")
-	if schemeEnd == -1 {
+	scheme, rest, found := strings.Cut(dsn, "://")
+	if !found {
 		return dsn
 	}
-
-	scheme := strings.ToLower(dsn[:schemeEnd])
+	scheme = strings.ToLower(scheme)
 	if scheme != "postgres" && scheme != "postgresql" {
 		return dsn
 	}
+	authorityStart := len(dsn) - len(rest)
 
-	authorityStart := schemeEnd + len("://")
-	authorityEnd := len(dsn)
-	for _, delimiter := range []string{"/", "?", "#"} {
-		if index := strings.Index(dsn[authorityStart:], delimiter); index != -1 && authorityStart+index < authorityEnd {
-			authorityEnd = authorityStart + index
-		}
+	firstAt := strings.IndexByte(rest, '@')
+	if firstAt == -1 {
+		return dsn
 	}
-
-	authority := dsn[authorityStart:authorityEnd]
-	userInfoEnd := strings.LastIndex(authority, "@")
-	if userInfoEnd == -1 {
+	plainAuthority := rest
+	if end := strings.IndexAny(rest, "/?#"); end != -1 {
+		plainAuthority = rest[:end]
+	}
+	if !strings.Contains(plainAuthority, "@") && looksLikePort(plainAuthority) {
 		return dsn
 	}
 
-	userInfo := authority[:userInfoEnd]
-	hostInfo := authority[userInfoEnd+1:]
+	hostEnd := len(rest)
+	if end := strings.IndexAny(rest[firstAt:], "/?#"); end != -1 {
+		hostEnd = firstAt + end
+	}
+	userInfoEnd := strings.LastIndexByte(rest[:hostEnd], '@')
+
+	userInfo := rest[:userInfoEnd]
 	user, password, hasPassword := strings.Cut(userInfo, ":")
+	if strings.ContainsAny(user, "/?#") {
+		// Not a userinfo: the '@' belongs to the path or the query.
+		return dsn
+	}
 
 	user = unescapeURLComponent(user)
 	if hasPassword {
@@ -132,7 +154,29 @@ func normalizePostgresDSN(dsn string) string {
 		userInfo = url.User(user).String()
 	}
 
-	return dsn[:authorityStart] + userInfo + "@" + hostInfo + dsn[authorityEnd:]
+	return dsn[:authorityStart] + userInfo + rest[userInfoEnd:]
+}
+
+// looksLikePort reports whether authority reads as host[:port]: no ':' at
+// all, an IPv6 literal ending in ']', or a numeric port after the last ':'.
+func looksLikePort(authority string) bool {
+	if strings.HasSuffix(authority, "]") {
+		return true
+	}
+	colon := strings.LastIndexByte(authority, ':')
+	if colon == -1 {
+		return true
+	}
+	port := authority[colon+1:]
+	if port == "" {
+		return false
+	}
+	for i := range len(port) {
+		if port[i] < '0' || port[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func unescapeURLComponent(value string) string {

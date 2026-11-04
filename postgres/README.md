@@ -23,6 +23,7 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
   - [Interface](#interface)
   - [Constructors](#stored-procedure-constructors)
   - [Method Reference](#method-reference)
+- [Error Handling](#error-handling)
 - [Tracing](#tracing)
   - [Stored-procedure span wrapper](#stored-procedure-span-wrapper)
   - [Adding pgx tracing](#adding-pgx-tracing)
@@ -40,7 +41,7 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 | `PostgresEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewPostgresClientFromEnv` |
 | `NewPostgresClient` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
 | `NewPostgresClientFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `NewPostgresClient` |
-| `normalizePostgresDSN` | func (unexported) | Re-encodes `@` characters in passwords so pgx can parse the DSN |
+| `normalizePostgresDSN` | func (unexported) | Percent-encodes raw `@`, `/`, `?`, `#` in URL passwords so pgx can parse the DSN |
 | `Querier` | interface | `Query` + `QueryRow`; `*pgxpool.Pool` and `pgx.Tx` both implement it |
 | `Execer` | interface | `Exec` |
 | `ClientPort` | interface | `Querier` + `Execer` + `Begin` + `Close` |
@@ -60,7 +61,7 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/database"
+    "github.com/trypanic/go-sdk/postgres" // package identifier: database
 )
 
 pool, err := database.NewPostgresClient(database.Config{
@@ -130,13 +131,19 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error)
 Behavior:
 
 1. Returns `ERR_SYSTEM_CONFIG_INVALID` if `cfg.DSN` is empty.
-2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@` parse correctly.
+2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@`, `/`, `?` or `#` parse
+   correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
    5-second timeout context.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
 
-All errors are wrapped with `errorkit.ERR_DB_POSTGRES_ERROR` and carry the underlying error
-in the payload.
+Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
+parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
+rejected password is `ERR_DB_POSTGRES_AUTH_FAILED`, …). The driver error is attached as
+the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
+`*pgconn.ConnectError`, `context.DeadlineExceeded`, …) and the payload carries only the
+driver's `Error()` text, in which pgx masks the password. The driver error value itself is
+never used as the payload: `*pgconn.ParseConfigError` exports the unredacted connection string.
 
 ### NewPostgresClientFromEnv
 
@@ -151,10 +158,27 @@ Reads `os.Getenv(PostgresEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN`
 
 ## DSN Normalization
 
-PostgreSQL passwords often contain `@`, e.g. `postgres://user:pa@ss@host/db`.
-`pgxpool.ParseConfig` cannot parse the raw form. `normalizePostgresDSN` percent-encodes the
-password (and only the password) so the DSN becomes valid before parsing. The function is
-idempotent — passing an already-encoded DSN returns it unchanged.
+PostgreSQL passwords often contain `@`, `/`, `?` or `#`, e.g. `postgres://user:pa@s/s@host/db`.
+`pgxpool.ParseConfig` cannot parse every raw form (a `/` ends the host part, an extra `@`
+is read as part of the host). For `postgres://` and `postgresql://` URLs,
+`normalizePostgresDSN` percent-encodes the user and the password (and nothing else) before
+parsing. Key/value DSNs (`host=… password=…`) are passed through unchanged.
+
+Rules:
+
+- The userinfo ends at the **last `@` before the first `/`, `?` or `#` that follows the first
+  `@`**. A password may therefore contain `@`, `/`, `?`, `#` and `:`, but an `@` inside the
+  password must not be followed by `/`, `?` or `#` later in the same password.
+- If no `@` appears before the first `/`, `?` or `#` and that prefix already reads as
+  `host[:port]` (for example `postgres://db:5432/app@x`, where the `@` belongs to the database
+  name), the DSN is left unchanged. A password whose text before its first `/`, `?` or `#` is
+  made only of digits (`user:1234/x@host`) is ambiguous with a port: percent-encode it.
+- Existing percent-escapes are decoded first, so an already encoded DSN is returned
+  unchanged (the function is idempotent). A literal `%` in a raw password must be written
+  as `%25`.
+
+A fuzz target (`FuzzNormalizePostgresDSN`) checks idempotency and the round trip through
+`pgconn.ParseConfig` for passwords inside these rules.
 
 ---
 
@@ -182,13 +206,14 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 | Constructor | Tracing |
 |---|---|
 | `NewStoredProcedure[T](pool)` | Auto-traced via the global OTel tracer (compatibility) |
-| `WrapWithTracing[T](sp)` | Same — explicit wrap |
+| `WrapWithTracing[T](sp)` | Same — explicit wrap of an untraced `StoredProcedure[T]{Pool: pool}`; do not wrap the result of `NewStoredProcedure` again (two spans per call) |
 | `WrapWithInstrumenter[T](sp, instrumenter)` | Wraps with an explicit `*telemetry.Instrumenter`; pass `nil` to disable tracing entirely |
 
 ### Method Reference
 
 - **`QueryRow`** — runs `query` with the given positional `args`, returns the single row scanned
-  into `T`. Pgx-level errors are wrapped with `ERR_DB_POSTGRES_ERROR`.
+  into `T`. No matching row is `ERR_DB_POSTGRES_NOT_FOUND` (404, not retriable); other failures
+  are classified as described in [Error Handling](#error-handling).
 
 - **`Query`** — runs `query` with the given positional `args`, returns all rows scanned into
   `[]T`.
@@ -200,6 +225,33 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 
 There is no special handling of `[]string` etc. — pass values pgx already understands and they
 are forwarded as-is.
+
+---
+
+## Error Handling
+
+Every error is an `*errorkit.AppError` that wraps the driver error, so `errors.Is(err,
+pgx.ErrNoRows)`, `errors.As(err, &pgErr)` (`*pgconn.PgError`) and `errors.Is(err,
+context.Canceled)` keep working. The code follows the cause:
+
+| Cause | Code | Retriable | HTTP |
+|---|---|---|---|
+| `pgx.ErrNoRows` (`QueryRow` matched nothing) | `ERR_DB_POSTGRES_NOT_FOUND` | no | 404 |
+| `context.Canceled` | `ERR_DB_POSTGRES_CANCELED` | no | 499 |
+| `*pgconn.ParseConfigError` (bad DSN) | `errorkit.ERR_SYSTEM_CONFIG_INVALID` | no | 500 |
+| `context.DeadlineExceeded`, `pgconn.Timeout`, network timeout | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
+| SQLSTATE `23505` (unique violation) | `errorkit.ERR_VALIDATION_DUPLICATE` | no | 409 |
+| Other SQLSTATE class `23` (not null, foreign key, check, exclusion) | `errorkit.ERR_VALIDATION_INCONSISTENT` | no | 400 |
+| SQLSTATE `40001` (serialization failure), `40P01` (deadlock) | `ERR_DB_POSTGRES_DEADLOCK` | yes | 409 |
+| SQLSTATE `57014` (`statement_timeout`, cancel request), `55P03` (`lock_timeout`, `NOWAIT`) | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
+| SQLSTATE class `28` (authorization) | `ERR_DB_POSTGRES_AUTH_FAILED` | no | 502 |
+| SQLSTATE class `08`, `53300`, `57P01`–`57P05` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| `*pgconn.ConnectError` (dial or handshake failed) | `ERR_DB_POSTGRES_CONNECTION_FAILED` | yes | 503 |
+| `pgconn.ErrConnClosed`, other `net.Error` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| Anything else | `ERR_DB_POSTGRES_ERROR` | yes | 503 |
+
+A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
+`ERR_DB_POSTGRES_ERROR` before any query is sent.
 
 ---
 

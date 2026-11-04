@@ -14,8 +14,8 @@ func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
@@ -34,8 +34,8 @@ func TestNewPostgresClient_DoesNotReadEnvVar(t *testing.T) {
 		t.Fatal("expected error when DSN missing despite env var being set")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
 		t.Fatalf("expected ERR_SYSTEM_CONFIG_INVALID, got %v", err)
 	}
 }
@@ -48,8 +48,8 @@ func TestNewPostgresClientFromEnv_MissingEnvReturnsConfigError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
 		t.Fatalf("expected ERR_SYSTEM_CONFIG_INVALID, got %v", err)
 	}
 }

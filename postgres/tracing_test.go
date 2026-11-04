@@ -19,7 +19,7 @@ func TestWrapWithInstrumenterUsesExplicitInstrumenter(t *testing.T) {
 
 	storedProcedure := WrapWithInstrumenter[int](&fakeStoredProcedurer[int]{result: 1}, instrumenter)
 
-	result, err := storedProcedure.QueryRow(context.Background(), "SELECT * FROM amz_test_proc($1)", 1)
+	result, err := storedProcedure.QueryRow(t.Context(), "SELECT * FROM amz_test_proc($1)", 1)
 	if err != nil {
 		t.Fatalf("QueryRow returned error: %v", err)
 	}
@@ -57,4 +57,18 @@ func (f *fakeStoredProcedurer[T]) QueryRowJSON(context.Context, string, any, ...
 
 func (f *fakeStoredProcedurer[T]) QueryJSON(context.Context, string, any, ...any) ([]T, error) {
 	return []T{f.result}, nil
+}
+
+// TestWrapWithInstrumenterNilReturnsInner is the regression test for C4-005:
+// the README promises that a nil instrumenter disables tracing.
+func TestWrapWithInstrumenterNilReturnsInner(t *testing.T) {
+	t.Parallel()
+
+	inner := &fakeStoredProcedurer[int]{result: 1}
+
+	got := WrapWithInstrumenter[int](inner, nil)
+
+	if got != StoredProcedurer[int](inner) {
+		t.Fatalf("WrapWithInstrumenter(inner, nil) = %T, want the inner StoredProcedurer", got)
+	}
 }

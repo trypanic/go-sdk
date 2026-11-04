@@ -24,9 +24,12 @@ import (
 // making the trace tree immediately readable in observability tools without any
 // instrumentation code in individual repositories.
 //
-// Usage (in bootstrap):
+// Usage (in bootstrap), on a client from NewWithoutTracing:
 //
 //	repo.NewRepository(mongodb.WrapWithTracing(mongoClient))
+//
+// New already applies this wrapper; wrapping its result again opens two
+// spans per operation.
 func WrapWithTracing(inner ClientPort) ClientPort {
 	return WrapWithInstrumenter(inner, telemetry.NewInstrumenter(telemetry.InstrumenterConfig{}))
 }
@@ -50,10 +53,14 @@ func (t *tracingClientPort) Collection(name string) Collection {
 }
 
 func (t *tracingClientPort) Ping(ctx context.Context) error {
+	ctx, span := t.instrumenter.Start(ctx, "mongo.ping")
+	defer span.End()
 	return t.inner.Ping(ctx)
 }
 
 func (t *tracingClientPort) Close(ctx context.Context) error {
+	ctx, span := t.instrumenter.Start(ctx, "mongo.close")
+	defer span.End()
 	return t.inner.Close(ctx)
 }
 
@@ -79,10 +86,17 @@ func (c tracingCollection) InsertMany(ctx context.Context, docs any, opts ...opt
 	return c.inner.InsertMany(ctx, docs, opts...)
 }
 
+// Find traces the query in "mongo.<collection>.find". The returned cursor
+// traces All in its own span, "mongo.<collection>.find.all", because the
+// find span ends when Find returns while All still fetches and decodes.
 func (c tracingCollection) Find(ctx context.Context, filter any, opts ...options.Lister[options.FindOptions]) (Cursor, error) {
 	ctx, span := c.span(ctx, "find")
 	defer span.End()
-	return c.inner.Find(ctx, filter, opts...)
+	cursor, err := c.inner.Find(ctx, filter, opts...)
+	if err != nil || cursor == nil {
+		return cursor, err
+	}
+	return tracingCursor{inner: cursor, spanName: "mongo." + c.name + ".find.all", instrumenter: c.instrumenter}, nil
 }
 
 func (c tracingCollection) FindOne(ctx context.Context, filter any, opts ...options.Lister[options.FindOneOptions]) SingleResult {
@@ -119,4 +133,26 @@ func (c tracingCollection) DeleteOne(ctx context.Context, filter any, opts ...op
 	ctx, span := c.span(ctx, "deleteOne")
 	defer span.End()
 	return c.inner.DeleteOne(ctx, filter, opts...)
+}
+
+type tracingCursor struct {
+	inner        Cursor
+	spanName     string
+	instrumenter *telemetry.Instrumenter
+}
+
+func (c tracingCursor) All(ctx context.Context, results any) error {
+	ctx, span := c.instrumenter.Start(ctx, c.spanName)
+	defer span.End()
+	return c.inner.All(ctx, results)
+}
+
+// Next, Decode and Err pass through without a span per document; the
+// driver's getMore round trips run under the caller's context.
+func (c tracingCursor) Next(ctx context.Context) bool { return c.inner.Next(ctx) }
+func (c tracingCursor) Decode(v any) error            { return c.inner.Decode(v) }
+func (c tracingCursor) Err() error                    { return c.inner.Err() }
+
+func (c tracingCursor) Close(ctx context.Context) error {
+	return c.inner.Close(ctx)
 }
