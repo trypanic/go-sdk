@@ -43,8 +43,8 @@ func assertClass(t *testing.T, err error, want wantClass, cause error) {
 	if err == nil {
 		t.Fatalf("expected %s, got nil", want.code)
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T: %v", err, err)
 	}
 	if appErr.Code() != want.code {
@@ -140,8 +140,7 @@ func TestNewPostgresClient_ErrorClassification(t *testing.T) {
 	t.Run("parse failure is a configuration error", func(t *testing.T) {
 		_, err := NewPostgresClient(Config{DSN: "postgres://u:p@host:notaport/db"})
 		assertClass(t, err, wantConfig, nil)
-		var parseErr *pgconn.ParseConfigError
-		if !errors.As(err, &parseErr) {
+		if _, ok := errors.AsType[*pgconn.ParseConfigError](err); !ok {
 			t.Fatal("ParseConfigError must stay wrapped")
 		}
 	})

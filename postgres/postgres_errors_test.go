@@ -24,14 +24,13 @@ func TestNewPostgresClient_ParseError_DoesNotLeakPassword(t *testing.T) {
 		t.Fatal("expected parse error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
-	var parseErr *pgconn.ParseConfigError
-	if !errors.As(err, &parseErr) {
-		t.Fatalf("errors.As(*pgconn.ParseConfigError) = false; unwrap = %v", errors.Unwrap(err))
+	if _, ok := errors.AsType[*pgconn.ParseConfigError](err); !ok {
+		t.Fatalf("errors.AsType[*pgconn.ParseConfigError] = false; unwrap = %v", errors.Unwrap(err))
 	}
 
 	assertNoSecret(t, "PrettyJSON", appErr.PrettyJSON())
@@ -51,14 +50,13 @@ func TestNewPostgresClient_PingError_KeepsCause(t *testing.T) {
 		t.Fatal("expected connect error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
-	var connectErr *pgconn.ConnectError
-	if !errors.As(err, &connectErr) {
-		t.Fatalf("errors.As(*pgconn.ConnectError) = false; unwrap = %v", errors.Unwrap(err))
+	if _, ok := errors.AsType[*pgconn.ConnectError](err); !ok {
+		t.Fatalf("errors.AsType[*pgconn.ConnectError] = false; unwrap = %v", errors.Unwrap(err))
 	}
 
 	pretty := appErr.PrettyJSON()

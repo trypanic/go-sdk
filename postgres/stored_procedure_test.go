@@ -22,8 +22,8 @@ func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsPostgresError(t *test
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
