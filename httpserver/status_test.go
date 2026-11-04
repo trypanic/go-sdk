@@ -43,3 +43,17 @@ func TestStatusForAndReplyError(t *testing.T) {
 	ReplyError(c, nil)
 	require.Zero(t, c.status)
 }
+
+func TestReplyErrorSkipsTypedNilInJoinedErrors(t *testing.T) {
+	var absent *errorkit.AppError
+	expected := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
+	joined := errors.Join(absent, expected)
+	c := new(errorReplyRecorder)
+	require.NotPanics(t, func() { ReplyError(c, joined) })
+	require.Equal(t, 404, c.status)
+	require.Equal(t, string(expected.Code()), c.reply.Code)
+	c = new(errorReplyRecorder)
+	require.NotPanics(t, func() { ReplyError(c, absent) })
+	require.Equal(t, 500, c.status)
+	require.Equal(t, string(errorkit.ERR_INTERNAL), c.reply.Code)
+}

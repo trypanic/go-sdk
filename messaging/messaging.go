@@ -546,8 +546,8 @@ func (p *PubSub) reportSettleFailure(ctx context.Context, span trace.Span, queue
 // warn logs appErr at Warn level through the WithLogger logger, or the
 // ctx/global logger when none was injected.
 func (p *PubSub) warn(ctx context.Context, appErr error, msg string) {
-	var ae *errorkit.AppError
-	if !errors.As(appErr, &ae) {
+	ae, ok := errorkit.As(appErr)
+	if !ok {
 		ae = errorkit.NewError(ERR_MQ_ERROR).With(errorkit.WithWrapped(appErr))
 	}
 	if p.log != nil {
@@ -699,8 +699,7 @@ func buildQueueArgs(queue QueueTopology) amqp.Table {
 // (AGENTS.md §2.1). Any other error is wrapped once with code and reason; a
 // deadline is reported as ERR_MQ_TIMEOUT.
 func asAppError(err error, code errorkit.ErrorCode, reason string) error {
-	var appErr *errorkit.AppError
-	if errors.As(err, &appErr) {
+	if _, ok := errorkit.As(err); ok {
 		return err
 	}
 	if errors.Is(err, context.DeadlineExceeded) {

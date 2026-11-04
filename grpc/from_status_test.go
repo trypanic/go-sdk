@@ -69,3 +69,11 @@ func TestFromStatusRejectsMismatchedErrorInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, errorkit.HasCode(FromStatus(st.Err()), errorkit.ERR_EXTERNAL_SERVICE_UNAVAILABLE))
 }
+
+func TestToStatusSkipsTypedNilInJoinedErrors(t *testing.T) {
+	var absent *errorkit.AppError
+	expected := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
+	joined := errors.Join(absent, expected)
+	require.NotPanics(t, func() { require.Equal(t, codes.NotFound, status.Code(ToStatus(joined))) })
+	require.NotPanics(t, func() { require.Equal(t, codes.Unknown, status.Code(ToStatus(absent))) })
+}

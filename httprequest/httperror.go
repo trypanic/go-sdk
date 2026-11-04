@@ -33,7 +33,7 @@ func (h *Request) redactBody(b []byte) string {
 func (h *Request) buildNetworkError(err error, requestURL string, requestBody []byte) error {
 	// An *errorkit.AppError raised inside the client (for example by a
 	// CheckRedirect policy) already carries the right classification.
-	if inner, ok := errors.AsType[*errorkit.AppError](err); ok {
+	if inner, ok := errorkit.As(err); ok {
 		return inner
 	}
 

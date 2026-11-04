@@ -1,8 +1,6 @@
 package httpserver
 
 import (
-	"errors"
-
 	"github.com/trypanic/go-sdk/errorkit"
 )
 
@@ -52,7 +50,7 @@ func WithErrorOpt(err error) OptionReply {
 		code, message := publicError(err)
 		r.Code = code
 		r.Error = &message
-		if appErr, ok := errors.AsType[*errorkit.AppError](err); ok && appErr.TraceID != "" {
+		if appErr, ok := errorkit.As(err); ok && appErr.TraceID != "" {
 			r.TraceID = appErr.TraceID
 		}
 	}
@@ -60,7 +58,7 @@ func WithErrorOpt(err error) OptionReply {
 
 // publicError returns the client-safe code and message for err.
 func publicError(err error) (code, message string) {
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	appErr, ok := errorkit.As(err)
 	if !ok || appErr == nil {
 		return string(errorkit.ERR_INTERNAL), genericErrorMessage
 	}

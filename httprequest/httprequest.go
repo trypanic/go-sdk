@@ -3,7 +3,6 @@ package httprequest
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"reflect"
@@ -397,7 +396,7 @@ func (h *Request) buildRequest(ctx context.Context, config RequestConfig) (*http
 
 // isRetryable determines if an error should be retried using errorkit metadata.
 func (h *Request) isRetryable(err error) bool {
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	appErr, ok := errorkit.As(err)
 	// Use the Retriable field from errorkit metadata
 	return ok && appErr.Metadata.Retriable
 }

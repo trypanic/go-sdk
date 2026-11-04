@@ -632,8 +632,7 @@ func mqError(code errorkit.ErrorCode, reason string, err error) *errorkit.AppErr
 // isRetriable reports whether err is worth retrying: an AppError answers
 // through its metadata, any other error is assumed transient.
 func isRetriable(err error) bool {
-	var appErr *errorkit.AppError
-	if errors.As(err, &appErr) {
+	if appErr, ok := errorkit.As(err); ok {
 		return appErr.Metadata.Retriable
 	}
 	return true

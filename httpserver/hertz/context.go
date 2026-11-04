@@ -3,7 +3,6 @@ package hertz
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/cloudwego/hertz/pkg/app"
 
@@ -90,7 +89,7 @@ func (h *hertzContext) WithError(err error) httpserver.OptionReply {
 // at warn level for client errors (4xx) and at error level otherwise.
 func logReplyError(ctx context.Context, err error) {
 	l := logger.CtxOrGlobal(ctx)
-	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	appErr, ok := errorkit.As(err)
 	if !ok || appErr == nil {
 		logger.WithTrace(ctx, l.Error()).Str("error", err.Error()).Msg("httpserver: error reply")
 		return
