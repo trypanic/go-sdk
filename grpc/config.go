@@ -54,6 +54,13 @@ type ServerConfig struct {
 	// MaxSendMsgSize overrides the max sent message size in bytes.
 	// 0 = gRPC default (math.MaxInt32).
 	MaxSendMsgSize int
+	// Creds is the server transport security, e.g.
+	// credentials.NewServerTLSFromCert or credentials.NewTLS with a
+	// tls.Config that requires client certificates (mTLS). When nil the
+	// server accepts plaintext connections: only acceptable behind a mesh or
+	// sidecar that terminates mTLS, and stated explicitly with
+	// WithServerInsecure.
+	Creds credentials.TransportCredentials
 }
 
 // ClientKeepalive configures client-side keepalive pings.
@@ -75,8 +82,10 @@ type ClientConfig struct {
 	Target string
 	// Keepalive configures client-side keepalive.
 	Keepalive ClientKeepalive
-	// Creds is the transport security. When nil, an insecure credential is
-	// used. This is the seam for wiring TLS.
+	// Creds is the client transport security, e.g.
+	// credentials.NewClientTLSFromCert or credentials.NewTLS. When nil the
+	// connection is plaintext: only acceptable behind a mesh or sidecar that
+	// terminates mTLS, and stated explicitly with WithClientInsecure.
 	Creds credentials.TransportCredentials
 	// MaxRecvMsgSize overrides the max received message size in bytes (per call).
 	MaxRecvMsgSize int

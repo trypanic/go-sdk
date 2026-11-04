@@ -21,6 +21,9 @@ type Server struct {
 // New builds a gRPC server from cfg and opts. By default tracing and panic
 // recovery are enabled; see the With* options to adjust. It does not bind a
 // port — pass a listener to Serve.
+//
+// Transport security comes from cfg.Creds. When it is nil the server accepts
+// plaintext connections; state that explicitly with WithServerInsecure.
 func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	if cfg.Address == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -32,8 +35,16 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	for _, o := range opts {
 		o(b)
 	}
+	if cfg.Creds != nil && b.insecure {
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("grpc: server Creds and WithServerInsecure are mutually exclusive"),
+		)
+	}
 
 	var so []grpc.ServerOption
+	if cfg.Creds != nil {
+		so = append(so, grpc.Creds(cfg.Creds))
+	}
 
 	if cfg.Keepalive.hasParams() {
 		so = append(so, grpc.KeepaliveParams(cfg.Keepalive.serverParameters()))

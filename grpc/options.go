@@ -16,6 +16,7 @@ type ServerOption func(*serverBuild)
 type serverBuild struct {
 	tracing        bool
 	recovery       bool
+	insecure       bool
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
 	log            *logger.Logger
@@ -40,6 +41,14 @@ func WithServerTracing(on bool) ServerOption {
 // Enabled by default.
 func WithServerRecovery(on bool) ServerOption {
 	return func(b *serverBuild) { b.recovery = on }
+}
+
+// WithServerInsecure states that the server accepts plaintext (unencrypted,
+// unauthenticated) connections, i.e. that ServerConfig.Creds is nil on
+// purpose. Use it only behind a service mesh or sidecar that terminates mTLS,
+// or in tests. Combining it with ServerConfig.Creds is a configuration error.
+func WithServerInsecure() ServerOption {
+	return func(b *serverBuild) { b.insecure = true }
 }
 
 // WithServerTracerProvider injects the tracer provider used for spans.
@@ -85,6 +94,7 @@ type ClientOption func(*clientBuild)
 // grpc.DialOption values.
 type clientBuild struct {
 	tracing        bool
+	insecure       bool
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
 	unary          []grpc.UnaryClientInterceptor
@@ -100,6 +110,14 @@ func defaultClientBuild() *clientBuild {
 // WithClientTracing toggles the otelgrpc client stats handler. Enabled by default.
 func WithClientTracing(on bool) ClientOption {
 	return func(b *clientBuild) { b.tracing = on }
+}
+
+// WithClientInsecure states that the connection is plaintext (unencrypted,
+// unauthenticated), i.e. that ClientConfig.Creds is nil on purpose. Use it
+// only behind a service mesh or sidecar that terminates mTLS, or in tests.
+// Combining it with ClientConfig.Creds is a configuration error.
+func WithClientInsecure() ClientOption {
+	return func(b *clientBuild) { b.insecure = true }
 }
 
 // WithClientTracerProvider injects the tracer provider used for client spans.

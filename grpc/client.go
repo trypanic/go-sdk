@@ -13,9 +13,9 @@ import (
 // generated client (e.g. pb.NewEchoClient(cc)) and is responsible for
 // cc.Close().
 //
-// Transport security defaults to insecure when cfg.Creds is nil; set cfg.Creds
-// to wire TLS. The connection is lazy — grpc.NewClient does not connect until
-// the first RPC.
+// Transport security comes from cfg.Creds. When it is nil the connection is
+// plaintext; state that explicitly with WithClientInsecure. The connection is
+// lazy — grpc.NewClient does not connect until the first RPC.
 func Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error) {
 	if cfg.Target == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -26,6 +26,11 @@ func Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error) {
 	b := defaultClientBuild()
 	for _, o := range opts {
 		o(b)
+	}
+	if cfg.Creds != nil && b.insecure {
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("grpc: client Creds and WithClientInsecure are mutually exclusive"),
+		)
 	}
 
 	creds := cfg.Creds
