@@ -31,7 +31,11 @@ func WrapWithTracing[T any](inner StoredProcedurer[T]) StoredProcedurer[T] {
 }
 
 // WrapWithInstrumenter wraps a StoredProcedurer with an explicit instrumenter.
+// A nil instrumenter disables tracing: inner is returned unchanged.
 func WrapWithInstrumenter[T any](inner StoredProcedurer[T], instrumenter *telemetry.Instrumenter) StoredProcedurer[T] {
+	if instrumenter == nil {
+		return inner
+	}
 	return &tracingStoredProcedurer[T]{
 		inner:        inner,
 		instrumenter: instrumenter,
