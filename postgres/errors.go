@@ -7,6 +7,10 @@ import "github.com/trypanic/go-sdk/errorkit"
 // ==============================
 
 const (
+	// ERR_DB_POSTGRES_ENCODE_FAILED indicates an argument cannot be encoded as JSON.
+	// This local failure happens before I/O and is not retriable.
+	ERR_DB_POSTGRES_ENCODE_FAILED errorkit.ErrorCode = "ERR_DB_POSTGRES_ENCODE_FAILED"
+
 	// ERR_DB_POSTGRES_UNAVAILABLE indicates PostgreSQL service is not available
 	// Context: Cannot connect to PostgreSQL server, all replicas down,
 	// network partition, connection pool exhausted, server unreachable
@@ -49,6 +53,15 @@ const (
 
 // ErrorMetadata is the canonical metadata for all postgres-owned error codes.
 var ErrorMetadata = []errorkit.Metadata{
+	{
+		Code:        ERR_DB_POSTGRES_ENCODE_FAILED,
+		Type:        errorkit.ErrorTypeInternal,
+		Group:       errorkit.GroupDatabase,
+		Category:    "database",
+		Description: "PostgreSQL argument encoding failed",
+		HTTPStatus:  500,
+		Retriable:   false,
+	},
 	{
 		Code:        ERR_DB_POSTGRES_UNAVAILABLE,
 		Type:        errorkit.ErrorTypeExternal,

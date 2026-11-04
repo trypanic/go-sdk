@@ -251,7 +251,7 @@ context.Canceled)` keep working. The code follows the cause:
 | Anything else | `ERR_DB_POSTGRES_ERROR` | yes | 503 |
 
 A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
-`ERR_DB_POSTGRES_ERROR` before any query is sent.
+`ERR_DB_POSTGRES_ENCODE_FAILED` (HTTP 500, nonretriable) before any query is sent. The original JSON encoding error remains in the error chain.
 
 ---
 

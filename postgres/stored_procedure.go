@@ -114,7 +114,7 @@ func pgRowMapper[T any]() pgx.RowToFunc[T] {
 func appendJSONArg(args []any, jsonArg any) ([]any, error) {
 	inBytes, err := json.Marshal(jsonArg)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
+		return nil, errorkit.NewError(ERR_DB_POSTGRES_ENCODE_FAILED).With(
 			errorkit.WithReason("failed to marshal query JSON argument"),
 			errorkit.WithWrapped(err),
 		)
