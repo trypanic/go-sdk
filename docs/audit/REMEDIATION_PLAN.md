@@ -1440,7 +1440,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | DONE | `94bf3e5` |
 | R-018 | approval | C4 | Postgres error classifier | APPROVED | DONE | `422f509` |
 | R-019 | approval | C3 | gRPC code fallback from errorkit metadata | APPROVED | DONE | `207ec87` |
-| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | TODO | |
+| R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | IN_REVIEW | `ef2308a` |
 | R-021 | approval | C3 | `ToStatus` maps context errors | APPROVED | DONE | `2a52d56` |
 | R-022 | approval | C5 | Reliable publishing | APPROVED | DONE | `4a15433` |
 | R-023 | auto | C5 | Shutdown requeues in-flight messages | — | DONE | `745bd0a` |
@@ -1507,7 +1507,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-088 | auto | X (post-merge) | Hertz functional options | — | IN_REVIEW | `b454142` |
 | R-089 | approval | X (post-merge) | SDK-owned `Backoff` interface | APPROVED | IN_REVIEW | `2ecddb7` |
 | R-090 | approval | X (post-merge) | One internal backoff implementation | APPROVED | IN_REVIEW | `9c5f525` |
-| R-091 | approval | X (post-merge) | Published test doubles | APPROVED | TODO | |
+| R-091 | approval | X (post-merge) | Published test doubles | APPROVED | IN_REVIEW | `f9ca2e7` |
 | R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | IN_REVIEW | `0eb616c` |
 | R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
 | R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | TODO | |
@@ -1535,7 +1535,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-127 | auto | C6 | Utility package tests | — | DONE | `6b94faf` |
 | R-130 | auto | C1 | Cheap redaction path | — | DONE | `330963c` |
 | R-131 | auto | C1 | Stack capture with `runtime.Callers` | — | DONE | `d449128` |
-| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | TODO | |
+| R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | IN_REVIEW | `0d99d79` |
 | R-133 | auto | C2 | No double buffering of decoded responses | — | DONE | `7b5e562` |
 | R-134 | approval | C4 | `FileStorage` append cost | APPROVED | DONE | `b07f5ae` |
 | R-135 | auto | C6 | `NormalizeText` without per-call regexp | — | DONE | `e5bd2c6` |

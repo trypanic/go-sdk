@@ -51,8 +51,9 @@ Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 - **P4.XP in progress:** `audit/2026-11-XP` in `/tmp/go-sdk-audit-XP`.
-  First twelve ordered items through R-113 committed at `3c7d7a1`;
-  next R-020, then the remaining plan sequence through R-153 last. Independent review follows the complete XP sequence.
+  First fifteen ordered items through R-132 committed at `0d99d79`;
+  R-093 is renaming postgres/mongo identifiers and slices to batch, then
+  R-094/R-155/R-153 last, with extra follow-ups before R-153. Independent review follows the complete XP sequence.
 
 ## 2. Pending review details
 
@@ -234,3 +235,16 @@ recovered panics), `1179adf` (example errcheck).
   worktree at `48c1971`; current reviewer temporary worktrees were removed.
   `/tmp/audit-merge-checks.py` is prepared for sequential V1–V5 logging.
   Stop-point ledger commit: `5f0e1cf` (`chore(audit): P4.C2 BLOCKED`).
+
+- **Session 3 (in progress, Codex orchestrator / GPT-6.1 Astra):** owner
+  authorized an extra C2 round via "continua"; header leak fixed `9b930df`,
+  fresh loop4 APPROVE. P4.M DONE: all clusters + origin/main merged through
+  `dab2c29`, no integration conflicts; per-merge V1-V5 and cross-cluster tests
+  pass, coverage88.5%, V7/V8/V11 pass,7 Semgrep warnings,9 informational test
+  lint issues, V10 approved v2 breaks. Cluster/review worktrees removed,
+  branches retained. P4.XP is in progress in `/tmp/go-sdk-audit-XP` through
+  `0d99d79` (15 items); next R093/R094/R155/R153 last and remaining followups.
+  Independent review pending. R-DEPS/P5 not started. Read-only R-DEPS
+  preparation: `/tmp/audit-deps-preflight.md`; P5 inventory:
+  `/tmp/audit-remediation-inventory-P4M.json`. Final session entry will update
+  this progress snapshot when work stops or finishes.
