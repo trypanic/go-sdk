@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -142,8 +143,20 @@ func TestFileStorageAppendLeavesNoTempFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read storage file: %v", err)
 	}
-	if !json.Valid(data) {
-		t.Fatalf("storage file is not valid JSON: %q", data)
+	// JSON Lines: every line is one valid JSON value, and the file ends
+	// with a newline.
+	if !bytes.HasSuffix(data, []byte("\n")) {
+		t.Fatalf("storage file does not end with a newline: %q", data)
+	}
+	lines := 0
+	for line := range bytes.Lines(data) {
+		lines++
+		if !json.Valid(line) {
+			t.Fatalf("storage file line %d is not valid JSON: %q", lines, line)
+		}
+	}
+	if lines != 5 {
+		t.Fatalf("storage file has %d lines, want 5: %q", lines, data)
 	}
 }
 

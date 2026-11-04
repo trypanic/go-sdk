@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,22 +16,32 @@ import (
 )
 
 // tempFilePattern names the temp files used for atomic writes. They start
-// with a dot and do not end in ".json", so List, GetAll and Clear never treat
-// them as storage files.
+// with a dot and do not end in a storage extension, so List, GetAll and
+// Clear never treat them as storage files.
 const tempFilePattern = ".tmp-*"
 
-// MaxFileKeyLength is the longest key, in bytes, that FileStorage accepts.
-// Keys are hex-encoded (two characters per byte) and suffixed with ".json",
-// and common filesystems limit a file name to 255 bytes.
-const MaxFileKeyLength = (255 - len(".json")) / 2
+// Storage file extensions. Current files are JSON Lines (one JSON value per
+// line, appended in place). Files written by earlier versions hold one JSON
+// array; they are still read and are converted on the next Append.
+const (
+	fileExt       = ".jsonl"
+	legacyFileExt = ".json"
+)
 
-// FileStorage is an append-log file store. Each key maps to a single JSON
-// file containing an []T value. Append adds to that list; List reads it.
-// Keys are hex-encoded so that arbitrary byte sequences map to distinct files.
+// MaxFileKeyLength is the longest key, in bytes, that FileStorage accepts.
+// Keys are hex-encoded (two characters per byte) and suffixed with ".jsonl",
+// and common filesystems limit a file name to 255 bytes.
+const MaxFileKeyLength = (255 - len(fileExt)) / 2
+
+// FileStorage is an append-log file store. Each key maps to one JSON Lines
+// file with one item per line. Append adds a line in place; List reads the
+// lines back. Keys are hex-encoded so that arbitrary byte sequences map to
+// distinct files.
 //
 // A FileStorage is safe for concurrent use. Use one FileStorage per directory
-// per host: writes are atomic, so several instances on one directory never
-// corrupt a file, but their read-modify-write cycles are not coordinated.
+// per host: several instances on one directory never corrupt a file, but
+// their writes are not coordinated, so one instance can lose an update made
+// concurrently by another.
 type FileStorage[T any] struct {
 	baseDir  string
 	fileMode fs.FileMode
@@ -79,77 +90,93 @@ func NewFileStorage[T any](baseDir string, opts ...FileStorageOption) (*FileStor
 	return &FileStorage[T]{baseDir: baseDir, fileMode: cfg.fileMode}, nil
 }
 
-// Append adds item to the list at key, creating the file if necessary.
-// Returns the full list after the append. A nil item is rejected with an
-// error, as in MemoryStorage.
-func (fs *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
+// Append adds item to the list at key and returns the full list after the
+// append. The item is written as one line at the end of the key's file
+// (O_APPEND, then fsync), so the cost of the write does not grow with the
+// list. A new file, a file in the legacy array format and a file whose last
+// line was torn by a crash are instead rewritten atomically. A nil item is
+// rejected with an error, as in MemoryStorage.
+func (s *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
 	if item == nil {
 		return nil, nilInputError("Append: item must not be nil")
 	}
 	if err := validateFileKey(key); err != nil {
 		return nil, err
 	}
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+	line, err := json.Marshal(item)
+	if err != nil {
+		return nil, encodeError(err)
+	}
 
-	filename := fs.pathFor(key)
-	existing, err := fs.readUnsafe(filename)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	items, source, err := s.readKey(key)
 	if err != nil {
 		return nil, err
 	}
-	existing = append(existing, *item)
-	if err := fs.writeUnsafe(filename, existing); err != nil {
+	items = append(items, *item)
+
+	if source == sourceLines {
+		if err := appendLine(s.pathFor(key), line); err != nil {
+			return nil, ioError("failed to append to storage file", err)
+		}
+		return &items, nil
+	}
+	if err := s.writeAll(key, items); err != nil {
 		return nil, err
 	}
-	return &existing, nil
+	if source == sourceLegacy {
+		// The new file shadows the legacy one, so a failed removal loses
+		// nothing; Delete and Clear remove both.
+		_ = os.Remove(s.legacyPathFor(key))
+	}
+	return &items, nil
 }
 
 // List returns the list stored at key. The bool is false (and error is nil)
 // when the key is absent.
-func (fs *FileStorage[T]) List(key string) (*[]T, bool, error) {
+func (s *FileStorage[T]) List(key string) (*[]T, bool, error) {
 	if err := validateFileKey(key); err != nil {
 		return nil, false, err
 	}
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	filename := fs.pathFor(key)
-	if _, err := os.Stat(filename); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, false, nil
-		}
-		return nil, false, ioError("failed to stat storage file", err)
-	}
-	slice, err := fs.readUnsafe(filename)
+	items, source, err := s.readKey(key)
 	if err != nil {
 		return nil, false, err
 	}
-	return &slice, true, nil
+	if source == sourceNone {
+		return nil, false, nil
+	}
+	return &items, true, nil
 }
 
-// Delete removes the file at key. A missing key is not an error.
-func (fs *FileStorage[T]) Delete(key string) error {
+// Delete removes the files at key. A missing key is not an error.
+func (s *FileStorage[T]) Delete(key string) error {
 	if err := validateFileKey(key); err != nil {
 		return err
 	}
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	filename := fs.pathFor(key)
-	if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return ioError("failed to delete storage file", err)
+	for _, filename := range []string{s.pathFor(key), s.legacyPathFor(key)} {
+		if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return ioError("failed to delete storage file", err)
+		}
 	}
 	return nil
 }
 
 // Clear removes every storage file managed by this FileStorage: the files
-// whose names are hex-encoded keys (the files GetAll returns). Other files
-// in baseDir are left alone.
-func (fs *FileStorage[T]) Clear() error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+// named after a hex-encoded key (the files GetAll returns), in the current
+// or the legacy format. Other files in baseDir are left alone.
+func (s *FileStorage[T]) Clear() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	entries, err := os.ReadDir(fs.baseDir)
+	entries, err := os.ReadDir(s.baseDir)
 	if err != nil {
 		return ioError("failed to read storage directory", err)
 	}
@@ -157,7 +184,7 @@ func (fs *FileStorage[T]) Clear() error {
 		if _, ok := ownedKey(entry); !ok {
 			continue
 		}
-		if err := os.Remove(filepath.Join(fs.baseDir, entry.Name())); err != nil {
+		if err := os.Remove(filepath.Join(s.baseDir, entry.Name())); err != nil {
 			return ioError("failed to delete storage file", err)
 		}
 	}
@@ -165,106 +192,200 @@ func (fs *FileStorage[T]) Clear() error {
 }
 
 // GetAll returns a map of all stored lists, keyed by the original (decoded) key.
-func (fs *FileStorage[T]) GetAll() (map[string][]T, error) {
-	fs.mu.RLock()
-	defer fs.mu.RUnlock()
+func (s *FileStorage[T]) GetAll() (map[string][]T, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	out := make(map[string][]T)
-	entries, err := os.ReadDir(fs.baseDir)
+	entries, err := os.ReadDir(s.baseDir)
 	if err != nil {
 		return nil, ioError("failed to read storage directory", err)
 	}
+	out := make(map[string][]T)
 	for _, entry := range entries {
 		key, ok := ownedKey(entry)
 		if !ok {
 			continue
 		}
-		slice, err := fs.readUnsafe(filepath.Join(fs.baseDir, entry.Name()))
+		if _, done := out[key]; done {
+			continue // both formats exist; readKey already chose
+		}
+		items, source, err := s.readKey(key)
 		if err != nil {
 			return nil, err
 		}
-		out[key] = slice
+		if source != sourceNone {
+			out[key] = items
+		}
 	}
 	return out, nil
 }
 
-// pathFor returns the absolute file path for a key.
-func (fs *FileStorage[T]) pathFor(key string) string {
-	return filepath.Join(fs.baseDir, fileNameForKey(key))
+// pathFor returns the path of the key's current-format file.
+func (s *FileStorage[T]) pathFor(key string) string {
+	return filepath.Join(s.baseDir, fileNameForKey(key))
+}
+
+// legacyPathFor returns the path of the key's legacy array-format file.
+func (s *FileStorage[T]) legacyPathFor(key string) string {
+	return filepath.Join(s.baseDir, legacyFileNameForKey(key))
 }
 
 // fileNameForKey hex-encodes the raw key bytes so that every distinct key
 // maps to a distinct filename, regardless of any characters it contains.
 func fileNameForKey(key string) string {
-	return hex.EncodeToString([]byte(key)) + ".json"
+	return hex.EncodeToString([]byte(key)) + fileExt
+}
+
+// legacyFileNameForKey is the file name earlier versions used for key.
+func legacyFileNameForKey(key string) string {
+	return hex.EncodeToString([]byte(key)) + legacyFileExt
 }
 
 // ownedKey reports whether a directory entry is a storage file of this
-// FileStorage (a regular file named by fileNameForKey) and returns its key.
-// GetAll and Clear share this ownership rule.
+// FileStorage (a regular file named exactly as fileNameForKey or
+// legacyFileNameForKey would name it) and returns its key. GetAll and Clear
+// share this ownership rule.
 func ownedKey(entry os.DirEntry) (string, bool) {
+	if entry.IsDir() {
+		return "", false
+	}
 	name := entry.Name()
-	if entry.IsDir() || !strings.HasSuffix(name, ".json") {
-		return "", false
-	}
-	return keyFromFileName(name)
-}
-
-// keyFromFileName decodes a filename produced by fileNameForKey back to the
-// original key. Returns false for files whose names are not valid encodings.
-func keyFromFileName(name string) (string, bool) {
-	stem := strings.TrimSuffix(name, ".json")
-	raw, err := hex.DecodeString(stem)
-	if err != nil {
-		return "", false
-	}
-	return string(raw), true
-}
-
-// readUnsafe reads and unmarshals the JSON file. A missing file yields an
-// empty slice; a read or parse failure, or a zero-length file, surfaces as
-// ERR_STORAGE_ERROR.
-// Caller must hold the lock.
-func (fs *FileStorage[T]) readUnsafe(filename string) ([]T, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []T{}, nil
+	for _, ext := range []string{fileExt, legacyFileExt} {
+		stem, found := strings.CutSuffix(name, ext)
+		if !found {
+			continue
 		}
-		return nil, ioError("failed to read storage file", err)
+		raw, err := hex.DecodeString(stem)
+		if err != nil || hex.EncodeToString(raw) != stem {
+			return "", false
+		}
+		return string(raw), true
 	}
+	return "", false
+}
+
+// fileSource says where readKey found a key's items.
+type fileSource int
+
+const (
+	sourceNone   fileSource = iota // no file for the key
+	sourceLines                    // a complete JSON Lines file
+	sourceTorn                     // a JSON Lines file whose last line was torn
+	sourceLegacy                   // a legacy JSON array file
+)
+
+// readKey reads the key's items from its JSON Lines file or, when that file
+// does not exist, from its legacy array file. A missing key yields an empty
+// slice and sourceNone. Caller must hold the lock.
+func (s *FileStorage[T]) readKey(key string) ([]T, fileSource, error) {
+	data, err := os.ReadFile(s.pathFor(key))
+	switch {
+	case err == nil:
+		return decodeLines[T](data)
+	case !errors.Is(err, os.ErrNotExist):
+		return nil, sourceNone, ioError("failed to read storage file", err)
+	}
+
+	data, err = os.ReadFile(s.legacyPathFor(key))
+	switch {
+	case err == nil:
+		items, err := decodeLegacy[T](data)
+		return items, sourceLegacy, err
+	case errors.Is(err, os.ErrNotExist):
+		return []T{}, sourceNone, nil
+	default:
+		return nil, sourceNone, ioError("failed to read storage file", err)
+	}
+}
+
+// decodeLines decodes a JSON Lines file. Files are created atomically with
+// at least one complete line, so an empty file or one without a single
+// newline is corrupt (ERR_STORAGE_CORRUPTED), as is any complete line that
+// does not decode. Bytes after the last newline are the remains of an
+// append torn by a crash: that Append never returned, so they are ignored
+// and reported as sourceTorn for the next Append to rewrite.
+func decodeLines[T any](data []byte) ([]T, fileSource, error) {
 	if len(data) == 0 {
-		// Writes are atomic renames of non-empty files, so a zero-length
-		// file means the data was lost (for example by a crash before the
-		// rename reached the disk). Reading it as an empty list would let
-		// the next Append silently drop the key's history.
+		// Reading a zero-length file as an empty list would let the next
+		// Append silently drop the key's history.
+		return nil, sourceNone, corruptError("storage file is empty (corrupt)", nil)
+	}
+	end := bytes.LastIndexByte(data, '\n')
+	if end < 0 {
+		return nil, sourceNone, corruptError("storage file has no complete record (corrupt)", nil)
+	}
+	source := sourceLines
+	if end != len(data)-1 {
+		source = sourceTorn
+	}
+
+	items := make([]T, 0, bytes.Count(data[:end+1], []byte{'\n'}))
+	for line := range bytes.Lines(data[:end+1]) {
+		var item T
+		if err := json.Unmarshal(line, &item); err != nil {
+			return nil, sourceNone, corruptError("failed to decode storage file", err)
+		}
+		items = append(items, item)
+	}
+	return items, source, nil
+}
+
+// decodeLegacy decodes a file in the legacy format: one JSON array.
+func decodeLegacy[T any](data []byte) ([]T, error) {
+	if len(data) == 0 {
 		return nil, corruptError("storage file is empty (corrupt)", nil)
 	}
-	var result []T
-	if err := json.Unmarshal(data, &result); err != nil {
+	var items []T
+	if err := json.Unmarshal(data, &items); err != nil {
 		return nil, corruptError("failed to decode storage file", err)
 	}
-	return result, nil
+	return items, nil
 }
 
-// writeUnsafe atomically and durably replaces the file with the encoded
-// slice. The data goes to a fresh temp file created with O_EXCL (a unique,
-// unpredictable name that never follows a symlink), is synced, and is then
-// renamed onto the final path; the directory is synced afterwards so the
-// rename survives a crash. Concurrent writers never share a temp file.
-// Caller must hold the lock.
-func (fs *FileStorage[T]) writeUnsafe(filename string, slice []T) error {
-	jsonData, err := json.MarshalIndent(slice, "", "  ")
-	if err != nil {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to encode storage file"),
-			errorkit.WithWrapped(err),
-		)
+// writeAll atomically and durably replaces the key's file with items in the
+// JSON Lines format: a fresh temp file created with O_EXCL (a unique,
+// unpredictable name that never follows a symlink) is written, synced and
+// renamed onto the final path, and the directory is synced so the rename
+// survives a crash. Caller must hold the lock.
+func (s *FileStorage[T]) writeAll(key string, items []T) error {
+	var buf bytes.Buffer
+	for i := range items {
+		line, err := json.Marshal(&items[i])
+		if err != nil {
+			return encodeError(err)
+		}
+		buf.Write(line)
+		buf.WriteByte('\n')
 	}
-	if err := writeFileAtomic(fs.baseDir, filename, jsonData, fs.fileMode); err != nil {
+	if err := writeFileAtomic(s.baseDir, s.pathFor(key), buf.Bytes(), s.fileMode); err != nil {
 		return ioError("failed to write storage file", err)
 	}
 	return nil
+}
+
+// appendLine writes line and a newline at the end of an existing file in a
+// single write and syncs it.
+func appendLine(filename string, line []byte) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(append(line, '\n')); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func encodeError(err error) *errorkit.AppError {
+	return errorkit.NewError(ERR_STORAGE_ERROR).With(
+		errorkit.WithReason("failed to encode storage item"),
+		errorkit.WithWrapped(err),
+	)
 }
 
 // writeFileAtomic writes data to a unique temp file in dir and renames it

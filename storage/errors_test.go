@@ -110,6 +110,11 @@ func TestStorageErrorCodes(t *testing.T) {
 		if _, err := fs.Append("k", &v); err != nil {
 			t.Fatalf("seed Append: %v", err)
 		}
+		// Append writes the key's file in place (O_APPEND) and Delete
+		// unlinks it from the directory: make both read-only.
+		if err := os.Chmod(filepath.Join(dir, fileNameForKey("k")), 0o400); err != nil {
+			t.Skipf("chmod unsupported: %v", err)
+		}
 		if err := os.Chmod(dir, 0o500); err != nil {
 			t.Skipf("chmod unsupported: %v", err)
 		}
