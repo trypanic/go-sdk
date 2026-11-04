@@ -1,4 +1,4 @@
-package logger
+package otlp
 
 import (
 	"context"
@@ -190,9 +190,9 @@ func newLogProvider(ctx context.Context, cfg LogProviderConfig, strict bool) (*L
 //
 // Usage:
 //
-//	lp := logger.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	_, cleanup := logger.Init("my-service", version, logger.NewOTLPWriter("my-service"))
+//	_, cleanup := logger.Init("my-service", version, otlp.NewOTLPWriter("my-service"))
 //	defer cleanup.Close()
 func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle {
 	handle, err := newLogProvider(ctx, LogProviderConfig{
@@ -218,7 +218,7 @@ func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string)
 //
 // Usage:
 //
-//	handle, writer := logger.SetupOTLP(ctx, "my-service", "otel-collector:4317")
+//	handle, writer := otlp.SetupOTLP(ctx, "my-service", "otel-collector:4317")
 //	defer handle.Shutdown(ctx)
 //	_, cleanup := logger.Init("my-service", "1.0.0", writer)
 //	defer cleanup.Close()

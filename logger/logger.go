@@ -35,11 +35,11 @@ func globalLogger() *zerolog.Logger { return logctx.GlobalLogger() }
 //
 // Usage with OTLP:
 //
-//	lp := logger.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	l, cleanup := logger.Init("my-service", "1.0.0", logger.NewOTLPWriter("my-service"))
+//	l, cleanup := logger.Init("my-service", "1.0.0", otlp.NewOTLPWriter("my-service"))
 //	defer cleanup.Close()
-func Init(appName, version string, otlpWriter ...*OTLPWriter) (*zerolog.Logger, io.Closer) {
+func Init(appName, version string, otlpWriter ...io.Writer) (*zerolog.Logger, io.Closer) {
 	initMu.Lock()
 	defer initMu.Unlock()
 	env := DetectEnv()

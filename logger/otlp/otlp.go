@@ -1,4 +1,4 @@
-package logger
+package otlp
 
 import (
 	"bytes"
@@ -34,9 +34,9 @@ type OTLPWriter struct {
 //
 // Usage:
 //
-//	lp := logger.InitLogProvider(ctx, "my-service", "otel-collector:4317")
+//	lp := otlp.InitLogProvider(ctx, "my-service", "otel-collector:4317")
 //	defer lp.Shutdown(ctx)
-//	l, cleanup := logger.Init("my-service", version, logger.NewOTLPWriter("my-service"))
+//	l, cleanup := logger.Init("my-service", version, otlp.NewOTLPWriter("my-service"))
 func NewOTLPWriter(serviceName string) *OTLPWriter {
 	return &OTLPWriter{
 		logger: otel.GetLoggerProvider().Logger(serviceName),

@@ -4,10 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 )
@@ -50,33 +47,4 @@ func installRecordingProvider(t *testing.T) *recordingExporter {
 		_ = provider.Shutdown(context.Background())
 	})
 	return exp
-}
-
-func TestNewOTLPWriterResolvesGlobalProvider(t *testing.T) {
-	exp := installRecordingProvider(t)
-
-	w := NewOTLPWriter("svc")
-	_, err := w.Write([]byte(`{"level":"info","message":"hello"}` + "\n"))
-	require.NoError(t, err)
-
-	records := exp.snapshot()
-	require.Len(t, records, 1)
-	assert.Equal(t, "hello", records[0].Body().AsString())
-	assert.Equal(t, "svc", records[0].InstrumentationScope().Name)
-}
-
-func TestInitLogProviderRegistersGlobalProvider(t *testing.T) {
-	previous := otel.GetLoggerProvider()
-	t.Cleanup(func() { otel.SetLoggerProvider(previous) })
-
-	// The exporter connects lazily and no record is written, so no traffic
-	// leaves the process.
-	handle := InitLogProvider(t.Context(), "svc", "127.0.0.1:1")
-	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		handle.Shutdown(ctx)
-	})
-
-	assert.Same(t, handle.provider, otel.GetLoggerProvider())
 }

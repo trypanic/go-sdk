@@ -32,13 +32,13 @@
 //
 // # OTLP
 //
-// NewLogProvider creates the OTLP/gRPC log exporter (TLS by default) and
-// registers it as the global OTel LoggerProvider; NewOTLPWriter then turns
+// logger/otlp.NewLogProvider creates the OTLP/gRPC log exporter (TLS by default) and
+// registers it as the global OTel LoggerProvider; otlp.NewOTLPWriter then turns
 // each log line into an OTel log record. Pass the writer to Init or
-// Config.OTLPWriter and defer LogProviderHandle.Close.
+// Config.OTLPWriter and defer otlp.LogProviderHandle.Close.
 //
 // # Concurrency
 //
-// Loggers, OTLPWriter and LogProviderHandle are safe for concurrent use.
+// Loggers are safe for concurrent use; the exporter has its own lifecycle.
 // Init is not: call it before logging starts.
 package logger
