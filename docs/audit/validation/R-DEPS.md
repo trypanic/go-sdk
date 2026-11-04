@@ -1,8 +1,10 @@
 # R-DEPS / R-125 / R-160 validation
 
-Implementation head: `1f40242` on `audit/2026-11-DEPS`; base `5e57bba`.
+Original implementation head: `1f40242`; review loop 2 implementation head:
+`f32d1f3` on `audit/2026-11-DEPS`; base `5e57bba`.
 Date: 2026-11-04. Author: Codex dependencies remediator.
-Status: ready for independent review; the author does not set DONE.
+Status: ready for independent review loop 2 after correcting both loop 1
+findings; the author does not set DONE.
 No push, tag, release, release-manifest edit, CHANGELOG edit or root ledger edit.
 
 ## Changes and commits
@@ -265,3 +267,91 @@ No assigned item is silently deferred. Crypto's absent tagged fix is an explicit
 approved decision, not a claimed patch. Integration covers one pinned local
 server version per service, not every deployment configuration or live service.
 Independent R-DEPS review and P5 remain the orchestrator's next steps.
+
+## Review loop 2 corrections (2026-11-04)
+
+The first independent review requested changes at `ac8ab8e`. Both numbered
+findings are corrected in focused commits; no production SDK behavior changed.
+
+| Commit | Review finding | Correction |
+| --- | --- | --- |
+| `40580e0` | R-DEPS-loop1 §1 HIGH | Publish every fixture service and Ryuk port on `127.0.0.1` before Docker creation/start, retaining ephemeral host ports. Inspect actual running bindings and assert loopback. Preserve the upstream reaper socket mount, bridge network, auto-remove, session sharing and process-exit cleanup. |
+| `f32d1f3` | R-DEPS-loop1 §2 MEDIUM | Both CI matrix jobs set `GOTOOLCHAIN=local` and log/assert `GOVERSION` against their selected matrix line before build/tests or vulnerability scanning. Keep `go 1.26.1` and `toolchain go1.27.3`. |
+
+### Reaper implementation decision and regression evidence
+
+Testcontainers v0.44.0 has no scoped Ryuk HostIP option. Its
+[`newReaper` implementation](https://github.com/testcontainers/testcontainers-go/blob/v0.44.0/reaper.go)
+sets the socket mount, auto-remove and bridge mode in `HostConfigModifier`;
+its exported `ReaperProvider` hook allows composition of that modifier before
+container creation. The integration helper delegates to the original Docker
+provider and changes publication addresses only. It does not emulate reaper
+names, protocol or lifecycle, disable Ryuk, or alter Docker/firewall settings.
+
+`NewReaper` is deprecated but still used by upstream Compose. The single
+localized `SA1019` exception is confined to this integration-only call and
+explains the missing replacement option. Replace it when upstream supplies a
+supported binding option. This explicit tradeoff was approved for the review
+fix and is documented in CONTRIBUTING and the v2 migration notes. Tagged
+staticcheck passes without global suppression.
+
+The permanent modifier test checks preservation of the socket bind, bridge
+mode and auto-remove, plus explicit loopback/ephemeral publication. Every
+real service suite inspects its own running container and the session Ryuk;
+other concurrently running package processes inspect their own services.
+The inspection verifies actual HostIP values, including the reaper's 8080
+binding, rather than the client's connection hostname.
+
+Two isolated behavioral mutations remove the service and/or reaper binding
+modifier. The runtime regression fails separately on service `5432/tcp` and
+Ryuk `8080/tcp` published at `0.0.0.0`, both exit 1. The successful runs show
+PostgreSQL 5432, MongoDB 27017, RabbitMQ 5672 and Ryuk 8080 all bound to
+`127.0.0.1`. The failed mutation services were cleaned up normally.
+
+A standalone temporary test process created a loopback service/reaper, then
+called `os.Exit(23)` without running cleanup callbacks. Subsequent Docker
+inspection and an explicit assertion found zero containers for that session,
+including the service and auto-removed Ryuk. The source is stored as `.go.txt`
+so it cannot become an audit-document Go package.
+
+No dependency version changed. Existing `github.com/moby/moby/api v1.55.0`
+and `github.com/moby/moby/client v0.5.0` requirements moved from indirect to
+direct because the integration helper now imports their binding/inspection
+APIs. `go.sum` is unchanged; `go list -m all` is byte-identical to the original
+post-remediation graph. All image versions/digests above remain unchanged.
+
+### CI matrix proof and final gates
+
+The workflow's own run commands were extracted and executed with the actual
+Go 1.26.10 and 1.27.3 binaries. Under the old auto setting, the 1.26.10 binary
+reported `go1.27.3`; the new assertion rejected it with exit 1. With the fixed
+job environment it reported `go1.26.10`. Both jobs then ran under their
+selected versions. This is a local simulation of the committed commands,
+not a claim that GitHub-hosted jobs have run.
+
+| Check | Actual result |
+| --- | --- |
+| Real integration suites, race detector; repeated twice/shuffled | 0; all service and reaper runtime bindings loopback |
+| Modifier preservation test; tagged staticcheck; tagged vet | 0 |
+| Abrupt process probe | Expected 23; service and Ryuk subsequently absent |
+| Service wildcard / Ryuk wildcard mutations | Expected 1 / 1, runtime assertions |
+| Both matrix versions: build, vet, race/shuffled short tests | 0 / 0 |
+| Both matrix versions: exact `go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...` | 0 / 0 |
+| Both matrix versions: `go test -tags integration -short ./...` | 0 / 0 |
+| Tagged short tests with nonexistent Docker socket | 0; infrastructure suites skipped, modifier unit test runs |
+| Final `task check` (race short tests, staticanalysis, production vuln, tidy/verify, hooks) | 0 |
+| Final cached `task lint` | 0 |
+| `govulncheck -tags=integration -test ./postgres/... ./mongo/... ./messaging/...` | 0; zero reachable vulnerabilities |
+| Clean `task release:check` | Task 201 / underlying gorelease 1; approved cross-major report, not a passing check |
+| Clean `task release:check RELEASE_VERSION=v2.0.0` | 0; valid explicit cross-major comparison |
+| Clean `task release:check BASE=none RELEASE_VERSION=v2.0.0` | 0; valid initial v2 release |
+
+The crypto advisory decision remains unchanged: GO-2026-5932 is a required
+module finding with no reachable production or tagged-test call path in these
+scans. No unrelated upgrade was introduced to suppress it. No blocker or
+silent deferral remains for the two requested fixes.
+
+Portable raw evidence, negative-control patches and the matrix runner are in
+[`R-DEPS-loop2/`](./R-DEPS-loop2/README.md). `checks.jsonl` preserves exact
+commands and exit codes; implementation commit hooks also passed. The report
+and evidence are committed separately after these clean-tree release checks.
