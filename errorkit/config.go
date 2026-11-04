@@ -33,7 +33,15 @@ func init() {
 // [1, 100]. Default is 32 frames. It is safe to call concurrently with
 // NewError.
 func SetMaxStackDepth(depth int) {
-	maxStackDepth.Store(int32(clampStackDepth(depth)))
+	if depth < 1 {
+		maxStackDepth.Store(1)
+		return
+	}
+	if depth > 100 {
+		maxStackDepth.Store(100)
+		return
+	}
+	maxStackDepth.Store(int32(depth))
 }
 
 // currentMaxStackDepth returns the configured global stack depth.

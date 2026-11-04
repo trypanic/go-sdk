@@ -204,4 +204,16 @@ jobs:
       - name: gorelease
         run: |
           base=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
-          go run "golang.org/x/exp/cmd/gorelease@${GORELEASE_VERSION}" -base="${base}"
+          base_module=$(git show "${base}:go.mod" | awk '$1 == "module" {print $2}')
+          module=$(go list -m)
+          args=("-base=${base_module}@${base}")
+          if [[ "${module}" != "${base_module}" ]]; then
+            # gorelease cannot infer the initial version across major module paths.
+            major=${module##*/}
+            if [[ ! "${major}" =~ ^v([2-9]|[1-9][0-9]+)$ ]]; then
+              echo "Cannot determine the release version for ${module}" >&2
+              exit 1
+            fi
+            args+=("-version=${major}.0.0")
+          fi
+          go run "golang.org/x/exp/cmd/gorelease@${GORELEASE_VERSION}" "${args[@]}"

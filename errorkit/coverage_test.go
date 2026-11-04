@@ -2,6 +2,7 @@ package errorkit
 
 import (
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,8 @@ func TestInitFromEnvSetsStackDepth(t *testing.T) {
 		{name: "valid depth", value: "12", want: 12},
 		{name: "clamped high", value: "1000", want: 100},
 		{name: "clamped low", value: "0", want: 1},
+		{name: "largest int", value: strconv.Itoa(int(^uint(0) >> 1)), want: 100},
+		{name: "smallest int", value: strconv.Itoa(-int(^uint(0)>>1) - 1), want: 1},
 		{name: "unset keeps the current depth", value: "", want: defaultMaxStackDepth},
 		{name: "not a number keeps the current depth", value: "deep", want: defaultMaxStackDepth},
 		{name: "trailing garbage keeps the current depth", value: "12abc", want: defaultMaxStackDepth},
