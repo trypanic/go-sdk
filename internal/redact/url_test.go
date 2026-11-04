@@ -3,6 +3,7 @@ package redact
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"testing"
@@ -54,4 +55,36 @@ func TestURLErrorKeepsCause(t *testing.T) {
 
 	plain := errors.New("plain")
 	require.Same(t, plain, URLError(plain))
+}
+
+func TestURLErrorMasksNestedDiagnosticsAndPreservesClassification(t *testing.T) {
+	t.Parallel()
+	const secret = "REVIEW_SECRET"
+	for _, cause := range []error{
+		fmt.Errorf("failed to parse Location %q", "https://provider.example/%zz?key="+secret),
+		&url.Error{Op: "parse", URL: "https://provider.example/%zz?key=" + secret, Err: url.EscapeError("%zz")},
+		&net.OpError{Op: "dial", Net: "tcp", Err: fmt.Errorf("credentials %s: %w", secret, context.DeadlineExceeded)},
+		errors.Join(fmt.Errorf("credentials %s", secret), context.Canceled),
+	} {
+		t.Run(fmt.Sprintf("%T", cause), func(t *testing.T) {
+			original := &url.Error{Op: "Get", URL: "https://api.example/?key=" + secret, Err: cause}
+			got := URLError(original)
+			require.NotContains(t, got.Error(), secret)
+			require.ErrorIs(t, got, cause)
+			require.Contains(t, original.Error(), secret, "input must not be changed")
+			outer, ok := errors.AsType[*url.Error](got)
+			require.True(t, ok)
+			require.Equal(t, original.Timeout(), outer.Timeout())
+			require.Equal(t, original.Temporary(), outer.Temporary())
+			if op, ok := errors.AsType[*net.OpError](cause); ok {
+				gotOp, found := errors.AsType[*net.OpError](got)
+				require.True(t, found)
+				require.Same(t, op, gotOp)
+				require.ErrorIs(t, got, context.DeadlineExceeded)
+			}
+			if errors.Is(cause, context.Canceled) {
+				require.ErrorIs(t, got, context.Canceled)
+			}
+		})
+	}
 }

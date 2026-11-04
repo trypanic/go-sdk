@@ -211,7 +211,7 @@ Network error payloads always include `url` and `original_error`. HTTP error pay
 
 **Logging.** `Do` never logs the errors it returns: the caller handles each error once (log it with `logger.ErrorCtx(ctx, err, …)`, retry, or translate it). For one log line per attempt, opt in with `WithAuditLog()`, which writes through `logger.CtxOrGlobal(ctx)` with trace correlation.
 
-**URL sanitization.** Every URL placed in an error payload, a wrapped `*url.Error`, the audit log or a span event is sanitized first: userinfo (`user:pass@`) and the fragment are dropped, and each query value is replaced by `REDACTED` while the keys are kept (`?key=SECRET` → `?key=REDACTED`).
+**URL sanitization.** Every URL placed in an error payload, a wrapped `*url.Error`, the audit log or a span event is sanitized first: userinfo (`user:pass@`) and the fragment are dropped, and each query value is replaced by `REDACTED` while the keys are kept (`?key=SECRET` → `?key=REDACTED`). Wrapped URL-error diagnostic text is replaced by `[REDACTED]`, because even parse failures can echo credentials from a redirect Location. The original cause remains available through `errors.Is` and `errors.As`; timeout classification is preserved.
 
 **Retryability** starts from `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.
 

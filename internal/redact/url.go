@@ -44,9 +44,9 @@ func URL(raw string) string {
 }
 
 // URLError returns err with the URL of a top-level *url.Error sanitized by
-// URL. The copy keeps Op and the wrapped error, so errors.Is and errors.As
-// still see the cause (for example context.DeadlineExceeded or a
-// *net.OpError). Any other error is returned unchanged.
+// URL and its cause text masked. Diagnostics may embed further raw URLs.
+// The cause remains accessible to errors.Is and errors.As, and timeout
+// classification is preserved. Any other error is returned unchanged.
 func URLError(err error) error {
 	urlErr, ok := errors.AsType[*url.Error](err)
 	if !ok || urlErr != err {
@@ -54,5 +54,22 @@ func URLError(err error) error {
 	}
 	sanitized := *urlErr
 	sanitized.URL = URL(urlErr.URL)
+	sanitized.Err = diagnosticError{cause: urlErr.Err}
 	return &sanitized
+}
+
+// diagnosticError separates printable text from the original error chain.
+type diagnosticError struct{ cause error }
+
+func (e diagnosticError) Error() string { return Placeholder }
+func (e diagnosticError) Unwrap() error { return e.cause }
+
+func (e diagnosticError) Timeout() bool {
+	cause, ok := e.cause.(interface{ Timeout() bool })
+	return ok && cause.Timeout()
+}
+
+func (e diagnosticError) Temporary() bool {
+	cause, ok := e.cause.(interface{ Temporary() bool })
+	return ok && cause.Temporary()
 }

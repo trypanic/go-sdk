@@ -151,3 +151,27 @@ func TestRequestBuildErrorDoesNotLeakURLSecrets(t *testing.T) {
 	require.Error(t, err)
 	requireNoSecrets(t, "request build error", appErrorText(t, err))
 }
+
+func TestMalformedRedirectDoesNotLeakNestedURLSecrets(t *testing.T) {
+	t.Parallel()
+	for _, location := range []string{
+		"https://provider.example/%zz?key=SECRET123",
+		"https://user:p4ssw0rd@provider.example/%zz?key=SECRET123#sk-live-ABCDEF",
+		"/%zz?key=SECRET123",
+	} {
+		t.Run(location, func(t *testing.T) {
+			t.Parallel()
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Location", location)
+				w.WriteHeader(http.StatusFound)
+			}))
+			t.Cleanup(srv.Close)
+			err := NewWithOptions(srv.Client(), WithRetryConfig(RetryConfig{MaxRetries: 1})).Do(t.Context(), RequestConfig{
+				Method: http.MethodGet, URL: srv.URL,
+			}, nil)
+			appErr := requireAppError(t, err, ERR_NETWORK_ERROR, true)
+			requireNoSecrets(t, "network diagnostics", appErrorText(t, err))
+			requireNoSecrets(t, "serialized error", appErr.PrettyJSON())
+		})
+	}
+}
