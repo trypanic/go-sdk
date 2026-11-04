@@ -50,6 +50,26 @@ tasks:
       # Keep SEMGREP_VERSION in sync with scripts/staticanalysis.sh.
       - python -m pip install pre-commit=={{.PRECOMMIT_VERSION}} semgrep=={{.SEMGREP_VERSION}} git-cliff=={{.GITCLIFF_VERSION}}
 
+  tools:check:
+    desc: Check that the active Go is the .prototools pin and a supported, patched toolchain (>= 1.26.10)
+    silent: true
+    cmds:
+      - |
+        active=$(go env GOVERSION | sed 's/^go//')
+        pinned=$(sed -nE 's/^go *= *"([^"]+)".*/\1/p' .prototools)
+        min=1.26.10
+        status=0
+        if [ "$active" != "$pinned" ]; then
+          echo "go $active is active but .prototools pins $pinned (proto install; check PATH)" >&2
+          status=1
+        fi
+        if [ "$(printf '%s\n%s\n' "$min" "$active" | sort -V | head -n1)" != "$min" ]; then
+          echo "go $active is below $min, the oldest supported patched toolchain (README Compatibility)" >&2
+          status=1
+        fi
+        [ "$status" -eq 0 ] && echo "go $active: matches .prototools and is supported"
+        exit "$status"
+
   skills:install:
     desc: Install agent skills and sync them across agents (was moon install-skills)
     preconditions:

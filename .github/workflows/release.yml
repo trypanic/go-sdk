@@ -81,9 +81,12 @@ jobs:
           ref: refs/tags/${{ env.TAG }}
           persist-credentials: false
 
+      # A patched toolchain, not the go.mod language floor (1.26.1 has
+      # reachable standard-library vulnerabilities, X3-001).
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version-file: go.mod
+          go-version: "1.27.x"
+          check-latest: true
 
       # Smoke check only: the gate ran in ci.yml before the release PR merged.
       - name: Smoke-check tagged tree

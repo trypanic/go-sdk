@@ -6,6 +6,14 @@ This SDK runs three Go static-analysis tools — `go vet`, `staticcheck`, and
 `pre-commit` (staged-files mode) and `task` (full-repo mode), and the same
 tools run again in CI.
 
+## Supported toolchains
+
+Build with the latest patch release of Go 1.26 (**≥ 1.26.10**) or Go 1.27.
+Older 1.26 patch releases have standard-library vulnerabilities that SDK code
+paths reach (govulncheck, see [README](./README.md#supported-toolchains));
+CI runs govulncheck on the latest patch of both lines, on every change and
+weekly.
+
 ## Canonical entry point
 
 ```bash

@@ -4,7 +4,8 @@ Opinionated Go SDK for distributed systems — bundles logging, errors, tracing,
 metrics, HTTP, messaging, and storage primitives behind a small, explicit
 API surface.
 
-Module path: `github.com/trypanic/go-sdk` (Go `1.26.1`).
+Module path: `github.com/trypanic/go-sdk` (language floor `go 1.26.1`; see
+[Supported toolchains](#supported-toolchains)).
 
 ## Package map
 
@@ -67,6 +68,21 @@ go-sdk/
   `LLM_API_KEY`), a sibling `*FromEnv` constructor reads it explicitly.
 - **Body capture.** HTTP request and inbound audit middleware redact bodies
   by default; raw capture is an explicit opt-in.
+
+## Supported toolchains
+
+Build and test services that use the SDK with the **latest patch release of
+Go 1.26 (1.26.10 or newer) or of Go 1.27**. CI tests both lines
+(`1.26.x` and `1.27.x`, latest patch).
+
+The `go 1.26.1` directive in `go.mod` is a *language* floor: it is the oldest
+toolchain that compiles the module, not a safe one. Go 1.26.1–1.26.9 contain
+standard-library vulnerabilities (`net/http`, `crypto/tls`, `crypto/x509`,
+…) that ordinary SDK use reaches through `httprequest`, `messaging`,
+`postgres`, `mongo`, `httpserver/hertz` and `logger`; they are fixed in
+1.26.10 and in 1.27. Toolchain patching belongs to the consumer, so the SDK
+does not raise its `go` directive to force it. Contributors can run
+`task tools:check` to confirm their toolchain.
 
 ## Developer setup
 
