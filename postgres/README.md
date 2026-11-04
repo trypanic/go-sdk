@@ -135,8 +135,11 @@ Behavior:
    5-second timeout context.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
 
-All errors are wrapped with `errorkit.ERR_DB_POSTGRES_ERROR` and carry the underlying error
-in the payload.
+All errors are wrapped with `errorkit.ERR_DB_POSTGRES_ERROR`. The driver error is attached as
+the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
+`*pgconn.ConnectError`, `context.DeadlineExceeded`, …) and the payload carries only the
+driver's `Error()` text, in which pgx masks the password. The driver error value itself is
+never used as the payload: `*pgconn.ParseConfigError` exports the unredacted connection string.
 
 ### NewPostgresClientFromEnv
 
