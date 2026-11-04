@@ -60,23 +60,23 @@ and say so in your final message.
 
 ---
 
-## 1. Project facts (verified 2026-11-03 — re-verify in P1)
+## 1. Project facts (re-verified in P1 on 2026-11-04 — see `discovery.md` §9)
 
 | Fact | Value |
 | --- | --- |
 | Module | `github.com/trypanic/go-sdk` — **single module**, one `go.mod`, one version for all packages |
 | Released version | `v1.0.0` (semver v1: public API is a compatibility contract) |
-| Go | `go 1.26.1` directive in `go.mod`; toolchain `1.26.2` pinned in `.prototools` |
-| Size | 22 packages, ~14k lines (errorkit 2.3k, messaging 1.5k, logger 1.4k, httprequest 1.3k, grpc 1.3k, mongo 1k, postgres 0.9k, storage 0.9k, …) |
+| Go | `go 1.26.1` directive in `go.mod` (no `toolchain` line); `.prototools` pins `go = "1.27.3"`; Go on `PATH` here is 1.26.2; CI uses `go-version-file: go.mod` |
+| Size | 22 packages (21 importable), 13,979 lines = 9,659 non-test + 4,320 test; per-package totals incl. tests: errorkit 2.3k, messaging 1.5k, logger 1.4k, httprequest 1.3k, grpc 1.3k, mongo 1k, postgres 0.9k, storage 0.9k, … |
 | Package name ≠ directory | `postgres` → `package database`, `mongo` → `package mongodb` |
 | Contracts | `AGENTS.md` §2 (errorkit errors, tracing constructor triplet, no silent env reads, body redaction, concurrency/lifecycle) and each package `README.md` |
 | Task runner | Task (`Taskfile.yml`); tools pinned via proto (`.prototools`) |
 | Quality gates | `task test`, `task staticanalysis` (vet + staticcheck + semgrep), `task precommit:run`, `task release:check` (gorelease) |
 | CI | Only `.github/workflows/release.yml` (release-please + SBOM). `SECURITY.md` describes semgrep CI jobs that are **not present** — verify and report |
-| Tests | No `//go:build integration` tags and no `testing.Short()` gates found; external services appear to be faked |
+| Tests | No `//go:build integration` tags and no `testing.Short()` gates; connection paths of postgres/mongo/messaging are untested (fakes only for postgres `Querier`, mongo `ClientPort`/`Collection`, llmclient requester, gRPC bufconn, `httptest`) |
 | Project skills | `.skillshare/skills/{go-code-quality-check,go-design-principles,go-testing-strategy}` (gitignored; install with `task skills:install`) |
-| Known pre-existing | semgrep `defer-rows-close` warnings at `postgres/stored_procedure_test.go:47` |
-| Gotcha | `gorelease` refuses a dirty tree, including untracked dirs such as `.moon/`; run it from a clean worktree |
+| Known pre-existing | See `baseline.md`: staticcheck SA1019 ×4 in `logger`, stdlib vulns on go ≤ 1.26.2, 25 golangci-lint issues. (The previously listed semgrep `defer-rows-close` at `postgres/stored_procedure_test.go:47` does not reproduce: semgrep skips `*_test.go` by default.) |
+| Gotcha | `task release:check` refuses a dirty tree (Taskfile precondition), including the untracked `.moon/` leftover from `main`; run it from a clean worktree |
 
 ---
 
@@ -446,16 +446,16 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | P0.1 | Setup | — | DONE | claude-opus-5-5/2026-11-03 | 2026-11-04T00:15Z | sources + branch | | — | — | Branch from `chore/migrate-moon-to-taskfile` (d966f55; contains main). Sources at pinned SHAs in `~/.cache/go-audit-sources`. Tools: go on PATH 1.26.2 (proto resolves 1.27.3 from `.prototools`), proto 0.63.2, task 3.54.0, staticcheck on PATH 2026.1 (proto pins 2026.2.2), semgrep 1.95.0, pre-commit 4.7.0, gcc 15.3.0, skillshare 0.28.2 (pin 0.25.5); gorelease/govulncheck/golangci-lint via `go run`. Skills already installed in `.skillshare/skills`. |
 | P0.2 | Setup | P0.1 | DONE | claude-opus-5-5/2026-11-03 | 2026-11-04T00:25Z | `baseline.md` | | — | — | V7 FAIL (4× SA1019 logger), V8 FAIL on go1.26.2 (19 stdlib vulns; 0 on go1.27.3), V9 25 issues; rest PASS. Coverage 47.7%. |
-| P1 | Discovery | P0.2 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:25Z | `discovery.md` | | orchestrator | | |
-| P2.C1 | Audit | P1 | TODO | | | `findings/P2.C1.md` | | orchestrator | | errorkit, logger, telemetry |
-| P2.C2 | Audit | P1 | TODO | | | `findings/P2.C2.md` | | orchestrator | | httpclient, httprequest, httpserver(/hertz), llmclient |
-| P2.C3 | Audit | P1 | TODO | | | `findings/P2.C3.md` | | orchestrator | | grpc |
-| P2.C4 | Audit | P1 | TODO | | | `findings/P2.C4.md` | | orchestrator | | postgres, mongo, storage |
-| P2.C5 | Audit | P1 | TODO | | | `findings/P2.C5.md` | | orchestrator | | messaging |
-| P2.C6 | Audit | P1 | TODO | | | `findings/P2.C6.md` | | orchestrator | | utility packages |
-| P2.X1 | Audit | P1 | TODO | | | `findings/P2.X1.md` | | orchestrator | | architecture + public API |
-| P2.X2 | Audit | P1 | TODO | | | `findings/P2.X2.md` | | orchestrator | | maintainability, CI, docs |
-| P2.X3 | Audit | P1 | TODO | | | `findings/P2.X3.md` | | orchestrator | | dependencies, govulncheck |
+| P1 | Discovery | P0.2 | DONE | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `discovery.md` | | orchestrator | orchestrator claude-opus-5-5 | Reviewed: 22 packages in API inventory, 30 intra-module edges match `go list`, §1 corrected per discovery §9; DN-01 and DN-15 spot-checked against code. |
+| P2.C1 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C1.md` | | orchestrator | | errorkit, logger, telemetry |
+| P2.C2 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C2.md` | | orchestrator | | httpclient, httprequest, httpserver(/hertz), llmclient |
+| P2.C3 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C3.md` | | orchestrator | | grpc |
+| P2.C4 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C4.md` | | orchestrator | | postgres, mongo, storage |
+| P2.C5 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C5.md` | | orchestrator | | messaging |
+| P2.C6 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.C6.md` | | orchestrator | | utility packages |
+| P2.X1 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X1.md` | | orchestrator | | architecture + public API |
+| P2.X2 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X2.md` | | orchestrator | | maintainability, CI, docs |
+| P2.X3 | Audit | P1 | IN_PROGRESS | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T00:45Z | `findings/P2.X3.md` | | orchestrator | | dependencies, govulncheck |
 | P2.Z | Audit | all P2.* | TODO | | | `AUDIT_REPORT.md` | | go-reviewer | | |
 | P3 | Plan | P2.Z | TODO | | | `REMEDIATION_PLAN.md` | | go-reviewer | | |
 | G1 | Gate | P3 | TODO | human | | approvals in plan | | — | | Human sets DONE |
