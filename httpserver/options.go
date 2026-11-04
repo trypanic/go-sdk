@@ -46,7 +46,10 @@ type ReplyOptions struct {
 // how built-in defaults behave. The zero value is not meaningful; callers
 // should start from DefaultServerOptions and override fields.
 type ServerOptions struct {
-	EnableTracing  bool
+	EnableTracing bool
+	// EnableRecovery installs the adapter's panic recovery as the outermost
+	// middleware. When false, no recovery layer runs and a handler panic
+	// propagates.
 	EnableRecovery bool
 	EnableAudit    bool
 	EnableHealth   bool

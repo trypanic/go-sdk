@@ -45,17 +45,24 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		opts = append(opts, server.WithWriteTimeout(cfg.WriteTimeout))
 	}
 
-	var (
-		engine    *server.Hertz
-		tracerCfg *hertztracing.Config
-	)
+	var tracerCfg *hertztracing.Config
 	if srvOpts.EnableTracing {
 		tracerOpt, cfgT := hertztracing.NewServerTracer()
 		tracerCfg = cfgT
-		engine = server.Default(append([]config.Option{tracerOpt}, opts...)...)
+		opts = append([]config.Option{tracerOpt}, opts...)
+	}
+	// server.New, not server.Default: Default always adds Hertz's own
+	// recovery, which would ignore EnableRecovery and log panics through
+	// hlog instead of the SDK logger.
+	engine := server.New(opts...)
+
+	// The SDK recovery is the outermost middleware, so it also covers
+	// panics in the built-in middlewares below.
+	if srvOpts.EnableRecovery {
+		engine.Use(recovery.Recovery(recovery.WithRecoveryHandler(RecoveryHandler)))
+	}
+	if srvOpts.EnableTracing {
 		engine.Use(hertztracing.ServerMiddleware(tracerCfg))
-	} else {
-		engine = server.Default(opts...)
 	}
 
 	w := &wrapperHertzServer{
@@ -64,10 +71,6 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		replyOpts: srvOpts.Reply,
 	}
 	engine.Use(w.trackInFlight)
-
-	if srvOpts.EnableRecovery {
-		engine.Use(recovery.Recovery(recovery.WithRecoveryHandler(RecoveryHandler)))
-	}
 	if srvOpts.EnableAudit {
 		engine.Use(hertzInboundAuditMiddleware(srvOpts.Audit))
 	}
@@ -108,13 +111,18 @@ func applyOptionDefaults(o httpserver.ServerOptions) httpserver.ServerOptions {
 	return o
 }
 
-// RecoveryHandler is the Hertz panic-recovery handler installed when
-// ServerOptions.EnableRecovery is true.
+// RecoveryHandler is the Hertz panic-recovery handler installed, as the
+// outermost middleware, when ServerOptions.EnableRecovery is true. It logs
+// one structured error line (with trace_id/span_id and the panic stack in
+// "panic_stack") through logger.CtxOrGlobal(ctx) and aborts with HTTP 500.
 func RecoveryHandler(ctx context.Context, c *app.RequestContext, err any, stack []byte) {
 	appErr := errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
 		errorkit.WithReason("panic recovered: %v", err),
 	)
-	logger.ErrorCtx(ctx, appErr, "httpserver: panic recovered")
+	event := logger.WithTrace(ctx, logger.CtxOrGlobal(ctx).Error())
+	logger.WithErrorKit(event, appErr).
+		Str("panic_stack", string(stack)).
+		Msg("httpserver: panic recovered")
 	c.AbortWithStatus(consts.StatusInternalServerError)
 }
 

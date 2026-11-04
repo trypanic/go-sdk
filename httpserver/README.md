@@ -123,6 +123,14 @@ type ServerOptions struct {
 | `Reply.Layout` | `"2006-01-02 15:04:05"` |
 | `Reply.Clock` | `time.Now` |
 
+`EnableRecovery` is the only recovery layer. When `true`, the adapter's
+`RecoveryHandler` is the outermost middleware (it also covers the built-in
+tracing and audit middlewares) and logs one structured error line with the
+panic stack (`panic_stack`) through `logger.CtxOrGlobal(ctx)`. When
+`false`, no recovery is installed and a handler panic propagates (with
+Hertz it crashes the process); install your own recovery middleware if you
+need one.
+
 To opt out of a middleware, set its `Enable*` flag to `false`. To install
 your own NoRoute/NoMethod response, set `NoRouteHandler` /
 `NoMethodHandler`. To capture audit bodies under your own policy, set

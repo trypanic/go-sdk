@@ -14,7 +14,7 @@ does not.
 |---|---|
 | `New(cfg httpserver.ServerConfig) httpserver.HTTPServer` | Hertz-backed server with `httpserver.DefaultServerOptions()`. |
 | `NewWithOptions(cfg, opts httpserver.ServerOptions) httpserver.HTTPServer` | Same with explicit options; zero-valued fields are backfilled from defaults. |
-| `RecoveryHandler(ctx, c, err, stack)` | Panic-recovery handler installed when `EnableRecovery` is true. Logs via the SDK logger and aborts with HTTP 500. |
+| `RecoveryHandler(ctx, c, err, stack)` | Panic-recovery handler installed as the outermost middleware when `EnableRecovery` is true. Logs one structured line (with `panic_stack`) via `logger.CtxOrGlobal(ctx)` and aborts with HTTP 500. With `EnableRecovery` false no recovery runs at all (the engine is built with `server.New`, not `server.Default`). |
 | `RequestLoggerMiddleware(base *logger.Logger) app.HandlerFunc` | Injects a per-request logger into ctx. Pass `nil` for `base` to derive from the global logger. |
 
 ## Defaults from `DefaultServerOptions()`
