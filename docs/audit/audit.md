@@ -458,14 +458,14 @@ Status: `TODO` · `IN_PROGRESS` · `IN_REVIEW` · `CHANGES_REQUESTED` · `DONE` 
 | P2.X3 | Audit | P1 | DONE | go-auditor via orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T03:30Z | `findings/P2.X3.md` | | orchestrator | orchestrator claude-opus-5-5 | 11 findings (H1/M5/L5). Re-verified X3-001 (baseline V8), X3-006 (logger links x/net/trace), X3-008 (backoff v4+v5, v4 in algorithms API); go.mod untouched; format OK. |
 | P2.Z | Audit | all P2.* | DONE | orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T05:40Z | `AUDIT_REPORT.md` | | go-reviewer | go-reviewer (loop 2 APPROVE) | Loop 2 after CHANGES_REQUESTED (6 blocking + 6 notes, all addressed): 170 unique (11 merged): H21/M87/L62; C6-009 and C2-017 un-merged; C2-006, C2-017 → HIGH; Needs approval parsed from its own line and unioned on merges; severity criteria in §7.2. Loop-2 non-blocking notes applied: multi-line locations, C4-009/C5-012 partial, C2-017 Hertz wording, disclosure criterion. |
 | P3 | Plan | P2.Z | DONE | orchestrator claude-opus-5-5/2026-11-03 | 2026-11-04T08:00Z | `REMEDIATION_PLAN.md` | | go-reviewer | go-reviewer (loop 2 APPROVE) | Loop 2 after CHANGES_REQUESTED (5 blocking + notes addressed): 139 items (63 auto / 76 approval); 8 auto items reclassified or split; AGENTS.md edits centralized in R-153; rejected-dependency fallbacks; P4.XP step for X post-merge items; all fields present. Loop-2 notes applied (R-159 fields, after P4.XP, R-153 fallback, C1-018 deferral). |
-| G1 | Gate | P3 | WAITING_APPROVAL | human | 2026-11-04T08:00Z | approvals in plan | | — | | Human sets DONE |
-| P4.C1 | Remediation | G1 | TODO | | | branch `audit/2026-11-C1` | | go-reviewer | | |
-| P4.C2 | Remediation | G1 | TODO | | | branch `audit/2026-11-C2` | | go-reviewer | | |
-| P4.C3 | Remediation | G1 | TODO | | | branch `audit/2026-11-C3` | | go-reviewer | | |
-| P4.C4 | Remediation | G1 | TODO | | | branch `audit/2026-11-C4` | | go-reviewer | | |
-| P4.C5 | Remediation | G1 | TODO | | | branch `audit/2026-11-C5` | | go-reviewer | | |
-| P4.C6 | Remediation | G1 | TODO | | | branch `audit/2026-11-C6` | | go-reviewer | | |
-| P4.X | Remediation | G1 | TODO | | | branch `audit/2026-11-X` | | go-reviewer | | docs, tooling, cross-cutting |
+| G1 | Gate | P3 | DONE | human (owner, via session chat) | 2026-11-04T08:30Z | approvals in plan | 39af5b6 | — | — | Owner approved all approval items incl. breaking changes; release will be 2.0.0. R-152 PENDING (licence choice), R-159 DEFERRED. See REMEDIATION_PLAN.md §12. |
+| P4.C1 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C1` | | go-reviewer | | |
+| P4.C2 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C2` | | go-reviewer | | |
+| P4.C3 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C3` | | go-reviewer | | |
+| P4.C4 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C4` | | go-reviewer | | |
+| P4.C5 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C5` | | go-reviewer | | |
+| P4.C6 | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-C6` | | go-reviewer | | |
+| P4.X | Remediation | G1 | IN_PROGRESS | go-remediator via orchestrator claude-opus-5-5/2026-11-04 | 2026-11-04T08:30Z | branch `audit/2026-11-X` | | go-reviewer | | docs, tooling, cross-cutting |
 | P4.M | Remediation | all P4.C*, P4.X | TODO | | | merged `audit/2026-11` | | — | | |
 | P4.XP | Remediation | P4.M | TODO | | | X post-merge items on `audit/2026-11` | | go-reviewer | | sequential, after P4.M (see REMEDIATION_PLAN.md cross-cluster rule) |
 | R-DEPS | Remediation | P4.XP | TODO | | | `go.mod`/`go.sum` | | go-reviewer | | skip if no approved dep change |
