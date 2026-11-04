@@ -10,13 +10,15 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [Quick Start](#quick-start)
   - [Configuration / Settings](#configuration--settings)
     - [Environment Detection](#environment-detection)
-    - [No Additional Config Structs](#no-additional-config-structs)
+    - [Redaction](#redaction)
+    - [Configuration Sources](#configuration-sources)
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
+    - [NewLogProvider](#newlogprovider)
     - [InitLogProvider](#initlogprovider)
     - [NewOTLPWriter](#newotlpwriter)
-    - [LogProviderHandle.Shutdown](#logproviderhandleshutdown)
+    - [LogProviderHandle.Close / Shutdown](#logproviderhandleclose--shutdown)
     - [Error](#error)
     - [LogAndReturn](#logandreturn)
     - [Panic](#panic)
@@ -54,10 +56,12 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `Dev`                | const           | `"development"`                                                    |
 | `Prod`               | const           | `"production"`                                                     |
 | `OTLPWriter`         | struct          | `io.Writer` that converts zerolog JSON lines to OTEL `LogRecord`s  |
-| `LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Shutdown` on exit            |
+| `LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Close` (or `Shutdown`) on exit |
+| `LogProviderConfig`  | struct          | `NewLogProvider` config: service name, endpoint, TLS / insecure, headers, timeout |
 | `Init`               | func            | Creates, configures, and installs the global logger                |
-| `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Dev`                     |
-| `InitLogProvider`    | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC     |
+| `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Prod`                    |
+| `NewLogProvider`     | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC (TLS by default); returns errors |
+| `InitLogProvider`    | func            | Plaintext `NewLogProvider` wrapper that never fails (compatibility) |
 | `NewOTLPWriter`      | func            | Creates an `OTLPWriter` backed by the global `LoggerProvider`      |
 | `SetupOTLP`          | func            | Bundles `InitLogProvider` + `NewOTLPWriter` in correct order; returns handle + writer |
 | `Error`              | func            | Logs an `errorkit.AppError` at Error level via the global logger   |
@@ -65,7 +69,7 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `Panic`              | func            | `Error` + `os.Exit(1)` (non-zero exit so supervisors detect failure) |
 | `New`                | func            | Builds an explicit `*Logger` instance from `Config` without touching the global |
 | `Logger`             | struct          | Instance API: `Info`, `Warn`, `Error`, `InfoCtx`, `ErrorCtx`, `WarnCtx`, `WithFields`, `IntoContext`, `Zerolog` |
-| `Config`             | struct          | Instance config: `AppName`, `Version`, `Env`, `Writer`, `OTLPWriter` |
+| `Config`             | struct          | Instance config: `AppName`, `Version`, `Env`, `Writer`, `OTLPWriter`, `Redactor` |
 | `Warn`               | func            | Printf-style Warn via the global logger                            |
 | `Info`               | func            | Printf-style Info via the global logger                            |
 | `ErrorCtx`           | func            | Error log with context logger and live OTel `trace_id` / `span_id` |
@@ -90,12 +94,11 @@ import (
     "github.com/trypanic/go-sdk/errorkit"
 )
 
-func init() {
+func main() {
+    // Set ENVIRONMENT=development for console output; the default is JSON (Prod).
     _, cleanup := logger.Init("my-service", "1.0.0")
     defer cleanup.Close()
-}
 
-func main() {
     logger.Info("Starting %s", "my-service")
 
     if err := doWork(); err != nil {
@@ -114,21 +117,56 @@ func main() {
 
 `Init` calls `DetectEnv()` internally to select the output format.
 
-| `ENVIRONMENT` value      | Resolved constant | Log level | Output format             |
-| ------------------------ | ----------------- | --------- | ------------------------- |
-| `production`, `prod`     | `Prod`            | `Info`    | JSON to stdout            |
-| anything else (or unset) | `Dev`             | `Debug`   | Colored console to stdout |
+| `ENVIRONMENT` value (case-insensitive) | Resolved constant | Log level | Output format             |
+| -------------------------------------- | ----------------- | --------- | ------------------------- |
+| `development`, `dev`, `local`          | `Dev`             | `Debug`   | Colored console to stdout |
+| anything else, including unset         | `Prod`            | `Info`    | JSON to stdout            |
 
-Both environments add `timestamp` (Unix epoch) and `caller` (file:line) to every log line automatically.
+The default is `Prod` so a deployment that forgets or misspells the variable
+(`PRODUCTION`, `prd`, `staging`) never logs at Debug level in a format log
+pipelines cannot parse. Set `ENVIRONMENT=development` (or `dev`/`local`) for
+the console output on a workstation. With `local`, the console omits
+`service_name`/`service_version`; the variable is read once when the writer is
+built.
 
-**Dev console** pretty-prints `service_name`, `service_version`, and all extra fields below the log line using blue ANSI color; `stack_trace` frames are JSON-marshalled inline.
+Both environments add a `time` field to every log line automatically: the UTC time as an RFC 3339 string with nanosecond precision (`2026-11-03T10:00:00.123456789Z`). The Dev console renders it as local `HH:MM:SS`. Earlier versions wrote whole Unix epoch seconds. No `caller` field is added.
 
-### No Additional Config Structs
+**Dev console** prints the extra fields on the same line, after the message and a ` | ` separator: `service_name` and `service_version` first (omitted when `ENVIRONMENT=local`), then every other field sorted by key, with field names in blue. JSON values such as `stack_trace` are compacted inline and redacted.
 
-The logger has no `Config` struct. All behavior is controlled by:
+### Redaction
 
-- The `ENVIRONMENT` environment variable (see table above).
-- The optional `*OTLPWriter` variadic argument to `Init`.
+Every logger built by `Init` or `New` passes each JSON log line through a redacting writer before it reaches stdout, the console writer or an `OTLPWriter`. The built-in policy:
+
+| Rule | Applies to | Result |
+| ---- | ---------- | ------ |
+| Sensitive key | Any field (at any nesting level, including inside JSON strings) whose key, lower-cased with non-alphanumerics removed, ends with `password`, `passwd`, `pwd`, `secret`, `token`, `authorization`, `cookie`, `apikey`, `privatekey`, `secretkey`, `accesskey`, `signingkey`, `credential`, `credentials` or `dsn` (so `access_token`, `Proxy-Authorization`, `Set-Cookie`, `X-Api-Key`, `secret_key`, `aws_secret_access_key`, `signing_key`, `postgres_dsn` all match) | Whole value replaced by `*****` |
+| Email key | Keys ending with `email` | Domain masked: `jane@*****` |
+| URL userinfo | Every other string value, including the message and `wrapped_error` | `scheme://user:password@host` becomes `scheme://user:*****@host`; the password runs to the last `@` before the next whitespace, so unencoded `@` or `/` in it are masked too (this can also mask a port and path up to an `@`, e.g. in `https://h:443/a@b`) |
+| JSON in a string | String values holding one JSON document (for example a captured request body) | Compacted and redacted recursively |
+
+Keys that merely contain these words (`max_tokens`, `author`) are not masked. The fallback logger used before `Init` does not redact.
+
+Cost: a cheap byte scan decides first whether a line can contain anything the policy would change (a sensitive key or `email` anywhere in the line, a `://`, or any backslash: a JSON escape such as `\u0070`, `\t` or `\/` can hide a sensitive key or a URL). Lines that cannot are written through unchanged, with zerolog's field order. Only the others are decoded, redacted and re-encoded (fields then come out sorted by key). A logger with a `Config.Redactor` always takes the full path.
+
+`Config.Redactor func(key string, value any) any` extends the policy for a `New` logger: it is called for every object field after the built-in rules, with the already-redacted value, and its result is logged. It can add masking (for example for `ssn`) but cannot undo the built-in masking.
+
+```go
+l := logger.New(logger.Config{
+    Env: logger.Prod,
+    Redactor: func(key string, value any) any {
+        if key == "ssn" {
+            return "[redacted]"
+        }
+        return value
+    },
+})
+```
+
+### Configuration Sources
+
+- `Init` (global logger) is controlled by the `ENVIRONMENT` environment variable (see the table above) and its optional `*OTLPWriter` argument.
+- `New` (instance logger) takes a `Config` struct: `AppName`, `Version`, `Env` (empty means `DetectEnv()`), `Writer` (overrides the environment's writer), `OTLPWriter` and `Redactor`. See [Instance API](#instance-api).
+- The OTLP export is configured by `LogProviderConfig` (see [NewLogProvider](#newlogprovider)).
 
 ---
 
@@ -160,7 +198,52 @@ Calling `Init` more than once replaces the global logger.
 func DetectEnv() Environment
 ```
 
-Reads `os.Getenv("ENVIRONMENT")`. Returns `Prod` for `"production"` or `"prod"`; returns `Dev` for any other value including the empty string.
+Reads `os.Getenv("ENVIRONMENT")`, ignoring case and surrounding spaces. Returns `Dev` for `"development"`, `"dev"` or `"local"`; returns `Prod` for any other value, including an unset or empty variable.
+
+---
+
+### NewLogProvider
+
+```go
+type LogProviderConfig struct {
+    ServiceName string            // required; service.name resource attribute
+    Endpoint    string            // required; collector host:port
+    Insecure    bool              // plaintext; default is TLS
+    TLSConfig   *tls.Config       // custom TLS (private CA, mTLS); exclusive with Insecure
+    Headers     map[string]string // sent with every export (auth, API key)
+    Timeout     time.Duration     // per-export timeout; 0 = exporter default (10s)
+}
+
+func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHandle, error)
+```
+
+Creates an OTLP gRPC log exporter for `cfg.Endpoint`, wraps it in a batching `log.LoggerProvider`, and registers it as the global OTEL `LoggerProvider`.
+
+- Transport security: TLS with the host's root CAs by default, `TLSConfig` when set, plaintext only with `Insecure: true`. It is always set explicitly, so the exporter's `OTEL_EXPORTER_OTLP_*` environment fallbacks cannot downgrade it.
+- Errors are `*errorkit.AppError`: `ERR_SYSTEM_CONFIG_INVALID` for a missing `ServiceName`/`Endpoint`, `Insecure` together with `TLSConfig`, a negative `Timeout` or an exporter configuration error; `ERR_INTERNAL` otherwise. On error the global provider is unchanged.
+- The exporter connects lazily: a wrong or unreachable endpoint is **not** reported at startup. Export failures go to the OTel error handler (`otel.SetErrorHandler`) and the records are dropped.
+- Must be called **before** `NewOTLPWriter` — `NewOTLPWriter` resolves the global provider.
+- Calling it again replaces the global provider; `Close` the previous handle yourself.
+- `ServiceName` must match the service name of your trace provider so the backend can correlate logs with traces.
+
+```go
+handle, err := logger.NewLogProvider(ctx, logger.LogProviderConfig{
+    ServiceName: serviceName,
+    Endpoint:    "otel-collector:4317",
+    Headers:     map[string]string{"authorization": "Bearer " + token},
+    Timeout:     5 * time.Second,
+})
+if err != nil {
+    return err
+}
+defer func() {
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    if err := handle.Close(shutdownCtx); err != nil {
+        logger.Error(err, "flush OTLP logs")
+    }
+}()
+```
 
 ---
 
@@ -170,11 +253,7 @@ Reads `os.Getenv("ENVIRONMENT")`. Returns `Prod` for `"production"` or `"prod"`;
 func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle
 ```
 
-Creates an OTLP gRPC log exporter connected to `collectorEndpoint` (e.g. `"otel-collector:4317"`), wraps it in a batching `log.LoggerProvider`, and registers it as the global OTEL `LoggerProvider`.
-
-- Must be called **before** `NewOTLPWriter` — `NewOTLPWriter` resolves the global provider.
-- Uses `grpc.WithBlock()` so connection errors surface at startup. On failure it prints to stderr and returns a no-op provider; the service continues running but logs are not exported to SigNoz.
-- `serviceName` must match the value passed to your trace provider's `WithServiceName` option so SigNoz can correlate logs with traces.
+Compatibility wrapper: `NewLogProvider` with `Insecure: true` (plaintext) and no headers or timeout, but without its validation: an empty `collectorEndpoint` uses the exporter default and an empty `serviceName` an empty `service.name`, as in earlier versions. It never returns an error: if the exporter cannot be created it prints to stderr and returns a handle to a provider that exports nothing, and the service keeps running without exported logs. There is no blocking dial: an unreachable collector is not detected at startup. Prefer `NewLogProvider`.
 
 ---
 
@@ -186,11 +265,12 @@ func NewOTLPWriter(serviceName string) *OTLPWriter
 
 Returns an `*OTLPWriter` backed by the global OTEL `LoggerProvider`. Each `Write` call receives one complete JSON log line from zerolog and converts it to an OTEL `LogRecord`:
 
-- Timestamp from the `"time"` field (Unix epoch seconds).
+- Timestamp from the `"time"` field (RFC 3339 with nanoseconds; Unix epoch seconds from older SDK versions are still accepted).
+- Numeric fields keep their precision: integers become `Int64` attributes (exact above 2^53), other numbers `Float64`.
 - Severity mapped from the `"level"` field.
 - Body from `"message"`.
 - Trace correlation: `trace_id` and `span_id` fields written by `WithTrace` / `ErrorCtx` are promoted to OTEL first-class fields via a reconstructed `SpanContext` passed to `Emit`.
-- All other fields (`error_code`, `reason`, `stack_trace`, etc.) become log attributes visible in SigNoz's log detail panel.
+- All other fields (`error_code`, `reason`, `stack_trace`, etc.) become log attributes shown with the record in your observability backend.
 
 `level`, `time`, `message`, `trace_id`, `span_id`, and `caller` are excluded from the attributes list (they map to dedicated OTEL fields or are omitted for noise reduction).
 
@@ -198,13 +278,14 @@ Must be called after `InitLogProvider`.
 
 ---
 
-### LogProviderHandle.Shutdown
+### LogProviderHandle.Close / Shutdown
 
 ```go
+func (h *LogProviderHandle) Close(ctx context.Context) error
 func (h *LogProviderHandle) Shutdown(ctx context.Context)
 ```
 
-Flushes buffered log records, closes the gRPC exporter. Always defer this immediately after `InitLogProvider` returns.
+`Close` flushes buffered log records, closes the gRPC exporter and returns the error (an `*errorkit.AppError` with code `ERR_INTERNAL` wrapping the cause, so `errors.Is(err, context.DeadlineExceeded)` works). Give `ctx` its own timeout. `Shutdown` does the same and prints the error to stderr instead of returning it. Defer one of them immediately after the provider is created. Both are no-ops on a nil handle.
 
 ---
 
@@ -469,6 +550,8 @@ func main() {
 
 The same `serviceName` should be used by your trace provider so log records and trace spans correlate under one service in your observability backend.
 
+`SetupOTLP` uses `InitLogProvider`, so it ships records in plaintext and swallows setup errors. For TLS, headers, a timeout or error handling, call `NewLogProvider` and then `NewOTLPWriter(serviceName)` yourself, in that order.
+
 ---
 
 ### Instance API
@@ -525,12 +608,12 @@ func handle(ctx context.Context, msg Message) error {
 }
 ```
 
-When a function already returns `*errorkit.AppError`, type-switch to preserve the original code:
+When a function already returns `*errorkit.AppError`, use `errorkit.As` to preserve the original code (it also finds an `AppError` wrapped with `%w`):
 
 ```go
 result, err := svc.Do(ctx, input)
 if err != nil {
-    if appErr, ok := err.(*errorkit.AppError); ok {
+    if appErr, ok := errorkit.As(err); ok {
         logger.ErrorCtx(ctx, appErr, "svc: do")
     } else {
         wrapped := errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
@@ -592,9 +675,9 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 
 - **Global logger** — `Init` sets a package-level `*zerolog.Logger` and `zerolog.log.Logger`. Both are safe for concurrent use after `Init` returns. Do not call `Init` concurrently or after the service has started handling requests.
 - **`*OTLPWriter`** — `Write` is called by zerolog on every log event. zerolog guarantees exactly one `Write` call per event with a complete JSON line. `OTLPWriter` itself holds no mutable state and is safe for concurrent use.
-- **`LogProviderHandle`** — `Shutdown` should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
+- **`LogProviderHandle`** — `Close` (or `Shutdown`) should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
 - **Context loggers** — Loggers stored in a context via `WithLogger` (or any framework adapter that calls `(*zerolog.Logger).WithContext`) are `zerolog.Logger` values copied by value. They are safe for concurrent use.
-- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `LogProviderHandle.Shutdown`, which must be deferred when the OTLP path is used.
+- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `LogProviderHandle.Close` (or `Shutdown`), which must be deferred when the OTLP path is used.
 
 ---
 
@@ -605,12 +688,12 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 | `github.com/rs/zerolog`                                            | Structured JSON / console logging engine                                    |
 | `go.opentelemetry.io/otel/trace`                                   | Extracts `SpanContext` from `context.Context`                               |
 | `go.opentelemetry.io/otel/log`                                     | OTEL `LogRecord` and `LoggerProvider` API                                   |
-| `go.opentelemetry.io/otel/log/global`                              | Registers and retrieves the global `LoggerProvider`                         |
+| `go.opentelemetry.io/otel`                                         | Registers and retrieves the global `LoggerProvider` (`otel.SetLoggerProvider` / `otel.GetLoggerProvider`) |
 | `go.opentelemetry.io/otel/sdk/log`                                 | `log.LoggerProvider`, `NewBatchProcessor`                                   |
 | `go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc`      | gRPC OTLP log exporter                                                      |
 | `go.opentelemetry.io/otel/sdk/resource`                            | Attaches `service.name` semantic attribute to the provider                  |
 | `go.opentelemetry.io/otel/semconv/v1.21.0`                         | `semconv.ServiceNameKey` constant                                           |
-| `google.golang.org/grpc`                                           | gRPC dial for OTLP export                                                   |
+| `google.golang.org/grpc`                                           | gRPC transport and TLS credentials for the OTLP export                      |
 | `github.com/trypanic/go-sdk/errorkit` | Structured error type consumed by `WithErrorKit`, `Error`, `ErrorCtx`, etc. |
 
 The core `logger` package has **no web-framework dependency**. Per-request middleware for specific frameworks lives in the corresponding adapter package (e.g. `httpserver.RequestLoggerMiddleware` for Hertz). Consumers that do not use those frameworks never pull them in.

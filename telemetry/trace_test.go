@@ -16,7 +16,7 @@ func TestInstrumenterUsesExplicitTracerProvider(t *testing.T) {
 		TracerProvider: provider,
 	})
 
-	ctx, span := instrumenter.Start(context.Background(), "operation.name")
+	ctx, span := instrumenter.Start(t.Context(), "operation.name")
 	span.End()
 
 	if ctx == nil {
@@ -35,6 +35,10 @@ func TestInstrumenterUsesExplicitTracerProvider(t *testing.T) {
 	}
 }
 
+// spanOf discards the context returned by a span helper so a helper call
+// can be used as a table value.
+func spanOf(_ context.Context, span Span) Span { return span }
+
 func TestInstrumenterNamingHelpers(t *testing.T) {
 	exporter := tracetest.NewInMemoryExporter()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
@@ -42,63 +46,24 @@ func TestInstrumenterNamingHelpers(t *testing.T) {
 		ScopeName:      "test-scope",
 		TracerProvider: provider,
 	})
+	ctx := t.Context()
 
 	tests := []struct {
 		name string
-		run  func()
+		span Span
 		want string
 	}{
-		{
-			name: "job",
-			run: func() {
-				ctx, span := instrumenter.Job(context.Background(), "import")
-				defer span.End()
-				_ = ctx
-			},
-			want: "job.import",
-		},
-		{
-			name: "batch",
-			run: func() {
-				ctx, span := instrumenter.Batch(context.Background(), "process")
-				defer span.End()
-				_ = ctx
-			},
-			want: "batch.process",
-		},
-		{
-			name: "external",
-			run: func() {
-				ctx, span := instrumenter.External(context.Background(), "amazon", "fetch")
-				defer span.End()
-				_ = ctx
-			},
-			want: "external.amazon.fetch",
-		},
-		{
-			name: "messaging",
-			run: func() {
-				ctx, span := instrumenter.Messaging(context.Background(), "publish.queue")
-				defer span.End()
-				_ = ctx
-			},
-			want: "messaging.publish.queue",
-		},
-		{
-			name: "db",
-			run: func() {
-				ctx, span := instrumenter.DB(context.Background(), "postgres", "jobs", "insert")
-				defer span.End()
-				_ = ctx
-			},
-			want: "postgres.jobs.insert",
-		},
+		{name: "job", span: spanOf(instrumenter.Job(ctx, "import")), want: "job.import"},
+		{name: "batch", span: spanOf(instrumenter.Batch(ctx, "process")), want: "batch.process"},
+		{name: "external", span: spanOf(instrumenter.External(ctx, "amazon", "fetch")), want: "external.amazon.fetch"},
+		{name: "messaging", span: spanOf(instrumenter.Messaging(ctx, "publish.queue")), want: "messaging.publish.queue"},
+		{name: "db", span: spanOf(instrumenter.DB(ctx, "postgres", "jobs", "insert")), want: "postgres.jobs.insert"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			exporter.Reset()
-			tt.run()
+			tt.span.End()
 
 			spans := exporter.GetSpans()
 			if len(spans) != 1 {

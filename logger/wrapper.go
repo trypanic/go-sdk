@@ -9,6 +9,10 @@ import (
 
 // Error logs an ErrorKit error at Error level using the global logger.
 //
+// The first *errorkit.AppError found in appErr's chain (errors.As semantics)
+// is logged with its own code; any other error is wrapped once in
+// ERR_INTERNAL. A nil error is logged as ERR_UNKNOWN.
+//
 // The msg parameter should describe WHAT HAPPENED, not repeat the error details.
 //
 // Good:
@@ -30,25 +34,20 @@ func Error(appErr error, msg ...string) error {
 		errorMsg = msg[0]
 	}
 
-	if errkit, ok := appErr.(*errorkit.AppError); ok {
-		// FIX: was .Msg("") — the msg argument was silently dropped for *AppError.
-		WithErrorKit(globalLogger().Error(), errkit).Msg(errorMsg)
-	} else {
-		WithErrorKit(
-			globalLogger().Error(),
-			errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(appErr)),
-		).Msg(errorMsg)
-	}
+	withError(globalLogger().Error(), appErr).Msg(errorMsg)
 	return appErr
 }
 
+// LogAndReturn logs appErr like Error and returns it unchanged.
 func LogAndReturn(appErr error, msg ...string) error {
-	Error(appErr, msg...)
-	return appErr
+	return Error(appErr, msg...)
 }
 
+// Panic logs appErr like Error and exits the process with status 1. Deferred
+// functions do not run and buffered OTLP records are not flushed: close the
+// LogProviderHandle first if they matter.
 func Panic(appErr error, msg ...string) {
-	Error(appErr, msg...)
+	_ = Error(appErr, msg...)
 	os.Exit(1) // nosemgrep: no-os-exit-in-library -- named fatal helper; caller opts in by name
 }
 
@@ -65,13 +64,13 @@ func Warn(msg string, args ...any) {
 // enriched with the active OpenTelemetry trace_id and span_id.
 //
 // This is the primary error logging function for service handlers.
-// All log lines will be linkable to the corresponding trace in SigNoz.
+// Every line carries the trace and span IDs, so the tracing backend can link
+// it to the request's trace.
 //
 // Usage:
 //
 //	logger.ErrorCtx(ctx, appErr, "Order processing failed")
 func ErrorCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: WithTrace was missing — trace_id/span_id were never injected.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Error())
 	WithErrorKit(event, appErr).Msg(msg)
 }
@@ -85,11 +84,11 @@ func ErrorCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
 //
 //	logger.WarnCtx(ctx, appErr, "Cache miss — using fallback")
 func WarnCtx(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: WithTrace was missing — trace_id/span_id were never injected.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Warn())
 	WithErrorKit(event, appErr).Msg(msg)
 }
 
+// Info logs a printf-style Info message using the global logger.
 func Info(msg string, args ...any) {
 	globalLogger().Info().Msgf(msg, args...)
 }

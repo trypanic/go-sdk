@@ -45,9 +45,6 @@ func LogInfoWithTrace(ctx context.Context, msg string) {
 //
 //	logger.LogErrorWithTrace(ctx, appErr, "Payment failed")
 func LogErrorWithTrace(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: Previously called WithErrorKit after WithTrace, which let
-	// appErr.TraceID overwrite the trace_id field already set by WithTrace.
-	// WithErrorKit no longer emits trace_id; the field is owned by WithTrace.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Error())
 	WithErrorKit(event, appErr).Msg(msg)
 }

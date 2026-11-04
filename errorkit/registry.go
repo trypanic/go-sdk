@@ -1,11 +1,17 @@
 package errorkit
 
-import "sync"
+import (
+	"maps"
+	"slices"
+	"sync"
+)
 
 var (
 	errorRegistryMu sync.RWMutex
-	// ErrorRegistry is the complete registry of error metadata
-	ErrorRegistry = map[ErrorCode]Metadata{
+	// errorRegistry is the package-global registry of error metadata. It is
+	// guarded by errorRegistryMu; use GetMetadata, RegisterMany,
+	// OverrideMetadata or an isolated Registry to access it.
+	errorRegistry = map[ErrorCode]Metadata{
 		// ==============================
 		// General Errors
 		// ==============================
@@ -166,7 +172,10 @@ type Registry struct {
 	metadata map[ErrorCode]Metadata
 }
 
-// NewRegistry creates an isolated registry containing only the provided metadata.
+// NewRegistry creates an isolated registry containing only the provided
+// metadata. Entries are stored as given, without ValidateMetadata or conflict
+// checks (a later entry for the same code replaces an earlier one); use
+// NewRegistry() followed by RegisterMany to validate them.
 func NewRegistry(metadata ...Metadata) *Registry {
 	registry := &Registry{
 		metadata: make(map[ErrorCode]Metadata, len(metadata)),
@@ -182,13 +191,7 @@ func NewDefaultRegistry() *Registry {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	registry := &Registry{
-		metadata: make(map[ErrorCode]Metadata, len(ErrorRegistry)),
-	}
-	for code, meta := range ErrorRegistry {
-		registry.metadata[code] = meta
-	}
-	return registry
+	return &Registry{metadata: maps.Clone(errorRegistry)}
 }
 
 // GetMetadata retrieves metadata for a given error code
@@ -196,7 +199,7 @@ func GetMetadata(code ErrorCode) (Metadata, bool) {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	meta, exists := ErrorRegistry[code]
+	meta, exists := errorRegistry[code]
 	return meta, exists
 }
 
@@ -213,19 +216,15 @@ func (r *Registry) GetMetadata(code ErrorCode) (Metadata, bool) {
 	return meta, exists
 }
 
-// GetAllCodes returns all registered error codes
+// GetAllCodes returns all registered error codes, sorted.
 func GetAllCodes() []ErrorCode {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	codes := make([]ErrorCode, 0, len(ErrorRegistry))
-	for code := range ErrorRegistry {
-		codes = append(codes, code)
-	}
-	return codes
+	return sortedCodes(errorRegistry, nil)
 }
 
-// GetAllCodes returns all registered error codes in this registry.
+// GetAllCodes returns all registered error codes in this registry, sorted.
 func (r *Registry) GetAllCodes() []ErrorCode {
 	if r == nil {
 		return nil
@@ -234,28 +233,19 @@ func (r *Registry) GetAllCodes() []ErrorCode {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	codes := make([]ErrorCode, 0, len(r.metadata))
-	for code := range r.metadata {
-		codes = append(codes, code)
-	}
-	return codes
+	return sortedCodes(r.metadata, nil)
 }
 
-// GetCodesByGroup returns all error codes in a specific group
+// GetCodesByGroup returns all error codes in a specific group, sorted.
 func GetCodesByGroup(group ErrorGroup) []ErrorCode {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	codes := make([]ErrorCode, 0)
-	for code, meta := range ErrorRegistry {
-		if meta.Group == group {
-			codes = append(codes, code)
-		}
-	}
-	return codes
+	return sortedCodes(errorRegistry, func(meta Metadata) bool { return meta.Group == group })
 }
 
-// GetCodesByGroup returns all error codes in a group from this registry.
+// GetCodesByGroup returns all error codes in a group from this registry,
+// sorted.
 func (r *Registry) GetCodesByGroup(group ErrorGroup) []ErrorCode {
 	if r == nil {
 		return nil
@@ -264,30 +254,19 @@ func (r *Registry) GetCodesByGroup(group ErrorGroup) []ErrorCode {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	codes := make([]ErrorCode, 0)
-	for code, meta := range r.metadata {
-		if meta.Group == group {
-			codes = append(codes, code)
-		}
-	}
-	return codes
+	return sortedCodes(r.metadata, func(meta Metadata) bool { return meta.Group == group })
 }
 
-// GetCodesByType returns all error codes of a specific type
+// GetCodesByType returns all error codes of a specific type, sorted.
 func GetCodesByType(errType ErrorType) []ErrorCode {
 	errorRegistryMu.RLock()
 	defer errorRegistryMu.RUnlock()
 
-	codes := make([]ErrorCode, 0)
-	for code, meta := range ErrorRegistry {
-		if meta.Type == errType {
-			codes = append(codes, code)
-		}
-	}
-	return codes
+	return sortedCodes(errorRegistry, func(meta Metadata) bool { return meta.Type == errType })
 }
 
-// GetCodesByType returns all error codes of a specific type from this registry.
+// GetCodesByType returns all error codes of a specific type from this
+// registry, sorted.
 func (r *Registry) GetCodesByType(errType ErrorType) []ErrorCode {
 	if r == nil {
 		return nil
@@ -296,12 +275,19 @@ func (r *Registry) GetCodesByType(errType ErrorType) []ErrorCode {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	codes := make([]ErrorCode, 0)
-	for code, meta := range r.metadata {
-		if meta.Type == errType {
+	return sortedCodes(r.metadata, func(meta Metadata) bool { return meta.Type == errType })
+}
+
+// sortedCodes returns the codes of m whose metadata satisfies keep (every
+// code when keep is nil), in ascending order. The caller holds m's lock.
+func sortedCodes(m map[ErrorCode]Metadata, keep func(Metadata) bool) []ErrorCode {
+	codes := make([]ErrorCode, 0, len(m))
+	for code, meta := range m {
+		if keep == nil || keep(meta) {
 			codes = append(codes, code)
 		}
 	}
+	slices.Sort(codes)
 	return codes
 }
 
