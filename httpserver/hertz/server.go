@@ -2,7 +2,6 @@ package hertz
 
 import (
 	"context"
-	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/internal/redact"
 	"github.com/trypanic/go-sdk/logger"
 )
 
@@ -204,19 +204,10 @@ func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc 
 	}
 }
 
-var sensitiveInboundHeaderKeys = map[string]struct{}{
-	"authorization":  {},
-	"x-api-key":      {},
-	"api-key":        {},
-	"cookie":         {},
-	"set-cookie":     {},
-	"x-auth-token":   {},
-	"x-access-token": {},
-}
-
+// isInboundSensitiveHeader reports whether an inbound header may carry a
+// credential; it applies the rules shared with httprequest.
 func isInboundSensitiveHeader(key string) bool {
-	_, ok := sensitiveInboundHeaderKeys[strings.ToLower(key)]
-	return ok
+	return redact.IsSensitiveHeader(key)
 }
 
 func health() app.HandlerFunc {
