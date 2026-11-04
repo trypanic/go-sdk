@@ -341,7 +341,7 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	// The subscription is shutting down: hand the message back to the broker
 	// untouched instead of running the handler against a cancelled ctx.
 	if ctx.Err() != nil {
-		_ = msg.Nack(false, true)
+		p.reportSettleFailure(ctx, nil, queueName, "nack", msg.Nack(false, true))
 		return
 	}
 
@@ -403,15 +403,35 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 			// Shutdown interrupted processing: requeue so the message is not
 			// dead-lettered (or dropped when the queue has no DLX).
 			recvSpan.SetStatus(codes.Error, "subscription canceled; message requeued")
-			_ = msg.Nack(false, true)
+			p.reportSettleFailure(recvCtx, recvSpan, queueName, "nack", msg.Nack(false, true))
 			return
 		}
 		recvSpan.SetStatus(codes.Error, "handler failed after retries")
-		_ = msg.Nack(false, false)
+		p.reportSettleFailure(recvCtx, recvSpan, queueName, "nack", msg.Nack(false, false))
 		return
 	}
 
-	_ = msg.Ack(false)
+	p.reportSettleFailure(recvCtx, recvSpan, queueName, "ack", msg.Ack(false))
+}
+
+// reportSettleFailure makes a failed Ack or Nack (op) visible on span (when
+// non-nil) and in the log. The message stays unacked on the broker, which
+// redelivers it once the channel closes, so its handler can run again.
+func (p *PubSub) reportSettleFailure(ctx context.Context, span trace.Span, queueName, op string, err error) {
+	if err == nil {
+		return
+	}
+	appErr := mqError(ERR_MQ_CHANNEL_ERROR, op+" failed; the broker will redeliver the message", err)
+	if span != nil {
+		span.RecordError(appErr)
+		span.SetStatus(codes.Error, op+" failed")
+	}
+	msg := fmt.Sprintf("messaging: %s failed for queue %s; the broker will redeliver the message", op, queueName)
+	if p.log != nil {
+		p.log.WarnCtx(ctx, appErr, msg)
+		return
+	}
+	logger.WarnCtx(ctx, appErr, msg)
 }
 
 // Close stops every Subscribe call of this PubSub (each returns nil once its

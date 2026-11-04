@@ -242,6 +242,13 @@ if err := pubsub.Subscribe(ctx, "order.created.processor", "order-worker", handl
 }
 ```
 
+Delivery to handlers is **at-least-once**: handlers must be **idempotent**
+(deduplicate on `event_id`).  A message is acked only after its handler
+returns `nil`; if the channel dies before the ack reaches the broker (heartbeat
+timeout, broker restart), the broker redelivers it and the handler runs again.
+A failed `Ack`/`Nack` is recorded on the `messaging.receive` span and logged at
+Warn level (through `WithLogger` when set) with `ERR_MQ_CHANNEL_ERROR`.
+
 ### Closing
 
 `Close` is terminal.  It stops every `Subscribe` call of the `PubSub` (as a
