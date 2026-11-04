@@ -242,6 +242,13 @@ baseline-diff mode and no SARIF upload. The other `ci` jobs (build, vet,
 race tests, govulncheck, `go mod tidy -diff` / `go mod verify`) are listed in
 the [README](./README.md#releases).
 
+Recommended (owner action; not configured by this repository): protect
+`main` with these jobs as required status checks. They match by check name
+on the PR head commit whatever event started the run, so the manual dispatch
+on the release-please branch satisfies them, and a release PR without a green
+run stays blocked. Confirm with a test PR before enabling it (details in the
+[README](./README.md#releases)).
+
 ## "Plan before commit" workflow
 
 ```

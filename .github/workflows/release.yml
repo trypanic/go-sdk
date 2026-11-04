@@ -16,10 +16,10 @@
 # the release PR the maintainer runs
 #   gh workflow run ci.yml --ref <release-please branch>
 # (or "Run workflow" in the Actions UI) and merges only when it is green.
-# Recommended hardening (owner action, not implemented): pass release-please
-# a GitHub App or fine-grained PAT token (contents + pull-requests write on
-# this repository only) via `token:` so CI triggers on the release PR by
-# itself and can be made a required check. By the time the assets job runs
+# With `main` protected by the ci.yml jobs as required checks (recommended,
+# see ci.yml) the release PR cannot merge until that run is green. Convenience
+# only: a GitHub App or fine-grained PAT token passed as `token:` would make
+# CI start on the release PR by itself. By the time the assets job runs
 # the tag is public and cannot be moved, so its checks are a smoke test; a
 # failure there means `retract` plus a new patch.
 #
@@ -27,7 +27,9 @@
 # failed upload) without touching release-please.
 #
 # Repository setting required: Settings → Actions → General → "Allow GitHub
-# Actions to create and approve pull requests".
+# Actions to create and approve pull requests". Recommended (owner action,
+# confirm with a test PR first): branch protection on main with the ci.yml
+# jobs as required status checks.
 name: release
 
 on:

@@ -265,10 +265,16 @@ from [Conventional Commits](https://www.conventionalcommits.org) (enforced by a
    gh workflow run ci.yml --ref <release-please branch>   # or "Run workflow" in the Actions UI
    ```
 
-   Recommended hardening (owner action, not implemented): give release-please
-   a GitHub App or fine-grained PAT token (contents + pull-requests write on
-   this repository only) so CI runs on the release PR automatically and can
-   be a required check.
+   Recommended (owner action; not configured by this repository): protect
+   `main` with the `ci` jobs as required status checks (test and govulncheck
+   for both Go versions, staticanalysis, tidy; not the informational
+   gorelease). Required checks match by check name on the PR head commit,
+   whatever event started the run, so the manual dispatch above satisfies
+   them on the release PR, and if it is not run the release PR stays blocked
+   instead of merging without CI. Confirm this with a test PR before enabling
+   the protection. Convenience only: a GitHub App or fine-grained PAT token
+   for release-please (contents + pull-requests write on this repository)
+   makes CI start on the release PR by itself.
 3. Merging the release PR creates the tag and the GitHub Release.
 4. The [`release`](./.github/workflows/release.yml) workflow then smoke-checks
    the tagged tree (`go mod verify`, `go mod tidy -diff`, build, vet, tests),
