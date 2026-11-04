@@ -234,7 +234,7 @@ func (p *PubSub) Subscribe(ctx context.Context, queueName string, serviceName st
 
 	exchange, ok := p.topology.GetExchangeByName(binding.Exchange)
 	if !ok {
-		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("exchange not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("exchange %s referenced by queue %s not found in topology", binding.Exchange, queueName)),
 		)
@@ -366,14 +366,14 @@ func (p *PubSub) Close() error {
 func (p *PubSub) getQueueAndBinding(queueName string) (QueueTopology, Binding, error) {
 	queue, ok := p.topology.GetQueueByName(queueName)
 	if !ok {
-		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("queue not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("queue %s not found in topology", queueName)),
 		)
 	}
 	binding, ok := p.topology.GetBindingByQueue(queueName)
 	if !ok {
-		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+		return QueueTopology{}, Binding{}, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("binding not found in topology"),
 			errorkit.WithWrapped(fmt.Errorf("no binding found for queue %s in topology", queueName)),
 		)
@@ -399,7 +399,7 @@ func executeWithRetry(ctx context.Context, fn func() error, retry *RetryConfig) 
 }
 
 // reconnectWithBackoff retries sub.Reconnect with exponential delay until
-// success or ctx cancellation.  Delay starts at DefaultReconnectDelay and
+// success, a non-retriable error (returned as is) or ctx cancellation.  Delay starts at DefaultReconnectDelay and
 // doubles up to MaxReconnectDelay. The log argument may be nil — in that
 // case the package-level global logger is used.
 func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logger) error {
@@ -413,6 +413,10 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 			)
 		case <-time.After(delay):
 			if err := sub.Reconnect(); err != nil {
+				if !isRetriable(err) {
+					// e.g. ERR_MQ_AUTH_FAILED: retrying cannot succeed.
+					return err
+				}
 				warnReconnect(log, sub.queue.Name, err, delay)
 				delay *= 2
 				if delay > MaxReconnectDelay {

@@ -6,7 +6,10 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/trypanic/go-sdk/errorkit"
@@ -113,4 +116,123 @@ func TestPublishPreservesPublisherErrorCode(t *testing.T) {
 	appErr := requireAppError(t, err)
 	assert.Equal(t, ERR_MQ_CONNECTION_FAILED, appErr.Code())
 	assertNotDoubleWrapped(t, appErr)
+}
+
+func newFakeSubscriber(b *fakeBroker) *Subscriber {
+	return &Subscriber{
+		amqpURL:     "amqp://fake",
+		dial:        b.dial,
+		exchange:    Exchange{Name: "events", Type: "topic"},
+		queue:       QueueTopology{Name: "q"},
+		consumer:    "svc",
+		routingKeys: []string{"a"},
+	}
+}
+
+// C5-006 (approval part): each AMQP failure path reports its specific code;
+// access refused (403) is ERR_MQ_AUTH_FAILED and not retriable.
+func TestSubscriberConnectErrorCodes(t *testing.T) {
+	t.Parallel()
+
+	refused := &amqp.Error{Code: amqp.AccessRefused, Reason: "ACCESS_REFUSED"}
+	tests := []struct {
+		name      string
+		setup     func(b *fakeBroker)
+		want      errorkit.ErrorCode
+		retriable bool
+	}{
+		{"dial refused", func(b *fakeBroker) { b.dialErr = errors.New("connection refused") }, ERR_MQ_CONNECTION_FAILED, true},
+		{"bad credentials", func(b *fakeBroker) { b.dialErr = amqp.ErrCredentials }, ERR_MQ_AUTH_FAILED, false},
+		{"vhost denied", func(b *fakeBroker) { b.dialErr = amqp.ErrVhost }, ERR_MQ_AUTH_FAILED, false},
+		{"channel open", func(b *fakeBroker) { b.channelErr = amqp.ErrClosed }, ERR_MQ_CHANNEL_ERROR, true},
+		{"exchange declare", func(b *fakeBroker) { b.exchangeErr = errors.New("precondition failed") }, ERR_MQ_EXCHANGE_ERROR, true},
+		{"exchange declare refused", func(b *fakeBroker) { b.exchangeErr = refused }, ERR_MQ_AUTH_FAILED, false},
+		{"queue declare", func(b *fakeBroker) { b.queueErr = errors.New("precondition failed") }, ERR_MQ_QUEUE_ERROR, true},
+		{"queue bind", func(b *fakeBroker) { b.bindErr = errors.New("not found") }, ERR_MQ_QUEUE_ERROR, true},
+		{"qos", func(b *fakeBroker) { b.qosErr = errors.New("qos") }, ERR_MQ_CHANNEL_ERROR, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			b := newFakeBroker()
+			tt.setup(b)
+
+			appErr := requireAppError(t, newFakeSubscriber(b).connect())
+			assert.Equal(t, tt.want, appErr.Code())
+			assert.Equal(t, tt.retriable, appErr.Metadata.Retriable)
+		})
+	}
+}
+
+func TestSubscriberConsumeErrorCode(t *testing.T) {
+	t.Parallel()
+
+	b := newFakeBroker()
+	s := newFakeSubscriber(b)
+	require.NoError(t, s.connect())
+	b.consumeErr = errors.New("consumer tag in use")
+
+	_, err := s.Consume()
+	assert.Equal(t, ERR_MQ_CONSUME_FAILED, requireAppError(t, err).Code())
+}
+
+func TestPublisherConnectErrorCodes(t *testing.T) {
+	t.Parallel()
+
+	b := newFakeBroker()
+	b.dialErr = amqp.ErrCredentials
+	_, err := newPublisherForTest(b)
+	appErr := requireAppError(t, err)
+	assert.Equal(t, ERR_MQ_AUTH_FAILED, appErr.Code())
+	assert.False(t, appErr.Metadata.Retriable)
+
+	b = newFakeBroker()
+	b.channelErr = amqp.ErrClosed
+	_, err = newPublisherForTest(b)
+	assert.Equal(t, ERR_MQ_CHANNEL_ERROR, requireAppError(t, err).Code())
+}
+
+func newPublisherForTest(b *fakeBroker) (*Publisher, error) {
+	p := &Publisher{amqpURL: "amqp://fake", exchanges: []Exchange{{Name: "events", Type: "topic"}}, dial: b.dial}
+	if err := p.connect(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// Topology lookups are configuration errors, not internal errors.
+func TestTopologyLookupErrorCodes(t *testing.T) {
+	t.Parallel()
+
+	p := &PubSub{topology: &Topology{
+		Queues:   []QueueTopology{{Name: "q"}},
+		Bindings: []Binding{{Queue: "q", Exchange: "missing", RoutingKeys: []string{"a"}}},
+	}}
+	handler := func(context.Context, Message) error { return nil }
+
+	err := p.Publish(context.Background(), "unknown", Event{})
+	assert.Equal(t, errorkit.ERR_SYSTEM_CONFIG_INVALID, requireAppError(t, err).Code())
+
+	err = p.Subscribe(context.Background(), "unknown", "svc", handler)
+	assert.Equal(t, errorkit.ERR_SYSTEM_CONFIG_INVALID, requireAppError(t, err).Code())
+
+	err = p.Subscribe(context.Background(), "q", "svc", handler)
+	assert.Equal(t, errorkit.ERR_SYSTEM_CONFIG_INVALID, requireAppError(t, err).Code())
+}
+
+// A non-retriable reconnect failure (bad credentials) stops the reconnect
+// loop instead of retrying until the ctx ends.
+func TestReconnectWithBackoffStopsOnNonRetriableError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		b := newFakeBroker()
+		b.dialErr = amqp.ErrCredentials
+		ctx, cancel := context.WithTimeout(context.Background(), time.Hour)
+		defer cancel()
+
+		err := reconnectWithBackoff(ctx, newFakeSubscriber(b), nil)
+
+		assert.Equal(t, ERR_MQ_AUTH_FAILED, requireAppError(t, err).Code())
+		assert.Equal(t, 1, b.dialCount())
+		assert.NoError(t, ctx.Err(), "the loop must stop before the ctx deadline")
+	})
 }

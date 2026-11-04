@@ -41,19 +41,13 @@ func NewPublisher(amqpURL string, exchanges []Exchange) (*Publisher, error) {
 func (p *Publisher) connect() error {
 	conn, err := p.dial.open(p.amqpURL)
 	if err != nil {
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to connect"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to open channel"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
 
 	for _, ex := range p.exchanges {
@@ -64,10 +58,7 @@ func (p *Publisher) connect() error {
 			nil,
 		); err != nil {
 			conn.Close()
-			return errorkit.NewError(ERR_MQ_EXCHANGE_ERROR).With(
-				errorkit.WithReason("failed to declare exchange"),
-				errorkit.WithWrapped(err),
-			)
+			return mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 		}
 	}
 
@@ -115,10 +106,7 @@ func (p *Publisher) Publish(exchange, routingKey string, body []byte) error {
 			Body:         body,
 			DeliveryMode: amqp.Persistent,
 		}); err != nil {
-			return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
-				errorkit.WithReason("failed to publish message after reconnect"),
-				errorkit.WithWrapped(err),
-			)
+			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message after reconnect", err)
 		}
 		return nil
 	}
@@ -149,10 +137,7 @@ func (p *Publisher) PublishWithHeaders(exchange, routingKey string, body []byte,
 			return reconnErr
 		}
 		if err := p.channel.Publish(exchange, routingKey, false, false, pub); err != nil {
-			return errorkit.NewError(ERR_MQ_PUBLISH_FAILED).With(
-				errorkit.WithReason("failed to publish message with headers after reconnect"),
-				errorkit.WithWrapped(err),
-			)
+			return mqError(ERR_MQ_PUBLISH_FAILED, "failed to publish message with headers after reconnect", err)
 		}
 		return nil
 	}
@@ -231,19 +216,13 @@ func NewSubscriber(
 func (s *Subscriber) connect() error {
 	conn, err := s.dial.open(s.amqpURL)
 	if err != nil {
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to connect"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_CONNECTION_FAILED, "failed to connect", err)
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		conn.Close()
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to open channel"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to open channel", err)
 	}
 
 	// Declare exchange (idempotent — ensures it exists after a reconnect).
@@ -252,10 +231,7 @@ func (s *Subscriber) connect() error {
 		false, false, nil,
 	); err != nil {
 		conn.Close()
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to declare exchange"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_EXCHANGE_ERROR, "failed to declare exchange", err)
 	}
 
 	// Declare queue with the full set of arguments from the topology.
@@ -266,29 +242,20 @@ func (s *Subscriber) connect() error {
 		s.queueArgs,
 	); err != nil {
 		conn.Close()
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to declare queue"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_QUEUE_ERROR, "failed to declare queue", err)
 	}
 
 	// Bind using the exact routing keys from the topology — never a wildcard.
 	for _, rk := range s.routingKeys {
 		if err := ch.QueueBind(s.queue.Name, rk, s.exchange.Name, false, nil); err != nil {
 			conn.Close()
-			return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-				errorkit.WithReason("failed to bind queue"),
-				errorkit.WithWrapped(err),
-			)
+			return mqError(ERR_MQ_QUEUE_ERROR, "failed to bind queue", err)
 		}
 	}
 
 	if err := ch.Qos(s.queue.Prefetch, 0, false); err != nil {
 		conn.Close()
-		return errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to set QoS"),
-			errorkit.WithWrapped(err),
-		)
+		return mqError(ERR_MQ_CHANNEL_ERROR, "failed to set QoS", err)
 	}
 
 	s.conn = conn
@@ -317,10 +284,7 @@ func (s *Subscriber) Consume() (<-chan amqp.Delivery, error) {
 		nil,
 	)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_MQ_CONNECTION_FAILED).With(
-			errorkit.WithReason("failed to start consuming"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, mqError(ERR_MQ_CONSUME_FAILED, "failed to start consuming", err)
 	}
 	return msgs, nil
 }
@@ -345,4 +309,28 @@ func (s *Subscriber) Close() error {
 		)
 	}
 	return nil
+}
+
+// mqError builds the AppError for a failed AMQP operation. An access-refused
+// reply (403: bad credentials, vhost or resource permissions) is reported as
+// ERR_MQ_AUTH_FAILED, which is not retriable, whatever the operation was.
+func mqError(code errorkit.ErrorCode, reason string, err error) *errorkit.AppError {
+	var amqpErr *amqp.Error
+	if errors.As(err, &amqpErr) && amqpErr.Code == amqp.AccessRefused {
+		code = ERR_MQ_AUTH_FAILED
+	}
+	return errorkit.NewError(code).With(
+		errorkit.WithReason("%s", reason),
+		errorkit.WithWrapped(err),
+	)
+}
+
+// isRetriable reports whether err is worth retrying: an AppError answers
+// through its metadata, any other error is assumed transient.
+func isRetriable(err error) bool {
+	var appErr *errorkit.AppError
+	if errors.As(err, &appErr) {
+		return appErr.Metadata.Retriable
+	}
+	return true
 }

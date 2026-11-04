@@ -92,7 +92,7 @@ Connection drops are handled transparently at both ends:
 | Component | Strategy |
 |-----------|----------|
 | **Publisher** | Checks the connection before every `Publish`.  If closed, reconnects first.  If the publish itself fails (channel died between the check and the call) it reconnects once more and retries.  Further retries are governed by the per-queue backoff config. |
-| **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  The delay starts at `DefaultReconnectDelay` (5 s) and doubles on each failed attempt, capped at `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position. |
+| **Subscriber** | When the delivery channel closes the subscriber enters a reconnect loop.  The delay starts at `DefaultReconnectDelay` (5 s) and doubles on each failed attempt, capped at `MaxReconnectDelay` (60 s).  Once reconnected it resumes consuming on the same queue without losing its position.  The loop stops and `Subscribe` returns the error when it is not retriable (`Metadata.Retriable == false`, e.g. `ERR_MQ_AUTH_FAILED`), since retrying cannot succeed. |
 
 Both sides open their connections with an AMQP heartbeat interval
 (`DefaultHeartbeat`, 60 s) so dead TCP links are detected quickly.
@@ -237,6 +237,22 @@ pubsub, err := messaging.NewPubSub(amqpURL,
 ```
 
 ---
+
+## Error Codes
+
+Every error is an `*errorkit.AppError`. SDK errors are returned unchanged, so
+callers can branch on `.Code()` and `Metadata.Retriable`:
+
+| Code | Raised when | Retriable |
+|------|-------------|-----------|
+| `ERR_MQ_CONNECTION_FAILED` | Dialing the broker fails | yes |
+| `ERR_MQ_AUTH_FAILED` | The broker refuses access (AMQP 403: credentials, vhost or resource permissions) on any operation | **no** |
+| `ERR_MQ_CHANNEL_ERROR` | Opening a channel or setting QoS fails | yes |
+| `ERR_MQ_EXCHANGE_ERROR` | Declaring an exchange fails | yes |
+| `ERR_MQ_QUEUE_ERROR` | Declaring or binding a queue fails | yes |
+| `ERR_MQ_CONSUME_FAILED` | Starting a consumer fails | yes |
+| `ERR_MQ_PUBLISH_FAILED` | Publishing a message fails | yes |
+| `ERR_SYSTEM_CONFIG_INVALID` | A queue, binding or exchange is missing from the topology | no |
 
 ## Error Handling Summary
 
