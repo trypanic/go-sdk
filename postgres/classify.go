@@ -18,6 +18,8 @@ const (
 	sqlStateSerializationFailure = "40001"
 	sqlStateDeadlockDetected     = "40P01"
 	sqlStateTooManyConnections   = "53300"
+	sqlStateQueryCanceled        = "57014" // statement_timeout or a cancel request
+	sqlStateLockNotAvailable     = "55P03" // lock_timeout or NOWAIT
 
 	sqlClassIntegrityViolation = "23"
 	sqlClassAuthorization      = "28"
@@ -36,6 +38,7 @@ const (
 //	SQLSTATE 23505                       → errorkit.ERR_VALIDATION_DUPLICATE
 //	other SQLSTATE class 23              → errorkit.ERR_VALIDATION_INCONSISTENT
 //	SQLSTATE 40001, 40P01                → ERR_DB_POSTGRES_DEADLOCK (retriable)
+//	SQLSTATE 57014, 55P03                → ERR_DB_POSTGRES_TIMEOUT (retriable)
 //	SQLSTATE class 28                    → ERR_DB_POSTGRES_AUTH_FAILED
 //	SQLSTATE class 08, 53300, 57P0x      → ERR_DB_POSTGRES_UNAVAILABLE
 //	*pgconn.ConnectError                 → ERR_DB_POSTGRES_CONNECTION_FAILED
@@ -97,6 +100,8 @@ func sqlStateCode(state string) (errorkit.ErrorCode, bool) {
 		return errorkit.ERR_VALIDATION_INCONSISTENT, true
 	case state == sqlStateSerializationFailure, state == sqlStateDeadlockDetected:
 		return ERR_DB_POSTGRES_DEADLOCK, true
+	case state == sqlStateQueryCanceled, state == sqlStateLockNotAvailable:
+		return ERR_DB_POSTGRES_TIMEOUT, true
 	case strings.HasPrefix(state, sqlClassAuthorization):
 		return ERR_DB_POSTGRES_AUTH_FAILED, true
 	case strings.HasPrefix(state, sqlClassConnection),

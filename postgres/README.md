@@ -243,6 +243,7 @@ context.Canceled)` keep working. The code follows the cause:
 | SQLSTATE `23505` (unique violation) | `errorkit.ERR_VALIDATION_DUPLICATE` | no | 409 |
 | Other SQLSTATE class `23` (not null, foreign key, check, exclusion) | `errorkit.ERR_VALIDATION_INCONSISTENT` | no | 400 |
 | SQLSTATE `40001` (serialization failure), `40P01` (deadlock) | `ERR_DB_POSTGRES_DEADLOCK` | yes | 409 |
+| SQLSTATE `57014` (`statement_timeout`, cancel request), `55P03` (`lock_timeout`, `NOWAIT`) | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
 | SQLSTATE class `28` (authorization) | `ERR_DB_POSTGRES_AUTH_FAILED` | no | 502 |
 | SQLSTATE class `08`, `53300`, `57P01`–`57P05` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
 | `*pgconn.ConnectError` (dial or handshake failed) | `ERR_DB_POSTGRES_CONNECTION_FAILED` | yes | 503 |

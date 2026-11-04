@@ -86,6 +86,8 @@ func TestStoredProcedureErrorMatrix(t *testing.T) {
 		{"too many connections 53300", pgErr("53300"), wantUnavailable},
 		{"admin shutdown 57P01", pgErr("57P01"), wantUnavailable},
 		{"connection exception 08006", pgErr("08006"), wantUnavailable},
+		{"query canceled or statement timeout 57014", pgErr("57014"), wantTimeout},
+		{"lock not available 55P03", pgErr("55P03"), wantTimeout},
 		{"other server error 42883", pgErr("42883"), wantGeneric},
 		{"context canceled", context.Canceled, wantCanceled},
 		{"wrapped context canceled", fmt.Errorf("query: %w", context.Canceled), wantCanceled},
