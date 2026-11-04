@@ -1,4 +1,4 @@
-# Audit handoff — state on 2026-11-04 (end of session 1)
+# Audit handoff — audit continuation in progress
 
 Read this first, then `audit.md` §0 and §9 (ledger), then
 `REMEDIATION_PLAN.md` §12 (G1 decision and v2 scope). This file is the
@@ -40,11 +40,11 @@ status.
 
 | Cluster | Branch head | Commits | Ledger status | Next action |
 | --- | --- | --- | --- | --- |
-| C1 errorkit/logger/telemetry | `d449128` | 30 | CHANGES_REQUESTED (loop 1 fixes committed) | Run final checks, then re-review (loop 2) |
-| C2 http*/llmclient | `c7977c5` | 32 | IN_REVIEW (review interrupted, no verdict) | Start a fresh review (loop 1) |
+| C1 errorkit/logger/telemetry | `f0808cb` | — | IN_REVIEW (loop 3) | Independent review of typed-nil tree fix and prior fixes |
+| C2 http*/llmclient | `48c1971` | — | IN_REVIEW (loop 2) | Independent review of response-size bypass fix and full branch |
 | C3 grpc | `f58b77b` | 15 | DONE | Merge in P4.M |
-| C4 postgres/mongo/storage | `422f509` | 31 | IN_REVIEW loop 2 (review interrupted, no verdict) | Re-review loop 2 |
-| C5 messaging | `29e6a03` | 30 | CHANGES_REQUESTED (loop 1 fixes committed) | Re-review loop 2 |
+| C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merge in P4.M |
+| C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merge in P4.M |
 | C6 utilities | `5d5c63d` | 15 | DONE | Merge in P4.M |
 | X CI/tooling/docs | `1aa63f3` | 25 | DONE (approved at loop 3) | Merge in P4.M |
 
@@ -52,6 +52,17 @@ Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 ## 2. Pending review details
+
+**Continuation update:** the ledger contains progress after the original
+session-1 notes below. C4 and C5 passed loop 2. C1 loop 2 requested skipping
+typed-nil AppErrors throughout wrapped/joined trees; `f0808cb` implements
+that and reuses `errorkit.As` in logger. C1 is now in its final loop 3.
+C2 loop 1 found the response-size limit could be bypassed after successful
+JSON processing; `48c1971` fixes the successful-processing path and adds
+boundary/trailing-data regressions. C2 is now in loop 2. Fresh independent
+GPT-6.1 Astra reviewers are running both reviews; see the ledger for status.
+The following subsections preserve the original reproduction details.
+
 
 ### C1 — loop 1 CHANGES_REQUESTED, fixes committed after `f901d61`
 
