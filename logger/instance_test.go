@@ -2,7 +2,6 @@ package logger
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"strings"
@@ -101,7 +100,7 @@ func TestLoggerErrorCtxIncludesAppError(t *testing.T) {
 	l := New(Config{Env: Prod, Writer: &buf})
 
 	appErr := errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithReason("boom"))
-	l.ErrorCtx(context.Background(), appErr, "ctx error")
+	l.ErrorCtx(t.Context(), appErr, "ctx error")
 
 	out := buf.String()
 	if !strings.Contains(out, "ERR_INTERNAL") {
@@ -126,7 +125,7 @@ func TestLoggerWithFields(t *testing.T) {
 func TestLoggerIntoContextRetrievable(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(Config{Env: Prod, Writer: &buf})
-	ctx := l.IntoContext(context.Background())
+	ctx := l.IntoContext(t.Context())
 
 	Ctx(ctx).Info().Msg("from-context")
 	if !strings.Contains(buf.String(), "from-context") {

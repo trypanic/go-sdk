@@ -2,7 +2,6 @@ package logger
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"strings"
 	"testing"
@@ -97,7 +96,7 @@ func BenchmarkLoggerInfoSensitive(b *testing.B) {
 func BenchmarkLoggerErrorCtx(b *testing.B) {
 	l := New(Config{Env: Prod, Writer: io.Discard})
 	appErr := errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithReason("boom"))
-	ctx := context.Background()
+	ctx := b.Context()
 	b.ReportAllocs()
 	for b.Loop() {
 		l.ErrorCtx(ctx, appErr, "operation failed")
