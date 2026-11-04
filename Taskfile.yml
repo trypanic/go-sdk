@@ -97,6 +97,10 @@ tasks:
     preconditions:
       - sh: command -v pre-commit
         msg: "pre-commit is not installed; run `task tools:install`"
+    env:
+      # Hook ids to skip (pre-commit's SKIP); `check` uses it to avoid
+      # running tests and the full scan twice. A SKIP set by the caller wins.
+      SKIP: '{{.PRECOMMIT_SKIP | default (env "SKIP")}}'
     cmds:
       - pre-commit run --all-files
       # With nothing staged the commit-time staticanalysis hook skips; the
@@ -147,14 +151,17 @@ tasks:
       - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run ./...
 
   check:
-    desc: Run the full local gate, the same commands as CI (unit + race tests, static analysis, govulncheck, tidy, pre-commit hooks)
+    desc: Run the full local gate, the same commands as CI (build, vet, race tests, static analysis, govulncheck, tidy, pre-commit hooks)
     cmds:
-      - task: test
+      # test:race already runs every unit test (-short), so neither `task test`
+      # nor the go-test hook runs again; staticanalysis already did the full
+      # scan, so the staticanalysis-full hook is skipped too.
       - task: test:race
       - task: staticanalysis
       - task: vuln
       - task: tidy:check
       - task: precommit:run
+        vars: { PRECOMMIT_SKIP: go-test,staticanalysis-full }
 
   # ----------------------------------------------------------------- release
 
