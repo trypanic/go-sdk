@@ -2,10 +2,12 @@ package hertz
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 
+	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/httpserver"
 )
 
@@ -55,9 +57,32 @@ func (s *wrapperHertzServer) wrapHandler(handler httpserver.HandlerFunc) app.Han
 	}
 }
 
-func (s *wrapperHertzServer) Run() error {
-	s.engine.Spin()
+// Run listens on the configured address and serves until Shutdown is
+// called, then returns nil. A listen failure (address in use, permission
+// denied) is returned as an *errorkit.AppError instead of crashing the
+// process. Run installs no signal handlers: the caller owns the process
+// lifecycle (for example with signal.NotifyContext) and calls Shutdown.
+func (s *wrapperHertzServer) Run() (err error) {
+	addr := s.config.Address()
+	// Hertz's netpoll transport panics when it cannot bind. Run calls the
+	// engine on this goroutine, so the panic can be turned into an error.
+	defer func() {
+		if r := recover(); r != nil {
+			err = listenError(addr, fmt.Errorf("%v", r))
+		}
+	}()
+	if runErr := s.engine.Run(); runErr != nil {
+		return listenError(addr, runErr)
+	}
 	return nil
+}
+
+// listenError reports a server that could not start on addr.
+func listenError(addr string, cause error) error {
+	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+		errorkit.WithReason("http server cannot listen on %s", addr),
+		errorkit.WithWrapped(cause),
+	)
 }
 
 // Shutdown gracefully stops the engine. The supplied context bounds the

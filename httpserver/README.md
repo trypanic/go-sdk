@@ -22,9 +22,14 @@ go-sdk/httpserver/hertz/   ← Hertz adapter (transitively pulls hertz deps)
 import (
     "context"
     "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
     "github.com/trypanic/go-sdk/httpserver"
     hertzadapter "github.com/trypanic/go-sdk/httpserver/hertz"
+    "github.com/trypanic/go-sdk/logger"
 )
 
 func main() {
@@ -37,7 +42,18 @@ func main() {
         c.JSON(http.StatusOK, map[string]string{"message": "hello"})
     })
 
-    go func() { _ = srv.Run() }()
+    // Run installs no signal handlers: the caller owns the lifecycle.
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
+
+    runErr := make(chan error, 1)
+    go func() { runErr <- srv.Run() }()
+
+    select {
+    case err := <-runErr: // e.g. address already in use (*errorkit.AppError)
+        logger.Panic(err, "http server failed to start")
+    case <-ctx.Done():
+    }
 
     // Graceful shutdown.
     shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -65,7 +81,11 @@ type HTTPServer interface {
 }
 ```
 
-`Run()` blocks until the server terminates. `Shutdown(ctx)` triggers a
+`Run()` blocks until the server terminates. It returns `nil` after a
+graceful `Shutdown`, and an error when the server cannot start (the Hertz
+adapter returns `ERR_SYSTEM_CONFIG_INVALID` for a listen failure such as
+"address already in use"). Adapters install no signal handlers: stop the
+server by calling `Shutdown`, for example on `signal.NotifyContext`. `Shutdown(ctx)` triggers a
 graceful drain bounded by the supplied context. Adapters MAY return a
 backend-specific error from `Shutdown` (e.g. when called before `Run`).
 
@@ -207,7 +227,10 @@ intentional and surfaced verbatim.
 ## Lifecycle
 
 - All route registration must happen before `Run()`.
-- `Run()` blocks. Run it from the main goroutine or a dedicated one.
+- `Run()` blocks. Run it from the main goroutine or a dedicated one, and
+  handle its error: a listen failure is returned, never a panic.
+- No adapter handles SIGINT/SIGTERM; the caller decides when to call
+  `Shutdown`.
 - `Shutdown(ctx)` triggers graceful drain; the supplied context bounds
   how long to wait before forcing termination.
 - `HTTPContext` is single-goroutine. Do not stash it past the handler.

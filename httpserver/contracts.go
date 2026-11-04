@@ -168,8 +168,10 @@ type HTTPServer interface {
 	// Middleware executes in registration order.
 	Use(middleware ...MiddlewareFunc)
 
-	// Run starts the HTTP server and blocks until stopped.
-	// Returns error if server fails to start.
+	// Run starts the HTTP server and blocks until stopped. It returns nil
+	// after a graceful Shutdown and an error if the server fails to start
+	// (for example when the address is already in use). Run installs no
+	// signal handlers; the caller decides when to call Shutdown.
 	Run() error
 
 	// Shutdown stops the server gracefully. The supplied context bounds

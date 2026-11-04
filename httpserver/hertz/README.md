@@ -27,6 +27,13 @@ does not.
 Override any of these by constructing your own `httpserver.ServerOptions`
 and calling `NewWithOptions`.
 
+## Run
+
+`Run()` calls the Hertz engine directly (not `Spin`), so it installs no
+SIGINT/SIGHUP/SIGTERM handlers. It returns `nil` after `Shutdown`, and an
+`*errorkit.AppError` with code `ERR_SYSTEM_CONFIG_INVALID` when it cannot
+listen (address in use, permission denied) instead of panicking.
+
 ## Shutdown
 
 `Shutdown(ctx)` delegates to `*server.Hertz.Shutdown(ctx)`. Calling it
@@ -37,10 +44,14 @@ before `Run()` returns Hertz's `engine is not running` error verbatim.
 ```go
 import (
     "context"
+    "os"
+    "os/signal"
+    "syscall"
     "time"
 
     "github.com/trypanic/go-sdk/httpserver"
     hertzadapter "github.com/trypanic/go-sdk/httpserver/hertz"
+    "github.com/trypanic/go-sdk/logger"
 )
 
 func main() {
@@ -50,8 +61,20 @@ func main() {
         c.JSON(200, map[string]string{"message": "hello"})
     })
 
-    go func() { _ = srv.Run() }()
+    // Run installs no signal handlers: the caller owns the lifecycle.
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
 
+    runErr := make(chan error, 1)
+    go func() { runErr <- srv.Run() }()
+
+    select {
+    case err := <-runErr: // e.g. address already in use (*errorkit.AppError)
+        logger.Panic(err, "http server failed to start")
+    case <-ctx.Done():
+    }
+
+    // Graceful shutdown.
     shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
     _ = srv.Shutdown(shutdownCtx)
