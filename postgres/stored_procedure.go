@@ -87,7 +87,7 @@ func (s StoredProcedure[T]) QueryJSON(
 }
 
 func pgRowMapper[T any]() pgx.RowToFunc[T] {
-	if reflect.TypeOf((*T)(nil)).Elem().Kind() == reflect.Struct {
+	if reflect.TypeFor[T]().Kind() == reflect.Struct {
 		return pgx.RowToStructByNameLax[T]
 	}
 	return pgx.RowTo[T]

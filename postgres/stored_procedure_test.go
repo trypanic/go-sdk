@@ -169,7 +169,7 @@ func (r *fakeRows) Scan(dest ...any) error {
 		}
 
 		targetValue := reflect.ValueOf(target)
-		if targetValue.Kind() != reflect.Ptr || targetValue.IsNil() {
+		if targetValue.Kind() != reflect.Pointer || targetValue.IsNil() {
 			return fmt.Errorf("scan destination %d is not a non-nil pointer", i)
 		}
 
