@@ -48,16 +48,7 @@ func NewWithoutTracing(ctx context.Context, cfg Config) (ClientPort, error) {
 // NewWithInstrumenter creates a MongoDB client wrapped with the supplied
 // instrumenter. Pass nil to disable tracing entirely.
 func NewWithInstrumenter(ctx context.Context, cfg Config, instrumenter *telemetry.Instrumenter) (ClientPort, error) {
-	applyDefaults(&cfg)
-
-	clientOpts := options.Client().
-		ApplyURI(normalizeURI(cfg.URI)).
-		SetConnectTimeout(cfg.ConnectTimeout).
-		SetServerSelectionTimeout(cfg.ServerSelectionTimeout).
-		SetMaxPoolSize(cfg.MaxPoolSize).
-		SetMinPoolSize(cfg.MinPoolSize).
-		SetMaxConnIdleTime(cfg.MaxConnIdleTime).
-		SetRetryWrites(*cfg.RetryWrites)
+	clientOpts := clientOptions(cfg)
 
 	// mongo.Connect performs no I/O: it fails only when the URI or the
 	// options are invalid, which retrying cannot fix.
@@ -110,29 +101,59 @@ func (c *Client) Close(ctx context.Context) error {
 	return nil
 }
 
-func applyDefaults(cfg *Config) {
-	if cfg.ConnectTimeout == 0 {
-		cfg.ConnectTimeout = 10 * time.Second
-	}
-	if cfg.ServerSelectionTimeout == 0 {
-		cfg.ServerSelectionTimeout = 5 * time.Second
-	}
-	if cfg.MaxPoolSize == 0 {
-		cfg.MaxPoolSize = 100
-	}
-	if cfg.MinPoolSize == 0 {
-		cfg.MinPoolSize = 10
-	}
-	if cfg.MaxConnIdleTime == 0 {
-		cfg.MaxConnIdleTime = 30 * time.Second
-	}
+// SDK defaults, used only when neither Config nor the URI sets the option.
+const (
+	defaultConnectTimeout                = 10 * time.Second
+	defaultServerSelectionTimeout        = 5 * time.Second
+	defaultMaxPoolSize            uint64 = 100
+	defaultMinPoolSize            uint64 = 10
+	defaultMaxConnIdleTime               = 30 * time.Second
+	defaultRetryWrites                   = true
+)
 
-	// Safe production default: enable retry writes unless caller explicitly
-	// chose otherwise. nil means "use SDK default".
-	if cfg.RetryWrites == nil {
-		t := true
-		cfg.RetryWrites = &t
+// clientOptions builds the driver options with this precedence per option:
+// a non-zero Config field, else the value in the URI, else the SDK default.
+// The default MinPoolSize is clamped to the effective MaxPoolSize so that a
+// small pool validates.
+func clientOptions(cfg Config) *options.ClientOptions {
+	opts := options.Client().ApplyURI(normalizeURI(cfg.URI))
+
+	opts.ConnectTimeout = pick(cfg.ConnectTimeout, opts.ConnectTimeout, defaultConnectTimeout)
+	opts.ServerSelectionTimeout = pick(cfg.ServerSelectionTimeout, opts.ServerSelectionTimeout, defaultServerSelectionTimeout)
+	opts.MaxConnIdleTime = pick(cfg.MaxConnIdleTime, opts.MaxConnIdleTime, defaultMaxConnIdleTime)
+	opts.MaxPoolSize = pick(cfg.MaxPoolSize, opts.MaxPoolSize, defaultMaxPoolSize)
+	opts.MinPoolSize = pick(cfg.MinPoolSize, opts.MinPoolSize, defaultMinPool(*opts.MaxPoolSize))
+
+	switch {
+	case cfg.RetryWrites != nil:
+		opts.RetryWrites = new(*cfg.RetryWrites)
+	case opts.RetryWrites == nil:
+		opts.RetryWrites = new(defaultRetryWrites)
 	}
+	return opts
+}
+
+// pick returns the Config value when it is non-zero, else the value parsed
+// from the URI when present, else the SDK default.
+func pick[V comparable](configured V, fromURI *V, fallback V) *V {
+	var zero V
+	switch {
+	case configured != zero:
+		return &configured
+	case fromURI != nil:
+		return fromURI
+	default:
+		return &fallback
+	}
+}
+
+// defaultMinPool is defaultMinPoolSize clamped to maxPool; 0 means the pool
+// has no maximum.
+func defaultMinPool(maxPool uint64) uint64 {
+	if maxPool > 0 && maxPool < defaultMinPoolSize {
+		return maxPool
+	}
+	return defaultMinPoolSize
 }
 
 func wrapUnavailable(err error, op string) error {

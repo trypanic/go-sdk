@@ -95,16 +95,29 @@ type Config struct {
 
 ### Defaults
 
-`New` calls `applyDefaults` which fills zero values:
+Each option is resolved in this order:
+
+1. the `Config` field, when it is non-zero;
+2. otherwise the option in the URI (`connectTimeoutMS`,
+   `serverSelectionTimeoutMS`, `maxPoolSize`, `minPoolSize`, `maxIdleTimeMS`,
+   `retryWrites`);
+3. otherwise the SDK default:
 
 ```
 ConnectTimeout         → 10s
 ServerSelectionTimeout → 5s
 MaxPoolSize            → 100
-MinPoolSize            → 10
+MinPoolSize            → 10, clamped to the effective MaxPoolSize
 MaxConnIdleTime        → 30s
-RetryWrites            → true (only when nil)
+RetryWrites            → true
 ```
+
+A zero `Config` field means "not set", so a `MinPoolSize` of 0 (the driver
+default: no idle connections kept) is expressed in the URI with
+`minPoolSize=0`. The default `MinPoolSize` never exceeds the effective
+`MaxPoolSize`, so `MaxPoolSize: 5` starts with a pool of at most 5
+connections. An explicit `MinPoolSize` larger than `MaxPoolSize` is a
+configuration error (`ERR_SYSTEM_CONFIG_INVALID`).
 
 The `URI` is also normalized: leading `=`, surrounding quotes, and a missing
 `mongodb://` scheme are corrected before being passed to the driver.
@@ -113,12 +126,12 @@ The `URI` is also normalized: leading `=`, surrounding quotes, and a missing
 
 `RetryWrites` is a pointer so callers can express three states unambiguously:
 
-- `nil` — use the SDK default (`true`).
+- `nil` — use `retryWrites` from the URI, else the SDK default (`true`).
 - pointer to `true` — explicit opt-in (same effect as the default).
 - pointer to `false` — explicitly disable driver retry-writes.
 
 The previous `bool` field made `false` ambiguous between "I want it off" and
-"I never set it" because `applyDefaults` overrode `false` with `true`.
+"I never set it", because the SDK default overrode `false` with `true`.
 
 ```go
 disable := false
@@ -144,7 +157,7 @@ The package itself reads no environment variables — callers wire env loading.
 
 Startup behavior is identical across constructors:
 
-1. `applyDefaults` fills zero-valued fields.
+1. Options are resolved: `Config` field, then URI, then SDK default (see [Defaults](#defaults)).
 2. `mongo.Connect` builds the driver client (no I/O yet).
 3. A 5-second context pings the primary. On failure the driver client is disconnected
    before the error is returned.
