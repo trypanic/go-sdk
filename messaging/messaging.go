@@ -611,10 +611,7 @@ func reconnectWithBackoff(ctx context.Context, sub *Subscriber, log *logger.Logg
 					return err
 				}
 				warnReconnect(ctx, log, sub.queue.Name, err, delay)
-				delay *= 2
-				if delay > MaxReconnectDelay {
-					delay = MaxReconnectDelay
-				}
+				delay = min(delay*2, MaxReconnectDelay)
 				continue
 			}
 			return nil
