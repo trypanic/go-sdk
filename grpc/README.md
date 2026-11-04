@@ -218,12 +218,22 @@ above does not see):
 import "google.golang.org/grpc/credentials"
 
 serverCreds, err := credentials.NewServerTLSFromFile("server.crt", "server.key")
-if err != nil { return err }
+if err != nil {
+    return err
+}
 srv, err := sdkgrpc.New(sdkgrpc.ServerConfig{Address: ":8443", Creds: serverCreds})
+if err != nil {
+    return err
+}
 
 clientCreds, err := credentials.NewClientTLSFromFile("ca.crt", "")
-if err != nil { return err }
+if err != nil {
+    return err
+}
 cc, err := sdkgrpc.Dial(sdkgrpc.ClientConfig{Target: "dns:///payments:8443", Creds: clientCreds})
+if err != nil {
+    return err
+}
 ```
 
 For mTLS, build the credentials with `credentials.NewTLS(&tls.Config{...})`
@@ -245,69 +255,176 @@ also applies to streams, so give long-lived streams their own (longer) deadline.
 
 ## Quick start
 
+The samples use generated stubs `pb` for an `Echo` service with one method per
+call mode (`Unary`, `ServerStream`, `ClientStream`, `Bidi`) and a `pb.Req`
+message; replace them with your own.
+
 ### Server (all four modes)
 
 ```go
 import (
-    "net"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
     sdkgrpc "github.com/trypanic/go-sdk/grpc"
     pb "your/gen/echo"
 )
 
-srv, err := sdkgrpc.New(sdkgrpc.ServerConfig{
-    Address: "0.0.0.0:8888",
-    Creds:   serverCreds, // see "Transport security"
-    MaxConcurrentStreams: 256, // cap streams per connection
-    Keepalive: sdkgrpc.ServerKeepalive{
-        Time:                30 * time.Second, // ping idle clients
-        Timeout:             10 * time.Second, // ack deadline
-        MinTime:             10 * time.Second, // reject abusive client pings
-        PermitWithoutStream: true,             // allow keepalive on idle conns
-    },
-})
-if err != nil { panic(err) }
+func run() error {
+    srv, err := sdkgrpc.New(sdkgrpc.ServerConfig{
+        Address:              "0.0.0.0:8888", // ListenAndServe binds it
+        Creds:                serverCreds,    // see "Transport security"
+        MaxConcurrentStreams: 256,            // cap streams per connection
+        Keepalive: sdkgrpc.ServerKeepalive{
+            Time:                30 * time.Second, // ping idle clients
+            Timeout:             10 * time.Second, // ack deadline
+            MinTime:             10 * time.Second, // reject abusive client pings
+            PermitWithoutStream: true,             // allow keepalive on idle conns
+        },
+    })
+    if err != nil {
+        return err
+    }
+    pb.RegisterEchoServer(srv.Registrar(), &EchoImpl{}) // EchoImpl has all 4 methods
 
-pb.RegisterEchoServer(srv.Registrar(), &EchoImpl{}) // EchoImpl has all 4 methods
+    ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+    defer stop()
 
-lis, err := net.Listen("tcp", "0.0.0.0:8888")
-if err != nil { panic(err) }
-go srv.Serve(lis)
-// ...on shutdown signal:
-_ = srv.Shutdown(context.Background()) // drains in-flight streams
+    serveErr := make(chan error, 1)
+    go func() { serveErr <- srv.ListenAndServe() }()
+
+    select {
+    case err := <-serveErr:
+        return err // listen or serve failure (e.g. port in use)
+    case <-ctx.Done(): // SIGINT/SIGTERM
+    }
+
+    // Drain in-flight calls and streams, but not forever: past the deadline
+    // Shutdown hard-stops the server and returns ERR_SYSTEM_TIMEOUT_INTERNAL.
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    if err := srv.Shutdown(shutdownCtx); err != nil {
+        return err
+    }
+    return <-serveErr // nil once the server has stopped
+}
 ```
+
+Long-lived streams only end when the client or your handler ends them, so
+make handlers return when `stream.Context()` is done.
 
 ### Client (all four modes)
 
 ```go
-cc, err := sdkgrpc.Dial(sdkgrpc.ClientConfig{
-    Target: "127.0.0.1:8888",
-    Creds:  clientCreds, // see "Transport security"
-    Keepalive: sdkgrpc.ClientKeepalive{
-        Time:                30 * time.Second,
-        Timeout:             10 * time.Second,
-        PermitWithoutStream: true, // keep long-lived idle streams warm
-    },
-})
-if err != nil { panic(err) }
-defer cc.Close()
+import (
+    "context"
+    "errors"
+    "io"
+    "time"
 
-client := pb.NewEchoClient(cc)
+    sdkgrpc "github.com/trypanic/go-sdk/grpc"
+    pb "your/gen/echo"
+)
 
-// Unary
-resp, _ := client.Unary(ctx, &pb.Req{})
+func run(ctx context.Context) error {
+    cc, err := sdkgrpc.Dial(sdkgrpc.ClientConfig{
+        Target: "dns:///echo:8888",
+        Creds:  clientCreds, // see "Transport security"
+        Keepalive: sdkgrpc.ClientKeepalive{
+            Time:                30 * time.Second,
+            Timeout:             10 * time.Second,
+            PermitWithoutStream: true, // keep long-lived idle streams warm
+        },
+    })
+    if err != nil {
+        return err
+    }
+    defer cc.Close()
+    client := pb.NewEchoClient(cc)
 
-// Server-streaming
-ss, _ := client.ServerStream(ctx, &pb.Req{})
-for { msg, err := ss.Recv(); if err == io.EOF { break }; _ = msg }
+    // Every call gets a deadline (see "Client deadlines").
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+    reqs := []*pb.Req{{}, {}, {}}
 
-// Client-streaming
-cs, _ := client.ClientStream(ctx)
-cs.Send(&pb.Req{}); agg, _ := cs.CloseAndRecv()
+    // Unary
+    resp, err := client.Unary(ctx, &pb.Req{})
+    if err != nil {
+        return err
+    }
+    _ = resp
 
-// Bidirectional-streaming (full-duplex: send and recv run independently)
-bs, _ := client.Bidi(ctx)
-go func() { bs.Send(&pb.Req{}); bs.CloseSend() }()
-for { msg, err := bs.Recv(); if err == io.EOF { break }; _ = msg }
+    // Server-streaming: io.EOF is the normal end; any other error is final,
+    // and Recv keeps returning it, so leave the loop.
+    ss, err := client.ServerStream(ctx, &pb.Req{})
+    if err != nil {
+        return err
+    }
+    for {
+        msg, err := ss.Recv()
+        if errors.Is(err, io.EOF) {
+            break
+        }
+        if err != nil {
+            return err
+        }
+        _ = msg
+    }
+
+    // Client-streaming: Send returns io.EOF when the server ended the stream;
+    // CloseAndRecv then returns the server's status.
+    cs, err := client.ClientStream(ctx)
+    if err != nil {
+        return err
+    }
+    for _, req := range reqs {
+        if err := cs.Send(req); err != nil {
+            if errors.Is(err, io.EOF) {
+                break
+            }
+            return err
+        }
+    }
+    agg, err := cs.CloseAndRecv()
+    if err != nil {
+        return err
+    }
+    _ = agg
+
+    // Bidirectional-streaming (full-duplex): send in a goroutine, receive
+    // here, and collect the send result through a channel.
+    bs, err := client.Bidi(ctx)
+    if err != nil {
+        return err
+    }
+    sendErr := make(chan error, 1)
+    go func() {
+        for _, req := range reqs {
+            if err := bs.Send(req); err != nil {
+                if errors.Is(err, io.EOF) {
+                    err = nil // the server ended the stream; Recv reports why
+                }
+                sendErr <- err
+                return
+            }
+        }
+        sendErr <- bs.CloseSend()
+    }()
+    for {
+        msg, err := bs.Recv()
+        if errors.Is(err, io.EOF) {
+            break
+        }
+        if err != nil {
+            return err // cancel (deferred) aborts the stream and frees the sender
+        }
+        _ = msg
+    }
+    return <-sendErr
+}
 ```
 
 ## Migration from the Kitex-based package
@@ -319,7 +436,7 @@ This package previously wrapped CloudWeGo Kitex. It now wraps
 | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `New(cfg, svcInfo, handler)`                               | `New(cfg, opts...)` + `pb.RegisterXxxServer(srv.Registrar(), impl)`                                                                                                                                                    |
 | `NewWithOptions(..., ServerOptions{...})`                  | `New(cfg, sdkgrpc.WithServerTracing(false), ...)`                                                                                                                                                                      |
-| `(*Server).Run()`                                          | `(*Server).Serve(lis)`                                                                                                                                                                                                 |
+| `(*Server).Run()`                                          | `(*Server).ListenAndServe()` (or `(*Server).Serve(lis)` with your own listener)                                                                                                                                        |
 | `(*Server).Stop() error`                                   | `(*Server).Shutdown(ctx) error` (graceful) / `(*Server).Stop()` (hard)                                                                                                                                                 |
 | `ServerConfig{Host, Port, ReadWriteTimeout, ExitWaitTime}` | `ServerConfig{Address, Keepalive, MaxRecvMsgSize, MaxSendMsgSize, MaxConcurrentStreams, Creds}`                                                                                                                        |
 | `DialOptions(cfg, opts)` / `NewClient(svcInfo, cfg)`       | `Dial(cfg, opts...)` returning `*grpc.ClientConn` + `pb.NewXxxClient(cc)`                                                                                                                                              |
