@@ -23,13 +23,22 @@ type overrideTarget struct {
 	register func(Metadata) error
 	override func(ErrorCode, func(*Metadata)) bool
 	get      func(ErrorCode) (Metadata, bool)
+	forget   func(ErrorCode)
+}
+
+// forgetGlobalCode removes code from the package-global registry so a test
+// that registers and then overrides it can run again (-count, -shuffle).
+func forgetGlobalCode(code ErrorCode) {
+	errorRegistryMu.Lock()
+	defer errorRegistryMu.Unlock()
+	delete(errorRegistry, code)
 }
 
 func overrideTargets() []overrideTarget {
 	r := NewRegistry()
 	return []overrideTarget{
-		{name: "global", register: func(m Metadata) error { return RegisterMany(m) }, override: OverrideMetadata, get: GetMetadata},
-		{name: "registry", register: func(m Metadata) error { return r.RegisterMany(m) }, override: r.OverrideMetadata, get: r.GetMetadata},
+		{name: "global", register: func(m Metadata) error { return RegisterMany(m) }, override: OverrideMetadata, get: GetMetadata, forget: forgetGlobalCode},
+		{name: "registry", register: func(m Metadata) error { return r.RegisterMany(m) }, override: r.OverrideMetadata, get: r.GetMetadata, forget: func(ErrorCode) {}},
 	}
 }
 
@@ -56,6 +65,7 @@ func TestOverrideMetadata_ReentrantUpdaterDoesNotDeadlock(t *testing.T) {
 			if err := target.register(overrideTestMeta(code)); err != nil {
 				t.Fatalf("register: %v", err)
 			}
+			t.Cleanup(func() { target.forget(code) })
 
 			var ok bool
 			runWithin(t, 2*time.Second, func() {
