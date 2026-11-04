@@ -16,9 +16,11 @@ A structured, type-safe error handling library for Go. Every error carries a uni
     - [Basic](#basic)
     - [With Options](#with-options)
     - [Wrapping Standard Errors](#wrapping-standard-errors)
+    - [Inspecting Error Chains](#inspecting-error-chains)
   - [Functional Options](#functional-options)
   - [Formatting \& Output](#formatting--output)
     - [Example JSON output](#example-json-output)
+    - [Client-safe responses](#client-safe-responses)
     - [Color control](#color-control)
   - [Registry API](#registry-api)
   - [Factory API](#factory-api)
@@ -175,6 +177,32 @@ if dbErr != nil {
 ```
 
 The wrapped error is accessible via `errors.Unwrap(err)` and is included in JSON output.
+
+### Inspecting Error Chains
+
+Use `errorkit.As` and `errorkit.HasCode` instead of a direct type assertion.
+`err.(*errorkit.AppError)` fails as soon as any layer adds context with
+`fmt.Errorf("...: %w", err)`; the helpers walk the whole chain.
+
+```go
+// Preserve an AppError found anywhere in the chain; wrap anything else once.
+if appErr, ok := errorkit.As(err); ok {
+    return appErr
+}
+return errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
+```
+
+```go
+// Branch on a code, also when it is nested inside another AppError.
+if errorkit.HasCode(err, errorkit.ERR_CLIENT_NOT_FOUND) {
+    // ...
+}
+```
+
+`As` returns the first non-nil `*AppError` in the chain. `HasCode` checks that
+error and every `*AppError` reachable through its wrapped error. `AppError`
+has no `Is` method, so two errors with the same code are not `errors.Is`-equal;
+compare codes with `HasCode` or `.Code()`.
 
 ---
 

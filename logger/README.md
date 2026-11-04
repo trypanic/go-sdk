@@ -555,12 +555,12 @@ func handle(ctx context.Context, msg Message) error {
 }
 ```
 
-When a function already returns `*errorkit.AppError`, type-switch to preserve the original code:
+When a function already returns `*errorkit.AppError`, use `errorkit.As` to preserve the original code (it also finds an `AppError` wrapped with `%w`):
 
 ```go
 result, err := svc.Do(ctx, input)
 if err != nil {
-    if appErr, ok := err.(*errorkit.AppError); ok {
+    if appErr, ok := errorkit.As(err); ok {
         logger.ErrorCtx(ctx, appErr, "svc: do")
     } else {
         wrapped := errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
