@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
 )
 
 // Interceptors added with WithUnaryInterceptors / WithStreamInterceptors run

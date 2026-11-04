@@ -16,8 +16,8 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Constructors](#constructors)
-  - [New](#newpostgresclient)
-  - [NewFromEnv](#newpostgresclientfromenv)
+  - [New](#new)
+  - [NewFromEnv](#newfromenv)
 - [DSN Normalization](#dsn-normalization)
 - [Stored Procedures](#stored-procedures)
   - [Interface](#interface)
@@ -61,7 +61,7 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/postgres" // package identifier: postgres
+    "github.com/trypanic/go-sdk/v2/postgres" // package identifier: postgres
 )
 
 pool, err := postgres.New(postgres.Config{
@@ -135,7 +135,7 @@ Behavior:
    correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
    5-second timeout context by default. The context variants preserve caller deadlines.
-4. Pings the postgres. If the ping fails the pool is closed before returning the error.
+4. Pings the database. If the ping fails the pool is closed before returning the error.
 
 Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
 parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
@@ -357,8 +357,8 @@ freely across goroutines.
 |---|---|
 | `github.com/jackc/pgx/v5` | PostgreSQL driver and row scanning utilities |
 | `github.com/jackc/pgx/v5/pgxpool` | Connection pool |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
-| `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for stored-procedure calls |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/telemetry` | Optional tracing wrapper for stored-procedure calls |
 
 The package has **no dependency on `otelpgx`** or any other pgx tracer. Callers that want
 driver-level tracing wire it up themselves.

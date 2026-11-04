@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Error logs an ErrorKit error at Error level using the global logger.

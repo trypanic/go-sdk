@@ -3,14 +3,14 @@ package apicontract_test
 import (
 	"testing"
 
-	"github.com/trypanic/go-sdk/envs"
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/llmclient"
-	"github.com/trypanic/go-sdk/logger/otlp"
-	"github.com/trypanic/go-sdk/messaging"
-	"github.com/trypanic/go-sdk/postgres"
-	"github.com/trypanic/go-sdk/storage"
+	"github.com/trypanic/go-sdk/v2/envs"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/llmclient"
+	"github.com/trypanic/go-sdk/v2/logger/otlp"
+	"github.com/trypanic/go-sdk/v2/messaging"
+	"github.com/trypanic/go-sdk/v2/postgres"
+	"github.com/trypanic/go-sdk/v2/storage"
 )
 
 func TestConcisePublicNames(t *testing.T) {

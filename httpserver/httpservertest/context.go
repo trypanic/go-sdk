@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 // Context implements Context using an HTTP request and response recorder.

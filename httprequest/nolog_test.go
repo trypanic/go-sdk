@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // captureStderr runs fn with os.Stderr redirected and returns what was

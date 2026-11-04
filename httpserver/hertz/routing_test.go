@@ -6,7 +6,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/common/ut"
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 func TestExtendedRoutingMethods(t *testing.T) {

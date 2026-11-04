@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/logger"
-	"github.com/trypanic/go-sdk/messaging"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/logger"
+	"github.com/trypanic/go-sdk/v2/messaging"
 )
 
 // ExampleNewPubSub wires a PubSub from an in-memory topology and publishes

@@ -9,7 +9,7 @@ import (
 
 	"github.com/caarlos0/env/v11"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestNewLoaderReturnsConfigErrorWithParseDetails(t *testing.T) {

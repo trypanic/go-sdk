@@ -5,7 +5,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // WrapWithTracing adds external.llm.execute client spans. The model is an

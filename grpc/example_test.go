@@ -3,8 +3,8 @@ package grpc_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	sdkgrpc "github.com/trypanic/go-sdk/grpc"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	sdkgrpc "github.com/trypanic/go-sdk/v2/grpc"
 	"google.golang.org/grpc/status"
 )
 

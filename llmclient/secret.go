@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/trypanic/go-sdk/internal/redact"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
 )
 
 // maskedKey returns the placeholder for a set key and "" for an unset one.

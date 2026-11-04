@@ -1,6 +1,6 @@
 package httpclient
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // External Service Error Codes (Generic)

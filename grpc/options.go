@@ -8,8 +8,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 
-	"github.com/trypanic/go-sdk/logger"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/logger"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // ServerOption configures a Server at construction time.

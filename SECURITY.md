@@ -32,7 +32,7 @@ The SDK is a single Go module; every package shares the module's version.
 
 The latest release is the newest `vX.Y.Z` tag
 ([releases](https://github.com/trypanic/go-sdk/releases),
-[pkg.go.dev](https://pkg.go.dev/github.com/trypanic/go-sdk?tab=versions)).
+[pkg.go.dev](https://pkg.go.dev/github.com/trypanic/go-sdk/v2?tab=versions)).
 
 Fixes are released only on the latest major version. When `v2.0.0` is
 published (module path `github.com/trypanic/go-sdk/v2`), `v1` stops receiving
@@ -56,6 +56,12 @@ it. Module-level scanners (Dependabot alerts, Trivy, OSV-Scanner) match
 | Advisory | Module | Status | Reason |
 |----------|--------|--------|--------|
 | [GO-2026-5932](https://pkg.go.dev/vuln/GO-2026-5932) | `golang.org/x/crypto` v0.58.0 (indirect) | **Not affected** | The vulnerable package `golang.org/x/crypto/openpgp` is not imported by any SDK package or test. The only linked `x/crypto` packages are `pbkdf2`, `scrypt` and `ocsp` (`go list -deps -test ./...`), reached through the MongoDB driver. govulncheck v1.9.0 lists it under "Module Results" only. The fix exists only in an untagged pseudo-version; the requirement is raised once a tagged `x/crypto` release contains it. |
+
+Last verified on 2026-11-04 against the [official advisory](https://vuln.go.dev/ID/GO-2026-5932.json)
+and [tag inventory](https://proxy.golang.org/golang.org/x/crypto/@v/list):
+`v0.58.0` remains the newest tag; the fix boundary is
+`v0.58.1-0.20261009181718-2f1f834330b2`. R-DEPS therefore retains the tagged
+requirement and this reachability triage.
 
 Consumers can suppress GO-2026-5932 for this module on the same grounds,
 after checking that their own code does not import `openpgp`.

@@ -1,0 +1,39 @@
+=== RUN   TestPostgresIntegration
+2026/11/04 01:11:29 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: ced757e6157249be6b109be822935382689291e6f89be5c35f005723f4f98a5b
+  Test ProcessID: df1cab2d-d862-46ef-af80-55ffb511d25d
+2026/11/04 01:11:30 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 01:11:30 ✅ Container created: fc2dc244ee00
+2026/11/04 01:11:30 🐳 Starting container: fc2dc244ee00
+2026/11/04 01:11:30 ✅ Container started: fc2dc244ee00
+2026/11/04 01:11:30 ⏳ Waiting for container id fc2dc244ee00 image: testcontainers/ryuk:0.14.0. Waiting for: all of: [log message "Started", port 8080/tcp to be listening]
+2026/11/04 01:11:30 Shell not found in container
+2026/11/04 01:11:30 🔔 Container is ready: fc2dc244ee00
+2026/11/04 01:11:30 🐳 Creating container for image postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+2026/11/04 01:11:30 ✅ Container created: 95fae57cf1cd
+2026/11/04 01:11:30 🐳 Starting container: 95fae57cf1cd
+2026/11/04 01:11:30 ✅ Container started: 95fae57cf1cd
+2026/11/04 01:11:30 ⏳ Waiting for container id 95fae57cf1cd image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5. Waiting for: log message "database system is ready to accept connections" (occurrence: 2)
+2026/11/04 01:11:31 🔔 Container is ready: 95fae57cf1cd
+    postgres_integration_test.go:28:
+                Error Trace:    /tmp/DEPS-loop2/mutation/internal/integrationtest/container.go:114
+                                                        /tmp/DEPS-loop2/mutation/internal/integrationtest/container.go:63
+                                                        /tmp/DEPS-loop2/mutation/postgres/postgres_integration_test.go:28
+                Error:          Should be true
+                Test:           TestPostgresIntegration
+                Messages:       container postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5 publishes 5432/tcp on 0.0.0.0:32816
+2026/11/04 01:11:31 🐳 Stopping container: 95fae57cf1cd
+2026/11/04 01:11:31 ✅ Container stopped: 95fae57cf1cd
+2026/11/04 01:11:31 🐳 Terminating container: 95fae57cf1cd
+2026/11/04 01:11:31 🚫 Container terminated: 95fae57cf1cd
+--- FAIL: TestPostgresIntegration (1.86s)
+FAIL
+FAIL    github.com/trypanic/go-sdk/v2/postgres  1.916s
+FAIL

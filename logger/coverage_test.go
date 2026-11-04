@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/logger/otlp"
+	"github.com/trypanic/go-sdk/v2/logger/otlp"
 
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 var (

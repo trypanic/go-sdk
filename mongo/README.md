@@ -49,7 +49,7 @@ import (
     "context"
     "log"
 
-    "github.com/trypanic/go-sdk/mongo" // package identifier: mongo
+    "github.com/trypanic/go-sdk/v2/mongo" // package identifier: mongo
 )
 
 client, err := mongo.New(context.Background(), mongo.Config{
@@ -350,8 +350,8 @@ needed because the interface is not bound to `*mongo.Database`.
 | `go.mongodb.org/mongo-driver/v2/mongo` | Official MongoDB Go driver |
 | `go.mongodb.org/mongo-driver/v2/mongo/options` | Driver option builders |
 | `go.mongodb.org/mongo-driver/v2/mongo/readpref` | Read-preference constants for the startup ping |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
-| `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for collection operations |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/telemetry` | Optional tracing wrapper for collection operations |
 
 The package has **no `otelmongo` import**. SDK operation tracing is integrated by default; driver command tracing is an explicit caller choice.
 

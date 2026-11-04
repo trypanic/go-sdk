@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // BuildURL constructs a URL by combining a base URL, path, and query parameters.

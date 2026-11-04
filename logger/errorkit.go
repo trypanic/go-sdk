@@ -3,7 +3,7 @@ package logger
 import (
 	"github.com/rs/zerolog"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // WithErrorKit enriches a zerolog.Event with all ErrorKit error fields.

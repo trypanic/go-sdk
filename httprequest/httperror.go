@@ -12,8 +12,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/internal/redact"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
 )
 
 // redactBody returns the redactor output as a string. It centralizes the

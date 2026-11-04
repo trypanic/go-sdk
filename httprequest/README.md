@@ -38,8 +38,8 @@ Package `httprequest` wraps `net/http` with automatic retries (exponential backo
 import (
     "context"
 
-    "github.com/trypanic/go-sdk/httpclient"
-    "github.com/trypanic/go-sdk/httprequest"
+    "github.com/trypanic/go-sdk/v2/httpclient"
+    "github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 // 1. Build one requester per process with default retry settings (5 attempts,
@@ -329,10 +329,8 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 | `go.opentelemetry.io/otel/trace`                                   | Span event recording per retry attempt                  |
 | `go.opentelemetry.io/otel/attribute`                               | OTEL attribute types for span events                    |
 | `go.opentelemetry.io/otel/propagation`                             | W3C trace-context injection into outbound headers (needs a global propagator set by the service) |
-| `github.com/trypanic/go-sdk/errorkit`                              | Structured error construction and retryability metadata |
-| `github.com/trypanic/go-sdk/httpclient`                            | External-service error codes (`ERR_EXTERNAL_*`)         |
-| `github.com/trypanic/go-sdk/logger`                                | Opt-in audit log line (`WithAuditLog`) only             |
-| `github.com/trypanic/go-sdk/telemetry`                             | Tracing wrapper (`New`, `NewWithInstrumenter`)          |
+| `github.com/trypanic/go-sdk/v2/errorkit`                              | Structured error construction and retryability metadata |
+| `github.com/trypanic/go-sdk/v2/telemetry`                             | Tracing wrapper (`New`, `NewWithInstrumenter`)          |
 
 ### Concrete adapters and escape hatches (v2)
 

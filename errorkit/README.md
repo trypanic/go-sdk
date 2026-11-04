@@ -45,7 +45,7 @@ A structured, type-safe error handling library for Go. Every error carries a uni
 ## Installation
 
 ```bash
-go get github.com/trypanic/go-sdk/errorkit
+go get github.com/trypanic/go-sdk/v2/errorkit
 ```
 
 ---
@@ -57,7 +57,7 @@ package main
 
 import (
     "fmt"
-    "github.com/trypanic/go-sdk/errorkit"
+    "github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func main() {
@@ -620,7 +620,7 @@ Declared in `types.go`. Several groups are reserved for downstream code that reg
 | `GroupClient`       | `client`          |
 | `GroupAuth`         | `auth`            |
 | `GroupStorage`      | `storage`         |
-| `GroupDatabase`     | `postgres`        |
+| `GroupDatabase`     | `database`        |
 | `GroupMessageQueue` | `message_queue`   |
 
 ---

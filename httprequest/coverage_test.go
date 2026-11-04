@@ -16,10 +16,10 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
-	"github.com/trypanic/go-sdk/logger"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpclient"
+	"github.com/trypanic/go-sdk/v2/logger"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 func TestStatusMapsToCodeAndRetriability(t *testing.T) {

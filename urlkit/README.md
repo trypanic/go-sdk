@@ -17,7 +17,7 @@ URL construction helpers that safely combine a base URL, an optional path, and a
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/urlkit"
+import "github.com/trypanic/go-sdk/v2/urlkit"
 
 u, err := urlkit.BuildURL("https://api.example.com", "/users", map[string]string{
     "page":  "1",
@@ -220,7 +220,7 @@ All functions are pure and stateless. They are safe for concurrent use without a
 | Package | Role |
 |---|---|
 | `net/url` | URL parsing, construction, and query-string encoding |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
 
 Hierarchical base paths preserve escaped separators (`/a%2Fb` stays one segment).
 `JoinPath` takes raw segments (a literal `%2F` becomes `%252F`); `BuildURL` accepts

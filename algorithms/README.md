@@ -34,7 +34,7 @@ backoff policies on top of `github.com/cenkalti/backoff/v4`.
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/algorithms"
+    "github.com/trypanic/go-sdk/v2/algorithms"
     "github.com/cenkalti/backoff/v4"
 )
 

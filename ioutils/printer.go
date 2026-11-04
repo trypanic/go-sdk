@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/marshal"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/marshal"
 )
 
 // WriteJSON encodes v as JSON to w with HTML escaping disabled, using the

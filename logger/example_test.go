@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 func ExampleNew() {

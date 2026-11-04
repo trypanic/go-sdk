@@ -11,8 +11,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/protocol"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 var generatedID = regexp.MustCompile(`^[0-9a-f]{32}$`)

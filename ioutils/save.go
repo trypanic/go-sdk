@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"os"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // SaveJSON writes v as JSON to filename. HTML escaping is disabled.

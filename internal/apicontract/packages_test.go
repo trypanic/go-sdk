@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trypanic/go-sdk/batch"
-	"github.com/trypanic/go-sdk/mongo"
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/batch"
+	"github.com/trypanic/go-sdk/v2/mongo"
+	"github.com/trypanic/go-sdk/v2/postgres"
 )
 
 func TestCanonicalPackageNames(t *testing.T) {

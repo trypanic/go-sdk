@@ -3,7 +3,7 @@ package mongotest_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/mongo/mongotest"
+	"github.com/trypanic/go-sdk/v2/mongo/mongotest"
 )
 
 func ExampleSingleResult() {

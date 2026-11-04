@@ -1,7 +1,7 @@
 // Package postgres provides a pgx/v5 connection-pool factory and a generic
 // stored-procedure runner for PostgreSQL.
 //
-// Import it as github.com/trypanic/go-sdk/postgres; the package identifier
+// Import it as github.com/trypanic/go-sdk/v2/postgres; the package identifier
 // is postgres.
 //
 //   - New builds a *pgxpool.Pool from an explicit Config and

@@ -5,10 +5,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/marshal"
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/marshal"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 // Message is one chat message (role "system", "user" or "assistant").

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
 )
 
 // deadlineProbe is an echoImpl whose unary and server-stream handlers report

@@ -2,7 +2,7 @@
 // Collection, Cursor and result interfaces) over the official MongoDB Go
 // driver.
 //
-// Import it as github.com/trypanic/go-sdk/mongo; the package identifier is
+// Import it as github.com/trypanic/go-sdk/v2/mongo; the package identifier is
 // mongo.
 //
 // New connects, pings the primary and returns a concrete Client that opens one

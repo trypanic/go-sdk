@@ -3,7 +3,7 @@ package httpservertest_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/httpserver/httpservertest"
+	"github.com/trypanic/go-sdk/v2/httpserver/httpservertest"
 )
 
 func ExampleNewContext() {

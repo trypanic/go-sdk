@@ -3,7 +3,7 @@ package llmclient
 import (
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestConfigFromEnvReadsKeyAndEndpoint(t *testing.T) {

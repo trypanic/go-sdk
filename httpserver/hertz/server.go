@@ -13,10 +13,10 @@ import (
 
 	hertztracing "github.com/hertz-contrib/obs-opentelemetry/tracing"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/internal/redact"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // New builds a Hertz-backed httpserver.Server using the compatibility

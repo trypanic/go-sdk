@@ -1,18 +1,18 @@
 # go-sdk
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/trypanic/go-sdk.svg)](https://pkg.go.dev/github.com/trypanic/go-sdk)
+[![Go Reference](https://pkg.go.dev/badge/github.com/trypanic/go-sdk/v2.svg)](https://pkg.go.dev/github.com/trypanic/go-sdk/v2)
 
 Opinionated Go SDK for distributed systems — bundles logging, errors, tracing,
 HTTP, messaging, and storage primitives behind a small, explicit
 API surface.
 
-Module path: `github.com/trypanic/go-sdk` (language floor `go 1.26.1`; see
+Module path: `github.com/trypanic/go-sdk/v2` (language floor `go 1.26.1`; see
 [Compatibility](#compatibility)). Licensed under the [MIT License](./LICENSE).
 
 ## Install
 
 ```bash
-go get github.com/trypanic/go-sdk@latest
+go get github.com/trypanic/go-sdk/v2@latest
 ```
 
 The SDK is one Go module: `go get` adds every package at the same version,
@@ -29,8 +29,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 func main() {
@@ -61,7 +61,7 @@ logging, tracing, outbound HTTP, Postgres and RabbitMQ together.
 
 Public package identifiers match their directories. See the
 [v2 API migration](./docs/v2-api-migration.md) for approved renames and removals.
-The `/v2` module-path change is applied in the audit's subsequent dependency phase.
+All current imports use the `github.com/trypanic/go-sdk/v2` module path.
 
 | Directory (import path suffix) | Package identifier | Purpose |
 |--------------------------------|--------------------|---------|
@@ -89,7 +89,7 @@ The `/v2` module-path change is applied in the audit's subsequent dependency pha
 | [`validators`](./validators)   | `validators`       | input validators |
 
 ```go
-import "github.com/trypanic/go-sdk/postgres"
+import "github.com/trypanic/go-sdk/v2/postgres"
 
 pool, err := postgres.NewFromEnv(postgres.Config{})
 ```

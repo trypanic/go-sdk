@@ -3,7 +3,7 @@ package messagingtest
 import (
 	"context"
 
-	"github.com/trypanic/go-sdk/messaging"
+	"github.com/trypanic/go-sdk/v2/messaging"
 )
 
 // Broker delegates every operation to a caller-supplied function. An unset

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // LoadInto parses environment variables into c, a non-nil pointer to a

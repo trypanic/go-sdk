@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func wantCode(t *testing.T, err error, code errorkit.ErrorCode) {

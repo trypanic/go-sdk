@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // appendLogFactory builds an empty AppendLog for one test.

@@ -137,7 +137,9 @@ jobs:
         run: gh release upload "${TAG}" dist/* --clobber --repo "${GITHUB_REPOSITORY}"
 
       - name: Warm the Go module proxy
-        run: GOPROXY=https://proxy.golang.org go list -m "github.com/${GITHUB_REPOSITORY}@${TAG}"
+        run: |
+          module=$(go list -m)
+          GOPROXY=https://proxy.golang.org go list -m "${module}@${TAG}"
 
   # Separate job so the build and test steps never run with id-token or
   # attestations write. It runs after the upload and the proxy warm-up, so a

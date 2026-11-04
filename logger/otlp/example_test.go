@@ -3,7 +3,7 @@ package otlp_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/logger/otlp"
+	"github.com/trypanic/go-sdk/v2/logger/otlp"
 )
 
 func ExampleNewWriter() {

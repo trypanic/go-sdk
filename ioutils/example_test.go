@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/trypanic/go-sdk/ioutils"
+	"github.com/trypanic/go-sdk/v2/ioutils"
 )
 
 func ExampleWriteJSON() {

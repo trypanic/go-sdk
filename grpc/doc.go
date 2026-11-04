@@ -21,5 +21,5 @@
 // The package identifier is grpc, which collides with the upstream
 // google.golang.org/grpc package. Consumers should alias this package, e.g.:
 //
-//	import sdkgrpc "github.com/trypanic/go-sdk/grpc"
+//	import sdkgrpc "github.com/trypanic/go-sdk/v2/grpc"
 package grpc

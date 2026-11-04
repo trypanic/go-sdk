@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/stats"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/trypanic/go-sdk/grpc/internal/testsvc"
+	"github.com/trypanic/go-sdk/v2/grpc/internal/testsvc"
 )
 
 // spanSink records ended spans and signals each one on a channel, so tests

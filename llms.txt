@@ -2,7 +2,7 @@
 
 > Opinionated Go SDK for distributed systems. Bundles structured logging, classified errors, OpenTelemetry tracing, retrying HTTP client, RabbitMQ messaging, and Postgres/Mongo/storage primitives behind a small, explicit API surface.
 
-Module path: `github.com/trypanic/go-sdk`; language floor Go `1.26.1`, with supported patched toolchains documented in README. The audit's later dependency phase applies `/v2`. SDK-classified operations return AppError values; upstream APIs, callbacks and documented lifecycle methods can return other errors. Default HTTP/LLM/Mongo constructors trace; explicit instrumenters or no-tracing constructors control this. User interaction is Spanish; technical artifacts are English.
+Module path: `github.com/trypanic/go-sdk/v2`; language floor Go `1.26.1`, with supported patched toolchains documented in README. SDK-classified operations return AppError values; upstream APIs, callbacks and documented lifecycle methods can return other errors. Default HTTP/LLM/Mongo constructors trace; explicit instrumenters or no-tracing constructors control this. User interaction is Spanish; technical artifacts are English.
 
 ## Docs
 

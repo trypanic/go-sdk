@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestAsFindsAppErrorInWrappedChain(t *testing.T) {

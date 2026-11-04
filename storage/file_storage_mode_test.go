@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func storageFileMode(t *testing.T, dir, key string) fs.FileMode {

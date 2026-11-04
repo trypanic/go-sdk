@@ -7,16 +7,16 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/mongo"
-	"github.com/trypanic/go-sdk/postgres"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpclient"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/mongo"
+	"github.com/trypanic/go-sdk/v2/postgres"
 
 	// Imported for their init(), which registers each package's codes in the
 	// global errorkit registry swept below.
-	_ "github.com/trypanic/go-sdk/messaging"
-	_ "github.com/trypanic/go-sdk/storage"
+	_ "github.com/trypanic/go-sdk/v2/messaging"
+	_ "github.com/trypanic/go-sdk/v2/storage"
 )
 
 // Codes named in finding C3-003, with the gRPC code their registered

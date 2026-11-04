@@ -3,7 +3,7 @@ package algorithms_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/algorithms"
+	"github.com/trypanic/go-sdk/v2/algorithms"
 )
 
 func ExampleNewExponentialBackoff() {

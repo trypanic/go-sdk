@@ -3,8 +3,8 @@ package hertz_test
 import (
 	"fmt"
 
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/httpserver/hertz"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver/hertz"
 )
 
 func ExampleNewServer() {

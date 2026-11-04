@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/trypanic/go-sdk/httprequest"
-	"github.com/trypanic/go-sdk/llmclient"
+	"github.com/trypanic/go-sdk/v2/httprequest"
+	"github.com/trypanic/go-sdk/v2/llmclient"
 )
 
 type exampleRequester struct{}

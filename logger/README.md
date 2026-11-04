@@ -15,10 +15,10 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
-    - [NewProvider](#newlogprovider)
-    - [InitProvider](#initlogprovider)
-    - [NewWriter](#newotlpwriter)
-    - [Provider.Close / Shutdown](#logproviderhandleclose--shutdown)
+    - [NewProvider](./otlp/README.md#newprovider)
+    - [InitProvider](./otlp/README.md#initprovider)
+    - [NewWriter](./otlp/README.md#newwriter)
+    - [Provider.Close / Shutdown](./otlp/README.md#providerclose--shutdown)
     - [Error](#error)
     - [LogAndReturn](#logandreturn)
     - [Panic](#panic)
@@ -90,8 +90,8 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/logger"
-    "github.com/trypanic/go-sdk/errorkit"
+    "github.com/trypanic/go-sdk/v2/logger"
+    "github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func main() {
@@ -166,7 +166,7 @@ l := logger.New(logger.Config{
 
 - `Init` (global logger) is controlled by the `ENVIRONMENT` environment variable (see the table above) and its optional `io.Writer` argument.
 - `New` (instance logger) takes a `Config` struct: `AppName`, `Version`, `Env` (empty means `DetectEnv()`), `Writer` (overrides the environment's writer), `OTLPWriter` and `Redactor`. See [Instance API](#instance-api).
-- The OTLP export is configured by `Config` (see [NewProvider](#newlogprovider)).
+- The OTLP export is configured by `otlp.Config` (see [NewProvider](./otlp/README.md#newprovider)).
 
 ---
 
@@ -410,7 +410,7 @@ Stores `l` in `ctx` so it can be retrieved later via `Ctx` or `CtxOrGlobal`. Thi
 The core `logger` package has **no web framework dependency**. Per-request middleware that injects a request-scoped logger lives in adapter packages alongside each web server. For example, the SDK ships a Hertz adapter in `httpserver/hertz`:
 
 ```go
-import "github.com/trypanic/go-sdk/httpserver/hertz"
+import "github.com/trypanic/go-sdk/v2/httpserver/hertz"
 
 server.Use(hertz.RequestLogger(nil)) // nil = use global logger as base
 ```
@@ -448,7 +448,7 @@ func main() {
 
 ### Bootstrap With OTLP
 
-Import `github.com/trypanic/go-sdk/logger/otlp` for the exporter API.
+Import `github.com/trypanic/go-sdk/v2/logger/otlp` for the exporter API.
 
 The OTLP path needs the log provider before the logger writer, and they must share the same service name. Use `Setup` to bundle the order safely:
 
@@ -618,7 +618,7 @@ Core `logger` depends on zerolog, the OTel trace API and errorkit.
 | `go.opentelemetry.io/otel/sdk/resource`                            | Attaches `service.name` semantic attribute to the provider                  |
 | `go.opentelemetry.io/otel/semconv/v1.21.0`                         | `semconv.ServiceNameKey` constant                                           |
 | `google.golang.org/grpc`                                           | gRPC transport and TLS credentials for the OTLP export                      |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error type consumed by `WithErrorKit`, `Error`, `ErrorCtx`, etc. |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error type consumed by `WithErrorKit`, `Error`, `ErrorCtx`, etc. |
 
 The core `logger` package has **no web-framework dependency**. Per-request middleware for specific frameworks lives in the corresponding adapter package (e.g. `hertz.RequestLogger` for Hertz). Consumers that do not use those frameworks never pull them in.
 

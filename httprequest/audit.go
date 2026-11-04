@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/trypanic/go-sdk/internal/logctx"
-	"github.com/trypanic/go-sdk/internal/redact"
+	"github.com/trypanic/go-sdk/v2/internal/logctx"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
 )
 
 // sanitizeHTTPHeaders returns a log-safe copy of h: values of credential

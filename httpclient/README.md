@@ -61,7 +61,7 @@ Package `httpclient` constructs production-tuned `*http.Client` values with a sh
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/httpclient"
+    "github.com/trypanic/go-sdk/v2/httpclient"
 )
 
 // Production-ready client with all defaults applied.
@@ -257,8 +257,8 @@ All options follow the signature `func(c *ClientConfig)` and are applied by `New
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/httpclient"
-    "github.com/trypanic/go-sdk/httprequest"
+    "github.com/trypanic/go-sdk/v2/httpclient"
+    "github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 httpClient := httpclient.NewDefaultClient()
@@ -303,6 +303,6 @@ The package itself does not import `otelhttp` — callers add the dependency onl
 
 | Package | Role |
 |---|---|
-| `github.com/trypanic/go-sdk/errorkit` | Structured error (`ERR_EXTERNAL_SERVICE_ERROR`) returned when the redirect limit is exceeded |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error (`ERR_EXTERNAL_SERVICE_ERROR`) returned when the redirect limit is exceeded |
 
 The package has no telemetry dependency. Callers wishing to add tracing supply a `TransportWrapper` (e.g. `otelhttp.NewTransport`) themselves.

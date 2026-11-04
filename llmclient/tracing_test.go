@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 func TestWrapWithInstrumenterNilReturnsInner(t *testing.T) {

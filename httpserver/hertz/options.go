@@ -3,8 +3,8 @@ package hertz
 import (
 	"context"
 
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
 // ServerOption customizes the default-on server profile.

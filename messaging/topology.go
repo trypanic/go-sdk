@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // TopologyEnvVar is the canonical environment variable read by

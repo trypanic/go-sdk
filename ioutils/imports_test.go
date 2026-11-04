@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-const ioutilsImportPath = "github.com/trypanic/go-sdk/ioutils"
+const ioutilsImportPath = "github.com/trypanic/go-sdk/v2/ioutils"
 
 // ioutils is dev-only (AGENTS.md §1, §5). This test fails if any non-test Go
 // file of the module, outside ioutils itself, imports it.

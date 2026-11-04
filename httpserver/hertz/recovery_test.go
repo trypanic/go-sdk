@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trypanic/go-sdk/httpserver"
+	"github.com/trypanic/go-sdk/v2/httpserver"
 )
 
 func panickingServer(t *testing.T, enableRecovery bool) *Server {

@@ -1,0 +1,215 @@
+
+MATRIX 1.26.x: executable /home/trypanic/.go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.linux-amd64/bin/go
+$ go env GOVERSION
+go1.27.3
+exit=0 expected=0
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.27.3
+Expected Go 1.26.x, got go1.27.3
+exit=1 expected=1
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.26.10
+exit=0 expected=0
+$ go build ./...
+exit=0 expected=0
+$ go vet ./...
+exit=0 expected=0
+$ go test -race -shuffle=on -short ./...
+ok  	github.com/trypanic/go-sdk/v2/algorithms	1.040s
+ok  	github.com/trypanic/go-sdk/v2/batch	1.024s
+ok  	github.com/trypanic/go-sdk/v2/envs	1.021s
+ok  	github.com/trypanic/go-sdk/v2/errorkit	1.059s
+ok  	github.com/trypanic/go-sdk/v2/grpc	1.422s
+?   	github.com/trypanic/go-sdk/v2/grpc/internal/testsvc	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/httpclient	1.027s
+ok  	github.com/trypanic/go-sdk/v2/httprequest	1.719s
+ok  	github.com/trypanic/go-sdk/v2/httpserver	1.025s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/hertz	1.402s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/httpservertest	1.026s
+ok  	github.com/trypanic/go-sdk/v2/internal/apicontract	1.031s
+ok  	github.com/trypanic/go-sdk/v2/internal/backoff	1.022s
+?   	github.com/trypanic/go-sdk/v2/internal/integrationtest	[no test files]
+?   	github.com/trypanic/go-sdk/v2/internal/logctx	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/internal/redact	1.028s
+ok  	github.com/trypanic/go-sdk/v2/ioutils	1.047s
+ok  	github.com/trypanic/go-sdk/v2/llmclient	1.024s
+ok  	github.com/trypanic/go-sdk/v2/logger	1.182s
+ok  	github.com/trypanic/go-sdk/v2/logger/otlp	1.570s
+ok  	github.com/trypanic/go-sdk/v2/marshal	1.018s
+ok  	github.com/trypanic/go-sdk/v2/messaging	1.150s
+ok  	github.com/trypanic/go-sdk/v2/messaging/messagingtest	1.030s
+ok  	github.com/trypanic/go-sdk/v2/mongo	1.027s
+ok  	github.com/trypanic/go-sdk/v2/mongo/mongotest	1.018s
+ok  	github.com/trypanic/go-sdk/v2/postgres	1.030s
+ok  	github.com/trypanic/go-sdk/v2/storage	1.047s
+ok  	github.com/trypanic/go-sdk/v2/stringutils	1.022s
+ok  	github.com/trypanic/go-sdk/v2/telemetry	1.034s
+ok  	github.com/trypanic/go-sdk/v2/urlkit	1.021s
+ok  	github.com/trypanic/go-sdk/v2/validators	1.022s
+exit=0 expected=0
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.26.10
+exit=0 expected=0
+$ go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+exit=0 expected=0
+$ go test -tags integration -short ./...
+ok  	github.com/trypanic/go-sdk/v2/algorithms	(cached)
+ok  	github.com/trypanic/go-sdk/v2/batch	(cached)
+ok  	github.com/trypanic/go-sdk/v2/envs	(cached)
+ok  	github.com/trypanic/go-sdk/v2/errorkit	(cached)
+ok  	github.com/trypanic/go-sdk/v2/grpc	(cached)
+?   	github.com/trypanic/go-sdk/v2/grpc/internal/testsvc	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/httpclient	(cached)
+ok  	github.com/trypanic/go-sdk/v2/httprequest	0.153s
+ok  	github.com/trypanic/go-sdk/v2/httpserver	(cached)
+ok  	github.com/trypanic/go-sdk/v2/httpserver/hertz	0.337s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/httpservertest	(cached)
+ok  	github.com/trypanic/go-sdk/v2/internal/apicontract	(cached)
+ok  	github.com/trypanic/go-sdk/v2/internal/backoff	(cached)
+ok  	github.com/trypanic/go-sdk/v2/internal/integrationtest	0.047s
+?   	github.com/trypanic/go-sdk/v2/internal/logctx	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/internal/redact	(cached)
+ok  	github.com/trypanic/go-sdk/v2/ioutils	0.006s
+ok  	github.com/trypanic/go-sdk/v2/llmclient	(cached)
+ok  	github.com/trypanic/go-sdk/v2/logger	0.115s
+ok  	github.com/trypanic/go-sdk/v2/logger/otlp	(cached)
+ok  	github.com/trypanic/go-sdk/v2/marshal	(cached)
+ok  	github.com/trypanic/go-sdk/v2/messaging	0.141s
+ok  	github.com/trypanic/go-sdk/v2/messaging/messagingtest	(cached)
+ok  	github.com/trypanic/go-sdk/v2/mongo	0.033s
+ok  	github.com/trypanic/go-sdk/v2/mongo/mongotest	(cached)
+ok  	github.com/trypanic/go-sdk/v2/postgres	0.034s
+ok  	github.com/trypanic/go-sdk/v2/storage	(cached)
+ok  	github.com/trypanic/go-sdk/v2/stringutils	(cached)
+ok  	github.com/trypanic/go-sdk/v2/telemetry	(cached)
+ok  	github.com/trypanic/go-sdk/v2/urlkit	(cached)
+ok  	github.com/trypanic/go-sdk/v2/validators	(cached)
+exit=0 expected=0
+
+MATRIX 1.27.x: executable /home/trypanic/.proto/tools/go/1.27.3/bin/go
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.27.3
+exit=0 expected=0
+$ go build ./...
+exit=0 expected=0
+$ go vet ./...
+exit=0 expected=0
+$ go test -race -shuffle=on -short ./...
+ok  	github.com/trypanic/go-sdk/v2/algorithms	1.032s
+ok  	github.com/trypanic/go-sdk/v2/batch	1.024s
+ok  	github.com/trypanic/go-sdk/v2/envs	1.022s
+ok  	github.com/trypanic/go-sdk/v2/errorkit	1.071s
+ok  	github.com/trypanic/go-sdk/v2/grpc	1.408s
+?   	github.com/trypanic/go-sdk/v2/grpc/internal/testsvc	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/httpclient	1.023s
+ok  	github.com/trypanic/go-sdk/v2/httprequest	1.750s
+ok  	github.com/trypanic/go-sdk/v2/httpserver	1.022s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/hertz	1.387s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/httpservertest	1.013s
+ok  	github.com/trypanic/go-sdk/v2/internal/apicontract	1.025s
+ok  	github.com/trypanic/go-sdk/v2/internal/backoff	1.018s
+?   	github.com/trypanic/go-sdk/v2/internal/integrationtest	[no test files]
+?   	github.com/trypanic/go-sdk/v2/internal/logctx	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/internal/redact	1.016s
+ok  	github.com/trypanic/go-sdk/v2/ioutils	1.034s
+ok  	github.com/trypanic/go-sdk/v2/llmclient	1.012s
+ok  	github.com/trypanic/go-sdk/v2/logger	1.154s
+ok  	github.com/trypanic/go-sdk/v2/logger/otlp	1.553s
+ok  	github.com/trypanic/go-sdk/v2/marshal	1.014s
+ok  	github.com/trypanic/go-sdk/v2/messaging	1.136s
+ok  	github.com/trypanic/go-sdk/v2/messaging/messagingtest	1.015s
+ok  	github.com/trypanic/go-sdk/v2/mongo	1.023s
+ok  	github.com/trypanic/go-sdk/v2/mongo/mongotest	1.017s
+ok  	github.com/trypanic/go-sdk/v2/postgres	1.027s
+ok  	github.com/trypanic/go-sdk/v2/storage	1.066s
+ok  	github.com/trypanic/go-sdk/v2/stringutils	1.012s
+ok  	github.com/trypanic/go-sdk/v2/telemetry	1.024s
+ok  	github.com/trypanic/go-sdk/v2/urlkit	1.022s
+ok  	github.com/trypanic/go-sdk/v2/validators	1.018s
+exit=0 expected=0
+$ version=$(go env GOVERSION)
+echo "Selected toolchain: ${version}"
+case "$version" in
+  "go${EXPECTED_GO_VERSION%.x}."*) ;;
+  *) echo "Expected Go ${EXPECTED_GO_VERSION}, got ${version}" >&2; exit 1 ;;
+esac
+
+Selected toolchain: go1.27.3
+exit=0 expected=0
+$ go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+exit=0 expected=0
+$ go test -tags integration -short ./...
+ok  	github.com/trypanic/go-sdk/v2/algorithms	0.009s
+ok  	github.com/trypanic/go-sdk/v2/batch	0.010s
+ok  	github.com/trypanic/go-sdk/v2/envs	0.011s
+ok  	github.com/trypanic/go-sdk/v2/errorkit	0.016s
+ok  	github.com/trypanic/go-sdk/v2/grpc	0.351s
+?   	github.com/trypanic/go-sdk/v2/grpc/internal/testsvc	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/httpclient	0.008s
+ok  	github.com/trypanic/go-sdk/v2/httprequest	0.152s
+ok  	github.com/trypanic/go-sdk/v2/httpserver	0.009s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/hertz	0.348s
+ok  	github.com/trypanic/go-sdk/v2/httpserver/httpservertest	0.008s
+ok  	github.com/trypanic/go-sdk/v2/internal/apicontract	0.009s
+ok  	github.com/trypanic/go-sdk/v2/internal/backoff	0.012s
+ok  	github.com/trypanic/go-sdk/v2/internal/integrationtest	0.066s
+?   	github.com/trypanic/go-sdk/v2/internal/logctx	[no test files]
+ok  	github.com/trypanic/go-sdk/v2/internal/redact	0.016s
+ok  	github.com/trypanic/go-sdk/v2/ioutils	0.015s
+ok  	github.com/trypanic/go-sdk/v2/llmclient	0.008s
+ok  	github.com/trypanic/go-sdk/v2/logger	0.155s
+ok  	github.com/trypanic/go-sdk/v2/logger/otlp	0.533s
+ok  	github.com/trypanic/go-sdk/v2/marshal	0.008s
+ok  	github.com/trypanic/go-sdk/v2/messaging	0.165s
+ok  	github.com/trypanic/go-sdk/v2/messaging/messagingtest	0.007s
+ok  	github.com/trypanic/go-sdk/v2/mongo	0.059s
+ok  	github.com/trypanic/go-sdk/v2/mongo/mongotest	0.007s
+ok  	github.com/trypanic/go-sdk/v2/postgres	0.055s
+ok  	github.com/trypanic/go-sdk/v2/storage	0.021s
+ok  	github.com/trypanic/go-sdk/v2/stringutils	0.008s
+ok  	github.com/trypanic/go-sdk/v2/telemetry	0.011s
+ok  	github.com/trypanic/go-sdk/v2/urlkit	0.006s
+ok  	github.com/trypanic/go-sdk/v2/validators	0.005s
+exit=0 expected=0

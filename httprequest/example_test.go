@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/trypanic/go-sdk/httprequest"
+	"github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 type exampleTransport struct{}
