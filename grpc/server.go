@@ -22,8 +22,9 @@ type Server struct {
 // recovery are enabled; see the With* options to adjust. It does not bind a
 // port — pass a listener to Serve.
 //
-// Transport security comes from cfg.Creds. When it is nil the server accepts
-// plaintext connections; state that explicitly with WithServerInsecure.
+// Transport security comes from cfg.Creds. A nil cfg.Creds is an
+// ERR_SYSTEM_CONFIG_INVALID error unless WithServerInsecure states that the
+// server accepts plaintext connections on purpose.
 func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	if cfg.Address == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -35,9 +36,14 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	for _, o := range opts {
 		o(b)
 	}
-	if cfg.Creds != nil && b.insecure {
+	switch {
+	case cfg.Creds != nil && b.insecure:
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
 			errorkit.WithReason("grpc: server Creds and WithServerInsecure are mutually exclusive"),
+		)
+	case cfg.Creds == nil && !b.insecure:
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("grpc: server Creds is nil; set it, or pass WithServerInsecure to accept plaintext"),
 		)
 	}
 

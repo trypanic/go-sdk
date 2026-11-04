@@ -96,3 +96,27 @@ func TestCreds_ConflictWithInsecureIsConfigError(t *testing.T) {
 	_, err = Dial(ClientConfig{Target: "passthrough:///bufnet", Creds: clientCreds}, WithClientInsecure())
 	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
 }
+
+// Plaintext is never a silent default: nil credentials without the explicit
+// insecure option are a configuration error on both sides.
+func TestCreds_NilWithoutInsecureIsConfigError(t *testing.T) {
+	_, err := New(ServerConfig{Address: "bufnet"})
+	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
+
+	_, err = Dial(ClientConfig{Target: "passthrough:///bufnet"})
+	wantCode(t, err, errorkit.ERR_SYSTEM_CONFIG_INVALID)
+}
+
+func TestCreds_NilWithInsecureIsAccepted(t *testing.T) {
+	srv, err := New(ServerConfig{Address: "bufnet"}, WithServerInsecure())
+	if err != nil {
+		t.Fatalf("New with WithServerInsecure: %v", err)
+	}
+	srv.Stop()
+
+	cc, err := Dial(ClientConfig{Target: "passthrough:///bufnet"}, WithClientInsecure())
+	if err != nil {
+		t.Fatalf("Dial with WithClientInsecure: %v", err)
+	}
+	_ = cc.Close()
+}

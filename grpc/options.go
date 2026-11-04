@@ -45,7 +45,7 @@ func WithServerRecovery(on bool) ServerOption {
 
 // WithServerInsecure states that the server accepts plaintext (unencrypted,
 // unauthenticated) connections, i.e. that ServerConfig.Creds is nil on
-// purpose. Use it only behind a service mesh or sidecar that terminates mTLS,
+// purpose; without it a nil Creds is a configuration error. Use it only behind a service mesh or sidecar that terminates mTLS,
 // or in tests. Combining it with ServerConfig.Creds is a configuration error.
 func WithServerInsecure() ServerOption {
 	return func(b *serverBuild) { b.insecure = true }
@@ -113,7 +113,8 @@ func WithClientTracing(on bool) ClientOption {
 }
 
 // WithClientInsecure states that the connection is plaintext (unencrypted,
-// unauthenticated), i.e. that ClientConfig.Creds is nil on purpose. Use it
+// unauthenticated), i.e. that ClientConfig.Creds is nil on purpose; without
+// it a nil Creds is a configuration error. Use it
 // only behind a service mesh or sidecar that terminates mTLS, or in tests.
 // Combining it with ClientConfig.Creds is a configuration error.
 func WithClientInsecure() ClientOption {

@@ -97,6 +97,9 @@ func serve(t *testing.T, scfg ServerConfig, impl testsvc.Impl, opts ...ServerOpt
 	if scfg.Address == "" {
 		scfg.Address = "bufnet"
 	}
+	if scfg.Creds == nil {
+		opts = append([]ServerOption{WithServerInsecure()}, opts...)
+	}
 	lis := bufconn.Listen(1024 * 1024)
 	srv, err := New(scfg, opts...)
 	if err != nil {
@@ -111,6 +114,9 @@ func connect(t *testing.T, lis *bufconn.Listener, ccfg ClientConfig, opts ...Cli
 	t.Helper()
 	if ccfg.Target == "" {
 		ccfg.Target = "passthrough:///bufnet"
+	}
+	if ccfg.Creds == nil {
+		opts = append(opts, WithClientInsecure())
 	}
 	opts = append(opts, WithRawDialOptions(grpc.WithContextDialer(bufDialer(lis))))
 	cc, err := Dial(ccfg, opts...)

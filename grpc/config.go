@@ -56,10 +56,9 @@ type ServerConfig struct {
 	MaxSendMsgSize int
 	// Creds is the server transport security, e.g.
 	// credentials.NewServerTLSFromCert or credentials.NewTLS with a
-	// tls.Config that requires client certificates (mTLS). When nil the
-	// server accepts plaintext connections: only acceptable behind a mesh or
-	// sidecar that terminates mTLS, and stated explicitly with
-	// WithServerInsecure.
+	// tls.Config that requires client certificates (mTLS). Required unless
+	// WithServerInsecure is passed: plaintext is only acceptable behind a
+	// mesh or sidecar that terminates mTLS, or in tests.
 	Creds credentials.TransportCredentials
 }
 
@@ -83,9 +82,9 @@ type ClientConfig struct {
 	// Keepalive configures client-side keepalive.
 	Keepalive ClientKeepalive
 	// Creds is the client transport security, e.g.
-	// credentials.NewClientTLSFromCert or credentials.NewTLS. When nil the
-	// connection is plaintext: only acceptable behind a mesh or sidecar that
-	// terminates mTLS, and stated explicitly with WithClientInsecure.
+	// credentials.NewClientTLSFromCert or credentials.NewTLS. Required unless
+	// WithClientInsecure is passed: plaintext is only acceptable behind a
+	// mesh or sidecar that terminates mTLS, or in tests.
 	Creds credentials.TransportCredentials
 	// MaxRecvMsgSize overrides the max received message size in bytes (per call).
 	MaxRecvMsgSize int

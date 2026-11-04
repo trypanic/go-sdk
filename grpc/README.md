@@ -64,7 +64,8 @@ and wrap the dialed connection with the generated client (`pb.NewEchoClient`).
 `WithClientStreamInterceptors`, `WithRawDialOptions`.
 
 Construction errors are `*errorkit.AppError`: `ERR_SYSTEM_CONFIG_INVALID` for a
-missing address/target, `ERR_SYSTEM_UNEXPECTED` for serve/dial failures,
+missing address/target or missing (or conflicting) transport credentials,
+`ERR_SYSTEM_UNEXPECTED` for serve/dial failures,
 `ERR_SYSTEM_TIMEOUT_INTERNAL` when `Shutdown` exceeds its deadline.
 
 ### Error mapping
@@ -130,13 +131,13 @@ status passes through; a plain error becomes `codes.Unknown`).
 
 ## Defaults
 
-| Setting                                  | Default            | Notes                                                                                                              |
-| ---------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Tracing                                  | on                 | `otelgrpc` stats handler; instruments **all four** call modes.                                                     |
-| Recovery                                 | on                 | Unary **and** streaming handlers; a panic becomes `codes.Internal`, server stays up.                               |
-| Transport security                       | plaintext          | **Not encrypted.** Set `ServerConfig.Creds` / `ClientConfig.Creds`; see [Transport security](#transport-security). |
-| Keepalive                                | gRPC defaults      | Zero-valued keepalive fields preserve stock gRPC behavior.                                                         |
-| `MaxConnectionAge` / `MaxConnectionIdle` | **infinity (off)** | Opt-in. Setting them terminates healthy long-lived streams — leave unset unless you want connections recycled.     |
+| Setting                                  | Default            | Notes                                                                                                                                         |
+| ---------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tracing                                  | on                 | `otelgrpc` stats handler; instruments **all four** call modes.                                                                                |
+| Recovery                                 | on                 | Unary **and** streaming handlers; a panic becomes `codes.Internal`, server stays up.                                                          |
+| Transport security                       | **required**       | Set `ServerConfig.Creds` / `ClientConfig.Creds`, or opt into plaintext with `With*Insecure()`; see [Transport security](#transport-security). |
+| Keepalive                                | gRPC defaults      | Zero-valued keepalive fields preserve stock gRPC behavior.                                                                                    |
+| `MaxConnectionAge` / `MaxConnectionIdle` | **infinity (off)** | Opt-in. Setting them terminates healthy long-lived streams — leave unset unless you want connections recycled.                                |
 
 > **Observability note:** the stats handler emits traces tied to the injected
 > (or global) tracer provider + propagator, and RPC metrics to the global
@@ -145,15 +146,20 @@ status passes through; a plain error becomes `codes.Unknown`).
 
 ## Transport security
 
-> **Warning:** when `ServerConfig.Creds` / `ClientConfig.Creds` is nil, traffic
-> is **plaintext**: request bodies and metadata (bearer tokens included) travel
-> unencrypted and the server cannot identify its peers. That is only
-> acceptable behind a service mesh or sidecar that terminates mTLS, or in
-> tests. State it explicitly with `WithServerInsecure()` /
-> `WithClientInsecure()`.
+There is no silent plaintext default. `New` and `Dial` return
+`ERR_SYSTEM_CONFIG_INVALID` unless exactly one of these is set:
 
-Wire TLS through the config (combining `Creds` with the matching
-`With*Insecure()` option is an `ERR_SYSTEM_CONFIG_INVALID` error):
+- `ServerConfig.Creds` / `ClientConfig.Creds` — TLS or mTLS (recommended);
+- `WithServerInsecure()` / `WithClientInsecure()` — plaintext on purpose.
+
+> **Warning:** with `With*Insecure()`, request bodies and metadata (bearer
+> tokens included) travel unencrypted and the server cannot identify its
+> peers. Use it only behind a service mesh or sidecar that terminates mTLS,
+> or in tests.
+
+Wire TLS through the config (not through `WithRawServerOptions(grpc.Creds(...))`
+or `WithRawDialOptions(grpc.WithTransportCredentials(...))`, which the check
+above does not see):
 
 ```go
 import "google.golang.org/grpc/credentials"
@@ -184,6 +190,7 @@ import (
 
 srv, err := sdkgrpc.New(sdkgrpc.ServerConfig{
     Address: "0.0.0.0:8888",
+    Creds:   serverCreds, // see "Transport security"
     Keepalive: sdkgrpc.ServerKeepalive{
         Time:                30 * time.Second, // ping idle clients
         Timeout:             10 * time.Second, // ack deadline
@@ -207,6 +214,7 @@ _ = srv.Shutdown(context.Background()) // drains in-flight streams
 ```go
 cc, err := sdkgrpc.Dial(sdkgrpc.ClientConfig{
     Target: "127.0.0.1:8888",
+    Creds:  clientCreds, // see "Transport security"
     Keepalive: sdkgrpc.ClientKeepalive{
         Time:                30 * time.Second,
         Timeout:             10 * time.Second,
@@ -240,13 +248,14 @@ for { msg, err := bs.Recv(); if err == io.EOF { break }; _ = msg }
 This package previously wrapped CloudWeGo Kitex. It now wraps
 `google.golang.org/grpc`. The import path is unchanged; the API changed:
 
-| Before (Kitex)                                             | After (`google.golang.org/grpc`)                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `New(cfg, svcInfo, handler)`                               | `New(cfg, opts...)` + `pb.RegisterXxxServer(srv.Registrar(), impl)`       |
-| `NewWithOptions(..., ServerOptions{...})`                  | `New(cfg, sdkgrpc.WithServerTracing(false), ...)`                         |
-| `(*Server).Run()`                                          | `(*Server).Serve(lis)`                                                    |
-| `(*Server).Stop() error`                                   | `(*Server).Shutdown(ctx) error` (graceful) / `(*Server).Stop()` (hard)    |
-| `ServerConfig{Host, Port, ReadWriteTimeout, ExitWaitTime}` | `ServerConfig{Address, Keepalive, MaxRecvMsgSize, MaxSendMsgSize, Creds}` |
-| `DialOptions(cfg, opts)` / `NewClient(svcInfo, cfg)`       | `Dial(cfg, opts...)` returning `*grpc.ClientConn` + `pb.NewXxxClient(cc)` |
-| `ClientConfig{Hosts, RPCTimeout, ConnectTimeout}`          | `ClientConfig{Target, Keepalive, Creds, MaxRecvMsgSize, MaxSendMsgSize}`  |
-| Stubs from the `kitex` CLI                                 | Stubs from `protoc-gen-go` + `protoc-gen-go-grpc` (or `buf`)              |
+| Before (Kitex)                                             | After (`google.golang.org/grpc`)                                              |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `New(cfg, svcInfo, handler)`                               | `New(cfg, opts...)` + `pb.RegisterXxxServer(srv.Registrar(), impl)`           |
+| `NewWithOptions(..., ServerOptions{...})`                  | `New(cfg, sdkgrpc.WithServerTracing(false), ...)`                             |
+| `(*Server).Run()`                                          | `(*Server).Serve(lis)`                                                        |
+| `(*Server).Stop() error`                                   | `(*Server).Shutdown(ctx) error` (graceful) / `(*Server).Stop()` (hard)        |
+| `ServerConfig{Host, Port, ReadWriteTimeout, ExitWaitTime}` | `ServerConfig{Address, Keepalive, MaxRecvMsgSize, MaxSendMsgSize, Creds}`     |
+| `DialOptions(cfg, opts)` / `NewClient(svcInfo, cfg)`       | `Dial(cfg, opts...)` returning `*grpc.ClientConn` + `pb.NewXxxClient(cc)`     |
+| `ClientConfig{Hosts, RPCTimeout, ConnectTimeout}`          | `ClientConfig{Target, Keepalive, Creds, MaxRecvMsgSize, MaxSendMsgSize}`      |
+| Plaintext unless TLS was configured                        | `Creds` required, or explicit `WithServerInsecure()` / `WithClientInsecure()` |
+| Stubs from the `kitex` CLI                                 | Stubs from `protoc-gen-go` + `protoc-gen-go-grpc` (or `buf`)                  |
