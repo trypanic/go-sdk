@@ -1422,22 +1422,22 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | Item | Class | Cluster | Title | Approval | Status | Commit |
 | --- | --- | --- | --- | --- | --- | --- |
 | R-001 | approval | C1 | Client-safe error serialization in `errorkit` | APPROVED | DONE | `0272620` |
-| R-002 | approval | C2 | HTTP replies must not carry internal error text | APPROVED | IN_REVIEW | `74082e8` |
+| R-002 | approval | C2 | HTTP replies must not carry internal error text | APPROVED | DONE | `74082e8` |
 | R-003 | auto | C3 | gRPC recovery returns a fixed message | — | DONE | `643631d` |
 | R-004 | approval | C3 | `ToStatus` hides internal reasons | APPROVED | DONE | `8355dcd` |
 | R-005 | auto | C4 | Postgres pool errors: wrap the cause, never the raw driver error | — | DONE | `880ed17` |
-| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | APPROVED | IN_REVIEW | `9b930df` |
+| R-006 | approval | C2 | Sanitize URLs and provider messages in `httprequest` | APPROVED | DONE | `9b930df` |
 | R-007 | auto | C1 | Wider log redaction in `logger` | — | DONE | `8f65f47` |
-| R-008 | auto | C2 | Single, wider sensitive-header list | — | IN_REVIEW | `9b930df` |
+| R-008 | auto | C2 | Single, wider sensitive-header list | — | DONE | `9b930df` |
 | R-009 | approval | C6 | `urlkit.BuildURL` treats `path` as a path | APPROVED | DONE | `d390f64` |
 | R-010 | approval | C6 | `urlkit.JoinPath` dot segments and scheme | APPROVED | DONE | `d5c047b` |
 | R-011 | auto | C3 | gRPC transport credentials (auto part) | — | DONE | `e768a14` |
 | R-012 | approval | C3 | gRPC insecure default (approval part) | APPROVED | DONE | `ceceb00` |
-| R-013 | approval | C2 | Inbound audit middleware: implement or remove | APPROVED | IN_REVIEW | `9b930df` |
-| R-014 | auto | C2 | `MaxRetries < 1` must still send one request | — | IN_REVIEW | `f1111cc` |
-| R-015 | auto | C2 | Response decoding without panics | — | IN_REVIEW | `d17c97f` |
-| R-016 | approval | C2 | Idempotency-aware retries | APPROVED | IN_REVIEW | `6ce5b4a` |
-| R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | IN_REVIEW | `94bf3e5` |
+| R-013 | approval | C2 | Inbound audit middleware: implement or remove | APPROVED | DONE | `9b930df` |
+| R-014 | auto | C2 | `MaxRetries < 1` must still send one request | — | DONE | `f1111cc` |
+| R-015 | auto | C2 | Response decoding without panics | — | DONE | `d17c97f` |
+| R-016 | approval | C2 | Idempotency-aware retries | APPROVED | DONE | `6ce5b4a` |
+| R-017 | approval | C2 | Hertz `Run()` returns bind errors | APPROVED | DONE | `94bf3e5` |
 | R-018 | approval | C4 | Postgres error classifier | APPROVED | DONE | `422f509` |
 | R-019 | approval | C3 | gRPC code fallback from errorkit metadata | APPROVED | DONE | `207ec87` |
 | R-020 | approval | X (post-merge) | Transport status helpers driven by metadata | APPROVED | TODO | |
@@ -1454,7 +1454,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-030 | auto | C1 | `logger` handles wrapped and nil errors; `RecordError(nil)` | — | DONE | `f0808cb` |
 | R-031 | auto | C4 | `FileStorage.Append(nil)` returns an error | — | DONE | `f0a8c2e` |
 | R-031b | approval | C4 | Specific storage error codes | APPROVED | DONE | `ab51fc8` |
-| R-032 | approval | C2 | `httprequest` error classification | APPROVED | IN_REVIEW | `c68d1da` |
+| R-032 | approval | C2 | `httprequest` error classification | APPROVED | DONE | `c68d1da` |
 | R-033 | auto | C6 | `RemoveMarkdownCodeBlock` correctness | — | DONE | `acfcdfc` |
 | R-034 | auto | C6 | `NewExponentialBackoff` resets before use | — | DONE | `ab57956` |
 | R-035 | approval | C6 | `algorithms` zero config and hidden `MaxElapsedTime` | APPROVED | DONE | `922075c` |
@@ -1465,23 +1465,23 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-040 | auto | C1 | `errorkit` low-severity correctness | — | DONE | `edd32b8` |
 | R-041 | auto | C4 | Postgres DSN normalization | — | DONE | `af223db` |
 | R-042 | auto | C4 | `WrapWithInstrumenter(nil)` disables tracing | — | DONE | `543f0d7` |
-| R-043 | approval | C2 | `Reply` nil data with `omitempty` | APPROVED | IN_REVIEW | `6018384` |
-| R-044 | auto | C2 | Configurable `/health` path | — | IN_REVIEW | `2d41186` |
+| R-043 | approval | C2 | `Reply` nil data with `omitempty` | APPROVED | DONE | `6018384` |
+| R-044 | auto | C2 | Configurable `/health` path | — | DONE | `2d41186` |
 | R-045 | auto | C6 | Utility low-severity correctness | — | DONE | `f87a70d` |
 | R-046 | approval | C6 | `validators` consistency | APPROVED | DONE | `5555207` |
-| R-047 | auto | C2 | LLM API key masked when printed | — | IN_REVIEW | `97c5e5d` |
-| R-047b | approval | C2 | LLM endpoint and key validation | APPROVED | IN_REVIEW | `bc9ab0c` |
-| R-048 | auto | C2 | `llmclient` `*FromEnv` constructor | — | IN_REVIEW | `7905b6c` |
-| R-049 | approval | C2 | Response size limits | APPROVED | IN_REVIEW | `8f9e4e3` |
+| R-047 | auto | C2 | LLM API key masked when printed | — | DONE | `97c5e5d` |
+| R-047b | approval | C2 | LLM endpoint and key validation | APPROVED | DONE | `bc9ab0c` |
+| R-048 | auto | C2 | `llmclient` `*FromEnv` constructor | — | DONE | `7905b6c` |
+| R-049 | approval | C2 | Response size limits | APPROVED | DONE | `8f9e4e3` |
 | R-050 | auto | C1 | `logger.New` stops mutating zerolog globals | — | DONE | `6d5b7eb` |
 | R-051 | approval | C1 | `errorkit` globals behind atomics | APPROVED | DONE | `194c67d` |
 | R-052 | auto | C1 | `OverrideMetadata` without lock re-entry | — | DONE | `9e80073` |
 | R-053 | auto | C1 | `InitTracer` synchronization | — | DONE | `18ceb3e` |
 | R-054 | auto | C4 | Safe `FileStorage` writes | — | DONE | `c8b1231` |
 | R-055 | approval | C4 | Storage file permissions | APPROVED | DONE | `7741c14` |
-| R-056 | auto | C2 | Hertz `Shutdown(ctx)` honors the context | — | IN_REVIEW | `af7d7a8` |
-| R-057 | approval | C2 | `EnableRecovery` controls recovery | APPROVED | IN_REVIEW | `389f1fa` |
-| R-058 | approval | C2 | End-to-end bound on LLM calls | APPROVED | IN_REVIEW | `3623a53` |
+| R-056 | auto | C2 | Hertz `Shutdown(ctx)` honors the context | — | DONE | `af7d7a8` |
+| R-057 | approval | C2 | `EnableRecovery` controls recovery | APPROVED | DONE | `389f1fa` |
+| R-058 | approval | C2 | End-to-end bound on LLM calls | APPROVED | DONE | `3623a53` |
 | R-059 | auto | C3 | gRPC `MaxConcurrentStreams` option | — | DONE | `3dcf2f2` |
 | R-060 | auto | C3 | Recovery outermost with raw options | — | DONE | `790ea74` |
 | R-061 | auto | C3 | gRPC client default timeout | — | DONE | `50a884e` |
@@ -1495,7 +1495,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-069 | auto | C4 | Mongo cursor spans and ping budget | — | DONE | `3752993` |
 | R-070 | auto | C5 | AMQP connection options | — | DONE | `d6601d6` |
 | R-071 | auto | C5 | Checked `Close` errors in messaging | — | DONE | `f7508c2` |
-| R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | IN_REVIEW | `f50efe1` |
+| R-072 | approval | C2 | Jittered backoff and `Retry-After` | APPROVED | DONE | `f50efe1` |
 | R-080 | auto | X (post-merge of C1, C2, C3) | `httprequest`/`llmclient` stop importing `logger` (step 1) | — | TODO | |
 | R-081 | approval | X (post-merge) | OTLP exporter in its own package (step 2) | APPROVED | TODO | |
 | R-082 | approval | R-DEPS | Module strategy (single module vs. nested modules) | APPROVED | TODO | |
@@ -1511,12 +1511,12 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-092 | auto | X (post-merge) | `ERR_EXTERNAL_*` codes owned by `errorkit` | — | TODO | |
 | R-093 | approval | X (post-merge) | Package identifiers (v2) | APPROVED | TODO | |
 | R-094 | approval | X (post-merge) | Naming cleanup (v2) | APPROVED | TODO | |
-| R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | IN_REVIEW | `eda540b` |
+| R-095 | auto | C2 | `RequestLoggerMiddleware` installable and request-ID aware | — | DONE | `eda540b` |
 | R-096 | auto | C3 | gRPC `ListenAndServe` | — | DONE | `f6c5e5f` |
 | R-097 | approval | C4 | Mongo result API | APPROVED | DONE | `0fad067` |
 | R-100 | auto | C1 | Replace deprecated `otel/log/global` (gate is red) | — | DONE | `1f82bed` |
 | R-101 | approval | C1 | Error-chain helpers | APPROVED | DONE | `f0808cb` |
-| R-102 | auto | C1, C2, C3, C4, C5, C6 (each worker does its own part) | Modernization sweeps (Go 1.26 only, after fixes) | — | IN_REVIEW | C1: `298e515`, C2: `a320984`, C3: `d4cd981`, C4: `c949925`, C5: `5f66ca0`, C6: `785b1b4` |
+| R-102 | auto | C1, C2, C3, C4, C5, C6 (each worker does its own part) | Modernization sweeps (Go 1.26 only, after fixes) | — | DONE | C1: `298e515`, C2: `a320984`, C3: `d4cd981`, C4: `c949925`, C5: `5f66ca0`, C6: `785b1b4` |
 | R-103 | approval | C6 | `slices` package details | APPROVED | DONE | `aaf363a` |
 | R-104 | approval | C6 | `envs` API | APPROVED | DONE | `4102bfe` |
 | R-105 | approval | C5 | Implicit `RABBITMQ_TOPOLOGY_FILE` read | APPROVED | DONE | `328b36b` |
@@ -1526,8 +1526,8 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-114 | auto | C3 | gRPC public-endpoint tracing option | — | DONE | `81db1c2` |
 | R-115 | auto | C3 | gRPC recovery `ErrorInfo` and domain option | — | DONE | `b0f8eb8` |
 | R-120 | auto | C1 | `errorkit`/`logger`/`telemetry` tests | — | DONE | `8f7b2e8` |
-| R-121 | auto | C2 | `httprequest` tests | — | IN_REVIEW | `b9a481f` |
-| R-122 | auto | C2 | Hertz adapter and `llmclient` tests | — | IN_REVIEW | `c4aeca1` |
+| R-121 | auto | C2 | `httprequest` tests | — | DONE | `b9a481f` |
+| R-122 | auto | C2 | Hertz adapter and `llmclient` tests | — | DONE | `c4aeca1` |
 | R-123 | auto | C3 | gRPC tests and hygiene | — | DONE | `9c3e2ea` |
 | R-124 | auto | C4 | Postgres, Mongo and storage unit tests | — | DONE | `9d911c4` |
 | R-125 | approval | R-DEPS (runs with R-DEPS, after P4.XP) | Integration suites with testcontainers | APPROVED | TODO | |
@@ -1536,7 +1536,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-130 | auto | C1 | Cheap redaction path | — | DONE | `330963c` |
 | R-131 | auto | C1 | Stack capture with `runtime.Callers` | — | DONE | `d449128` |
 | R-132 | approval | X (post-merge) | Stack-less errors for validation paths | APPROVED | TODO | |
-| R-133 | auto | C2 | No double buffering of decoded responses | — | IN_REVIEW | `7b5e562` |
+| R-133 | auto | C2 | No double buffering of decoded responses | — | DONE | `7b5e562` |
 | R-134 | approval | C4 | `FileStorage` append cost | APPROVED | DONE | `b07f5ae` |
 | R-135 | auto | C6 | `NormalizeText` without per-call regexp | — | DONE | `e5bd2c6` |
 | R-140 | approval | X | CI on push and pull request | APPROVED | DONE | `dfc611e` |
@@ -1553,7 +1553,7 @@ eligible once G1 is `DONE`. Workers fill `Status` and `Commit` in P4.
 | R-151 | approval | X | SECURITY.md accuracy and reporting policy | APPROVED | DONE | `94beeda` |
 | R-152 | approval | X | LICENSE | APPROVED (MIT) | DONE | `dc33129` |
 | R-153 | approval | X (post-merge) | Root documentation corrections | APPROVED | TODO | |
-| R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | IN_REVIEW | C1: `5213861`, C2: `c7977c5`, C3: `f58b77b`, C4: `e7465c1`, C5: `1179adf`, C6: `5d5c63d` |
+| R-154 | auto | C1, C2, C3, C4, C5, C6 | Package documentation per cluster | — | DONE | C1: `5213861`, C2: `c7977c5`, C3: `f58b77b`, C4: `e7465c1`, C5: `1179adf`, C6: `5d5c63d` |
 | R-155 | auto | X (post-merge) | GoDoc coverage and examples (cross-cutting) | — | TODO | |
 | R-156 | approval | X | Release notes wording and consumer README | APPROVED | DONE | `e14d5e7` |
 | R-157 | approval | X | Release provenance and tidy checks | APPROVED | DONE | `1aa63f3` |

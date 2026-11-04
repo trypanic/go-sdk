@@ -41,7 +41,7 @@ status.
 | Cluster | Branch head | Commits | Ledger status | Next action |
 | --- | --- | --- | --- | --- |
 | C1 errorkit/logger/telemetry | `f0808cb` | — | DONE (loop 3 approved) | Merge in P4.M |
-| C2 http*/llmclient | `6586058` | — | IN_PROGRESS (owner-authorized extra round) | Fix URL-header secrets, then independent loop 4 |
+| C2 http*/llmclient | `9b930df` | — | DONE (owner-authorized loop 4 approved) | Merge in P4.M |
 | C3 grpc | `f58b77b` | 15 | DONE | Merge in P4.M |
 | C4 postgres/mongo/storage | `422f509` | 31 | DONE (loop 2 approved) | Merge in P4.M |
 | C5 messaging | `29e6a03` | 30 | DONE (loop 2 approved) | Merge in P4.M |
@@ -52,6 +52,10 @@ Review loops are capped at 3 (`audit.md` §8.2); after the third
 CHANGES_REQUESTED a task goes BLOCKED for the owner.
 
 ## 2. Pending review details
+
+**Latest:** C2 passed the owner-authorized loop 4 at `9b930df`; all clusters
+are now DONE and ready for P4.M. Review: `reviews/P4.C2-loop4.md`.
+
 
 **Owner continuation decision:** the owner replied "continua" after the
 loop-3 gate, authorizing one additional correction and independent review
