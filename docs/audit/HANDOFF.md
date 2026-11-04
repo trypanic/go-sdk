@@ -1,4 +1,4 @@
-# Audit handoff — audit continuation in progress
+# Audit handoff — remediation complete
 
 Read this first, then `audit.md` §0 and §9 (ledger), then
 `REMEDIATION_PLAN.md` §12 (G1 decision and v2 scope). This file is the
@@ -13,10 +13,9 @@ status.
 - The work continues with **GPT-6.1 Astra** and possibly **Kimi K3.1 Pro**
   (not Claude). Model and effort per role: `audit.md` §8.3 (columns for both
   were added; the Claude columns record how sessions 1 ran).
-- Entry points that any agent reads: the notice at the top of the root
-  [`AGENTS.md`](../../AGENTS.md) (on branch `audit/2026-11`) points here, and
-  `audit.md` starts with the same pointer. Check out `audit/2026-11` first:
-  `main` does not have these files.
+- Entry points: `audit.md` points here. The temporary ongoing-work notice
+  in root `AGENTS.md` was removed with P5 DONE. Check out `audit/2026-11`
+  for the completed report and evidence; nothing has been pushed.
 - The Claude-only memory under `~/.claude/` is a convenience copy; nothing
   there is required.
 - `.claude/agents/*.md` are Claude Code subagent definitions. Other agents
@@ -56,15 +55,17 @@ CHANGES_REQUESTED a task goes BLOCKED for the owner.
   All services and Ryuk loopback, crash cleanup and actual CI matrix verified.
   Post-merge V1-V5 pass; final warning count12 (0errors), including one
   nonblocking test-helper context-order note. Review: `reviews/R-DEPS-loop2.md`.
-- **P5 IN_PROGRESS:** final code `2a56313`; final validation/report pending.
-  All remediation tasks are approved. Root removes the ongoing notice only
-  when validation/report are complete and the ledger is marked DONE.
+- **P5 DONE:** final code `2a56313`, validated clean HEAD `393c0ee`.
+  Final report: [`REMEDIATION_REPORT.md`](./REMEDIATION_REPORT.md); evidence
+  `validation/P5/`. All ledger tasks DONE; plan 139 DONE / R-159 DEFERRED.
+  R-085 bookkeeping reconciled and ongoing notice removed. No code blockers.
+  Owner next: push branch, open PR, dispatch CI and apply GitHub controls (§5).
 
 ## 2. Pending review details
 
-**Latest:** C2 passed the owner-authorized loop 4 at `9b930df`; all clusters
-are DONE and merged. P4.M validation: `validation/P4.M.md`. Next: P4.XP.
-C2 review: `reviews/P4.C2-loop4.md`. Historical gate details follow.
+**Latest:** all remediation, reviews, merges and P5 are DONE. No pending
+review. Final report: `REMEDIATION_REPORT.md`. The remaining review and
+execution descriptions below are historical records, not current instructions.
 
 
 **Owner continuation decision:** the owner replied "continua" after the
@@ -142,7 +143,7 @@ after C6 merge, DLX/amq.* docs), `4a15433` (markBroken on a nack that closed
 the channel), `d745334` (Close racing Subscribe fails closed), `59bbc56` (log
 recovered panics), `1179adf` (example errcheck).
 
-## 3. What comes after the reviews
+## 3. Historical execution sequence — completed
 
 1. **P4.M** (sequential, `audit/2026-11`): merge each DONE cluster branch one
    at a time (`--no-ff`), run §6 checks after each. Also merge `origin/main`
@@ -241,15 +242,21 @@ recovered panics), `1179adf` (example errcheck).
   `/tmp/audit-merge-checks.py` is prepared for sequential V1–V5 logging.
   Stop-point ledger commit: `5f0e1cf` (`chore(audit): P4.C2 BLOCKED`).
 
-- **Session 3 (in progress, Codex orchestrator / GPT-6.1 Astra):** owner
-  authorized an extra C2 round via "continua"; header leak fixed `9b930df`,
-  fresh loop4 APPROVE. P4.M DONE: all clusters + origin/main merged through
-  `dab2c29`, no integration conflicts; per-merge V1-V5 and cross-cluster tests
-  pass, coverage88.5%, V7/V8/V11 pass,7 Semgrep warnings,9 informational test
-  lint issues, V10 approved v2 breaks. Cluster/review worktrees removed,
-  branches retained. P4.XP is in progress in `/tmp/go-sdk-audit-XP` through
-  `0d99d79` (15 items); next R093/R094/R155/R153 last and remaining followups.
-  Independent review pending. R-DEPS/P5 not started. Read-only R-DEPS
-  preparation: `/tmp/audit-deps-preflight.md`; P5 inventory:
-  `/tmp/audit-remediation-inventory-P4M.json`. Final session entry will update
-  this progress snapshot when work stops or finishes.
+- **Session 3 (2026-11-04, Codex orchestrator / GPT-6.1 Astra):** owner
+  authorized the extra C2 round; `9b930df` independently approved. Completed
+  P4.M, P4.XP (approved `6a390d4`, merged `55be1c0`), R-DEPS (approved
+  `ddf7afd`, merged `2a56313`) and P5. The module is now
+  `github.com/trypanic/go-sdk/v2`. Final clean-tree validation at `393c0ee`:
+  all build/vet/race/short/integration/tagged-vulnerability gates pass;
+  exact local CI matrix Go 1.26.10/1.27.3 passes; coverage 87.5%, lint 0,
+  Semgrep 12 warnings / 0 errors. Default release inference exits Task 201
+  across module paths; both explicit v2.0.0 release modes pass. Report and
+  38 evidence artifacts committed in `5872b28` (P5 DONE); hooks normalized three log
+  endings and repository-artifact checksums were updated before committing.
+  R-085 status reconciled; temporary AGENTS notice removed. All ledger tasks
+  DONE; 139 plan items DONE, R-159 DEFERRED; C1-018 payload addition remains
+  explicitly deferred within R-040. No implementation work remains.
+  Only the main worktree remains; branches retained. Nothing pushed, tagged
+  or released. Next actions belong to the owner: push/open PR, dispatch CI,
+  enable private vulnerability reporting and protect main after a test PR;
+  optional release-please App/PAT. See the final report for limits and details.
