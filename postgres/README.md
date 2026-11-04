@@ -41,7 +41,7 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 | `PostgresEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewPostgresClientFromEnv` |
 | `NewPostgresClient` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
 | `NewPostgresClientFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `NewPostgresClient` |
-| `normalizePostgresDSN` | func (unexported) | Re-encodes `@` characters in passwords so pgx can parse the DSN |
+| `normalizePostgresDSN` | func (unexported) | Percent-encodes raw `@`, `/`, `?`, `#` in URL passwords so pgx can parse the DSN |
 | `Querier` | interface | `Query` + `QueryRow`; `*pgxpool.Pool` and `pgx.Tx` both implement it |
 | `Execer` | interface | `Exec` |
 | `ClientPort` | interface | `Querier` + `Execer` + `Begin` + `Close` |
@@ -131,7 +131,8 @@ func NewPostgresClient(cfg Config) (*pgxpool.Pool, error)
 Behavior:
 
 1. Returns `ERR_SYSTEM_CONFIG_INVALID` if `cfg.DSN` is empty.
-2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@` parse correctly.
+2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@`, `/`, `?` or `#` parse
+   correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
    5-second timeout context.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
@@ -157,10 +158,27 @@ Reads `os.Getenv(PostgresEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN`
 
 ## DSN Normalization
 
-PostgreSQL passwords often contain `@`, e.g. `postgres://user:pa@ss@host/db`.
-`pgxpool.ParseConfig` cannot parse the raw form. `normalizePostgresDSN` percent-encodes the
-password (and only the password) so the DSN becomes valid before parsing. The function is
-idempotent — passing an already-encoded DSN returns it unchanged.
+PostgreSQL passwords often contain `@`, `/`, `?` or `#`, e.g. `postgres://user:pa@s/s@host/db`.
+`pgxpool.ParseConfig` cannot parse every raw form (a `/` ends the host part, an extra `@`
+is read as part of the host). For `postgres://` and `postgresql://` URLs,
+`normalizePostgresDSN` percent-encodes the user and the password (and nothing else) before
+parsing. Key/value DSNs (`host=… password=…`) are passed through unchanged.
+
+Rules:
+
+- The userinfo ends at the **last `@` before the first `/`, `?` or `#` that follows the first
+  `@`**. A password may therefore contain `@`, `/`, `?`, `#` and `:`, but an `@` inside the
+  password must not be followed by `/`, `?` or `#` later in the same password.
+- If no `@` appears before the first `/`, `?` or `#` and that prefix already reads as
+  `host[:port]` (for example `postgres://db:5432/app@x`, where the `@` belongs to the database
+  name), the DSN is left unchanged. A password whose text before its first `/`, `?` or `#` is
+  made only of digits (`user:1234/x@host`) is ambiguous with a port: percent-encode it.
+- Existing percent-escapes are decoded first, so an already encoded DSN is returned
+  unchanged (the function is idempotent). A literal `%` in a raw password must be written
+  as `%25`.
+
+A fuzz target (`FuzzNormalizePostgresDSN`) checks idempotency and the round trip through
+`pgconn.ParseConfig` for passwords inside these rules.
 
 ---
 
