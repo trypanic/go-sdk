@@ -112,11 +112,15 @@ func WithRawBodies() Option {
 // Ensure HTTPRequest satisfies HTTPRequester
 var _ HTTPRequester = (*HTTPRequest)(nil)
 
-// normalizeRetryConfig fills zero values with defaults. Called once in
-// constructors so Do() does not mutate receiver state per-call.
+// normalizeRetryConfig fills zero values with defaults and clamps a
+// negative MaxRetries to a single attempt. Called once in constructors so
+// Do() does not mutate receiver state per-call.
 func normalizeRetryConfig(rc RetryConfig) RetryConfig {
-	if rc.MaxRetries == 0 {
+	switch {
+	case rc.MaxRetries == 0:
 		rc.MaxRetries = DefaultMaxRetries
+	case rc.MaxRetries < 0:
+		rc.MaxRetries = 1
 	}
 	if rc.InitialDelay == 0 {
 		rc.InitialDelay = DefaultInitialDelay
@@ -182,6 +186,9 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 	var lastErr error
 	span := trace.SpanFromContext(ctx)
 	rc := h.retryConfig // local copy keeps Do concurrent-safe.
+	// Every Do sends at least one request, even when the retry configuration
+	// bypassed normalizeRetryConfig.
+	rc.MaxRetries = max(rc.MaxRetries, 1)
 	currentDelay := rc.InitialDelay
 
 	for attempt := 0; attempt < rc.MaxRetries; attempt++ {
@@ -218,6 +225,12 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 		}
 
 		currentDelay = nextDelay(currentDelay, rc.MaxDelay)
+	}
+	// Unreachable: the last attempt always returns above. The guard keeps Do
+	// from ever reporting success for a request that was not sent.
+	if lastErr == nil {
+		lastErr = errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+			With(errorkit.WithReason("request was not attempted"))
 	}
 	return lastErr
 }
