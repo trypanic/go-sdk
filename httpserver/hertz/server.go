@@ -2,6 +2,8 @@ package hertz
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
@@ -146,68 +148,79 @@ func wrapMethodHandlerFunc(o httpserver.ServerOptions) app.HandlerFunc {
 	}
 }
 
-// hertzInboundAuditMiddleware logs one structured entry per inbound request.
-// Bodies pass through audit.BodyRedactor; CaptureBodies=false (default)
-// combined with DefaultBodyRedactor logs `[REDACTED]` for any non-empty body.
+// hertzInboundAuditMiddleware logs one structured entry per inbound request
+// through logger.CtxOrGlobal(ctx), with trace_id/span_id from the active
+// span. It records the method, the path (never the query string), the
+// status, the headers with credential values masked by the shared redact
+// rules, the bodies and the duration.
+//
+// Bodies follow AuditOptions: with CaptureBodies=false (default) every
+// non-empty body is logged as "[REDACTED]" whatever BodyRedactor is set;
+// with CaptureBodies=true they pass through BodyRedactor. Streamed bodies
+// are never read and are logged as "[STREAM]".
 func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc {
-	redact := audit.BodyRedactor
-	if redact == nil {
-		redact = httpserver.DefaultBodyRedactor
+	redactBody := httpserver.BodyRedactor(httpserver.DefaultBodyRedactor)
+	if audit.CaptureBodies && audit.BodyRedactor != nil {
+		redactBody = audit.BodyRedactor
 	}
 	return func(ctx context.Context, c *app.RequestContext) {
-		//start := time.Now()
-		//
-		//method := string(c.Method())
-		//path := string(c.Path())
-
-		reqBodyRaw := c.Request.Body()
-		reqBody := make([]byte, len(reqBodyRaw))
-		copy(reqBody, reqBodyRaw)
-
-		reqHeaders := make(map[string]string)
-		c.Request.Header.VisitAll(func(key, value []byte) {
-			if !isInboundSensitiveHeader(string(key)) {
-				reqHeaders[string(key)] = string(value)
-			}
-		})
+		start := time.Now()
 
 		c.Next(ctx)
 
-		//statusCode := c.Response.StatusCode()
-		//respBody := c.Response.Body()
-
-		respHeaders := make(map[string]string)
-		c.Response.Header.VisitAll(func(key, value []byte) {
-			if !isInboundSensitiveHeader(string(key)) {
-				respHeaders[string(key)] = string(value)
-			}
+		reqHeaders := map[string]string{}
+		c.Request.Header.VisitAll(func(key, value []byte) {
+			reqHeaders[string(key)] = inboundHeaderValue(string(key), string(value))
 		})
+		respHeaders := map[string]string{}
+		c.Response.Header.VisitAll(func(key, value []byte) {
+			respHeaders[string(key)] = inboundHeaderValue(string(key), string(value))
+		})
+		// Hertz keeps Set-Cookie outside VisitAll.
+		c.Response.Header.VisitAllCookie(func(key, _ []byte) {
+			respHeaders["Set-Cookie"] = redact.Placeholder
+		})
+		reqHeadersJSON, _ := json.Marshal(reqHeaders)
+		respHeadersJSON, _ := json.Marshal(respHeaders)
 
-		//reqHeadersJSON, _ := json.Marshal(reqHeaders)
-		//respHeadersJSON, _ := json.Marshal(respHeaders)
-		//
-		//reqBodyOut := redact(reqBody)
-		//respBodyOut := redact(respBody)
+		reqBody := auditBody(c.Request.IsBodyStream(), c.Request.BodyBytes(), redactBody)
+		respBody := auditBody(c.Response.IsBodyStream(), c.Response.BodyBytes(), redactBody)
 
-		//logger.
-		//	WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
-		//	Str("event", "http.audit.inbound").
-		//	Str("method", method).
-		//	Str("path", path).
-		//	Int("status_code", statusCode).
-		//	RawJSON("request.headers", reqHeadersJSON).
-		//	Str("request.body", string(reqBodyOut)).
-		//	RawJSON("response.headers", respHeadersJSON).
-		//	Str("response.body", string(respBodyOut)).
-		//	Int64("duration_ms", time.Since(start).Milliseconds()).
-		//	Msg("http: inbound audit")
+		logger.
+			WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
+			Str("event", "http.audit.inbound").
+			Str("method", string(c.Method())).
+			Str("path", string(c.Path())).
+			Int("status_code", c.Response.StatusCode()).
+			RawJSON("request.headers", reqHeadersJSON).
+			Str("request.body", reqBody).
+			RawJSON("response.headers", respHeadersJSON).
+			Str("response.body", respBody).
+			Int64("duration_ms", time.Since(start).Milliseconds()).
+			Msg("http: inbound audit")
 	}
+}
+
+// auditBody returns the log form of a body. Streams are not consumed.
+func auditBody(stream bool, body []byte, redactBody httpserver.BodyRedactor) string {
+	if stream {
+		return "[STREAM]"
+	}
+	return string(redactBody(body))
 }
 
 // isInboundSensitiveHeader reports whether an inbound header may carry a
 // credential; it applies the rules shared with httprequest.
 func isInboundSensitiveHeader(key string) bool {
 	return redact.IsSensitiveHeader(key)
+}
+
+// inboundHeaderValue returns the log form of an inbound header value.
+func inboundHeaderValue(key, value string) string {
+	if isInboundSensitiveHeader(key) {
+		return redact.Placeholder
+	}
+	return value
 }
 
 func health() app.HandlerFunc {

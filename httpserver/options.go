@@ -18,12 +18,16 @@ func DefaultBodyRedactor(b []byte) []byte {
 // known not to contain secrets or PII.
 func RawBodyRedactor(b []byte) []byte { return b }
 
-// AuditOptions configures the inbound audit middleware.
+// AuditOptions configures the inbound audit middleware, which logs one
+// structured line per request (event "http.audit.inbound") through
+// logger.CtxOrGlobal(ctx) with trace correlation. Header values that may
+// carry credentials are always masked and the query string is never logged.
 //
-// CaptureBodies: false (default) means request/response bodies are passed
-// through BodyRedactor before being logged. Set to true with a custom
-// BodyRedactor to capture bodies under an explicit policy. Setting
-// CaptureBodies=true with the default redactor still logs `[REDACTED]`.
+// CaptureBodies: false (default) logs every non-empty body as `[REDACTED]`,
+// whatever BodyRedactor is set. true passes the request and response bodies
+// through BodyRedactor; set BodyRedactor to the policy you want
+// (DefaultBodyRedactor still logs `[REDACTED]`, RawBodyRedactor logs the raw
+// bytes and is for development only).
 type AuditOptions struct {
 	CaptureBodies bool
 	BodyRedactor  BodyRedactor

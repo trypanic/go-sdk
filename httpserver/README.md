@@ -161,9 +161,31 @@ func DefaultBodyRedactor(b []byte) []byte // → []byte("[REDACTED]") if non-emp
 func RawBodyRedactor(b []byte) []byte     // identity, opt-in only
 ```
 
-The inbound audit middleware passes every captured request/response body
-through `Audit.BodyRedactor` before logging. Setting `BodyRedactor` to
-`RawBodyRedactor` is the explicit opt-in for raw capture.
+The inbound audit middleware (`EnableAudit`, on by default) logs one
+structured line per request through `logger.CtxOrGlobal(ctx)`, with
+`trace_id`/`span_id` from the active span:
+
+```json
+{"level":"info","event":"http.audit.inbound","method":"POST","path":"/orders",
+ "status_code":201,"request.headers":{"Authorization":"[REDACTED]","Content-Type":"application/json"},
+ "request.body":"[REDACTED]","response.headers":{...},"response.body":"[REDACTED]",
+ "duration_ms":12,"message":"http: inbound audit"}
+```
+
+- The query string is never logged (`path` only).
+- Header values that may carry credentials (`Authorization`,
+  `Proxy-Authorization`, `Cookie`, `Set-Cookie`, API-key headers and any
+  name containing `token`, `secret`, `key`, `auth`, `password`, `session`,
+  `signature` or `credential`) are logged as `[REDACTED]`; the keys stay.
+- With `Audit.CaptureBodies = false` (default) every non-empty body is
+  logged as `[REDACTED]`, whatever `BodyRedactor` is set.
+- With `Audit.CaptureBodies = true` bodies pass through
+  `Audit.BodyRedactor`. Setting it to `RawBodyRedactor` is the explicit
+  opt-in for raw capture (development only).
+- Streamed bodies are never read; they are logged as `[STREAM]`.
+
+The line costs one log write per request; set `EnableAudit = false` to
+turn it off.
 
 ---
 
