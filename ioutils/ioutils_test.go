@@ -31,8 +31,8 @@ func TestWriteJSONReturnsErrorOnUnsupportedType(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error encoding chan")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_INTERNAL {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_INTERNAL {
 		t.Fatalf("expected ERR_INTERNAL, got %v", err)
 	}
 }
@@ -61,8 +61,8 @@ func TestSaveJSONReturnsErrorOnInvalidPath(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error on invalid path")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_INTERNAL {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_INTERNAL {
 		t.Fatalf("expected ERR_INTERNAL, got %v", err)
 	}
 }

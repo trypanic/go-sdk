@@ -30,8 +30,8 @@ func TestNewLoaderReturnsConfigErrorWithParseDetails(t *testing.T) {
 		t.Fatal("NewLoader() error = nil, want error")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("NewLoader() error type = %T, want *errorkit.AppError", err)
 	}
 

@@ -14,8 +14,8 @@ func TestValidateDateRange_InvalidDates_ReturnsAppError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 	if appErr.Code() != errorkit.ERR_VALIDATION_INVALID_FORMAT {

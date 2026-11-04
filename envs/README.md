@@ -163,8 +163,7 @@ import (
 
 cfg := &Config{}
 if err := envs.NewLoader(cfg); err != nil {
-    var appErr *errorkit.AppError
-    if errors.As(err, &appErr) {
+    if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
         // appErr.ErrCode  == errorkit.ERR_SYSTEM_CONFIG_INVALID
         // appErr.Reason   == "failed to parse environment variables: ..." (no values)
         // errors.As(err, &env.ParseError{}) reaches the original env.Parse error
