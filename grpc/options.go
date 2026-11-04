@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"time"
+
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
@@ -103,6 +105,7 @@ type ClientOption func(*clientBuild)
 type clientBuild struct {
 	tracing        bool
 	insecure       bool
+	defaultTimeout time.Duration
 	tracerProvider trace.TracerProvider
 	propagator     propagation.TextMapPropagator
 	unary          []grpc.UnaryClientInterceptor
@@ -127,6 +130,18 @@ func WithClientTracing(on bool) ClientOption {
 // Combining it with ClientConfig.Creds is a configuration error.
 func WithClientInsecure() ClientOption {
 	return func(b *clientBuild) { b.insecure = true }
+}
+
+// WithClientDefaultTimeout applies timeout d to every call (unary and all
+// streaming modes) whose context has no deadline. A deadline already set on
+// the context is never overridden, so long-lived streams opt out by setting
+// their own (longer) deadline. d <= 0 disables it (the default: calls without
+// a deadline wait until the server answers or the connection breaks).
+//
+// It runs before the WithClientUnaryInterceptors / WithClientStreamInterceptors
+// interceptors, so they see the deadline.
+func WithClientDefaultTimeout(d time.Duration) ClientOption {
+	return func(b *clientBuild) { b.defaultTimeout = d }
 }
 
 // WithClientTracerProvider injects the tracer provider used for client spans.

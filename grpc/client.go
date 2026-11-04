@@ -1,6 +1,9 @@
 package grpc
 
 import (
+	"context"
+	"time"
+
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -59,11 +62,16 @@ func Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error) {
 		}
 		do = append(do, grpc.WithDefaultCallOptions(co...))
 	}
-	if len(b.unary) > 0 {
-		do = append(do, grpc.WithChainUnaryInterceptor(b.unary...))
+	unary, stream := b.unary, b.stream
+	if b.defaultTimeout > 0 {
+		unary = append([]grpc.UnaryClientInterceptor{defaultTimeoutUnary(b.defaultTimeout)}, unary...)
+		stream = append([]grpc.StreamClientInterceptor{defaultTimeoutStream(b.defaultTimeout)}, stream...)
 	}
-	if len(b.stream) > 0 {
-		do = append(do, grpc.WithChainStreamInterceptor(b.stream...))
+	if len(unary) > 0 {
+		do = append(do, grpc.WithChainUnaryInterceptor(unary...))
+	}
+	if len(stream) > 0 {
+		do = append(do, grpc.WithChainStreamInterceptor(stream...))
 	}
 	if b.tracing {
 		var hopts []otelgrpc.Option
@@ -86,4 +94,51 @@ func Dial(cfg ClientConfig, opts ...ClientOption) (*grpc.ClientConn, error) {
 		)
 	}
 	return cc, nil
+}
+
+// defaultTimeoutUnary applies timeout d to unary calls whose context has no
+// deadline.
+func defaultTimeoutUnary(d time.Duration) grpc.UnaryClientInterceptor {
+	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		if _, ok := ctx.Deadline(); ok {
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+		ctx, cancel := context.WithTimeout(ctx, d)
+		defer cancel()
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// defaultTimeoutStream applies timeout d to streams whose context has no
+// deadline. The timeout's cancel runs when the stream ends.
+func defaultTimeoutStream(d time.Duration) grpc.StreamClientInterceptor {
+	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+		if _, ok := ctx.Deadline(); ok {
+			return streamer(ctx, desc, cc, method, opts...)
+		}
+		ctx, cancel := context.WithTimeout(ctx, d)
+		cs, err := streamer(ctx, desc, cc, method, opts...)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		return &timeoutClientStream{ClientStream: cs, cancel: cancel, serverStreams: desc.ServerStreams}, nil
+	}
+}
+
+// timeoutClientStream releases the default-timeout context once the stream
+// is finished: on any RecvMsg error (io.EOF included) or, for streams with a
+// single response, after that response is received.
+type timeoutClientStream struct {
+	grpc.ClientStream
+	cancel        context.CancelFunc
+	serverStreams bool
+}
+
+func (s *timeoutClientStream) RecvMsg(m any) error {
+	err := s.ClientStream.RecvMsg(m)
+	if err != nil || !s.serverStreams {
+		s.cancel()
+	}
+	return err
 }
