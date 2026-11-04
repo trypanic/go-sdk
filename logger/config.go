@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -127,12 +128,7 @@ func formatConsoleExtras(
 }
 
 func orderedConsoleExtraKeys(evt map[string]any) []string {
-	keys := make([]string, 0, len(evt))
-	for key := range evt {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
+	return slices.Sorted(maps.Keys(evt))
 }
 
 func shouldSkipConsoleExtraField(key string) bool {
