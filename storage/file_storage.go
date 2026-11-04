@@ -18,6 +18,11 @@ import (
 // them as storage files.
 const tempFilePattern = ".tmp-*"
 
+// MaxFileKeyLength is the longest key, in bytes, that FileStorage accepts.
+// Keys are hex-encoded (two characters per byte) and suffixed with ".json",
+// and common filesystems limit a file name to 255 bytes.
+const MaxFileKeyLength = (255 - len(".json")) / 2
+
 // FileStorage is an append-log file store. Each key maps to a single JSON
 // file containing an []T value. Append adds to that list; List reads it.
 // Keys are hex-encoded so that arbitrary byte sequences map to distinct files.
@@ -34,10 +39,7 @@ type FileStorage[T any] struct {
 // missing.
 func NewFileStorage[T any](baseDir string) (*FileStorage[T], error) {
 	if err := os.MkdirAll(baseDir, 0o755); err != nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to create storage directory"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, ioError("failed to create storage directory", err)
 	}
 	return &FileStorage[T]{baseDir: baseDir}, nil
 }
@@ -47,9 +49,10 @@ func NewFileStorage[T any](baseDir string) (*FileStorage[T], error) {
 // error, as in MemoryStorage.
 func (fs *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
 	if item == nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("Append: item must not be nil"),
-		)
+		return nil, nilInputError("Append: item must not be nil")
+	}
+	if err := validateFileKey(key); err != nil {
+		return nil, err
 	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
@@ -69,6 +72,9 @@ func (fs *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
 // List returns the list stored at key. The bool is false (and error is nil)
 // when the key is absent.
 func (fs *FileStorage[T]) List(key string) (*[]T, bool, error) {
+	if err := validateFileKey(key); err != nil {
+		return nil, false, err
+	}
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
@@ -77,10 +83,7 @@ func (fs *FileStorage[T]) List(key string) (*[]T, bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, false, nil
 		}
-		return nil, false, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to stat storage file"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, false, ioError("failed to stat storage file", err)
 	}
 	slice, err := fs.readUnsafe(filename)
 	if err != nil {
@@ -91,15 +94,15 @@ func (fs *FileStorage[T]) List(key string) (*[]T, bool, error) {
 
 // Delete removes the file at key. A missing key is not an error.
 func (fs *FileStorage[T]) Delete(key string) error {
+	if err := validateFileKey(key); err != nil {
+		return err
+	}
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
 	filename := fs.pathFor(key)
 	if err := os.Remove(filename); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to delete storage file"),
-			errorkit.WithWrapped(err),
-		)
+		return ioError("failed to delete storage file", err)
 	}
 	return nil
 }
@@ -111,10 +114,7 @@ func (fs *FileStorage[T]) Clear() error {
 
 	entries, err := os.ReadDir(fs.baseDir)
 	if err != nil {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to read storage directory"),
-			errorkit.WithWrapped(err),
-		)
+		return ioError("failed to read storage directory", err)
 	}
 	for _, entry := range entries {
 		name := entry.Name()
@@ -122,10 +122,7 @@ func (fs *FileStorage[T]) Clear() error {
 			continue
 		}
 		if err := os.Remove(filepath.Join(fs.baseDir, name)); err != nil {
-			return errorkit.NewError(ERR_STORAGE_ERROR).With(
-				errorkit.WithReason("failed to delete storage file"),
-				errorkit.WithWrapped(err),
-			)
+			return ioError("failed to delete storage file", err)
 		}
 	}
 	return nil
@@ -139,10 +136,7 @@ func (fs *FileStorage[T]) GetAll() (map[string][]T, error) {
 	out := make(map[string][]T)
 	entries, err := os.ReadDir(fs.baseDir)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to read storage directory"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, ioError("failed to read storage directory", err)
 	}
 	for _, entry := range entries {
 		name := entry.Name()
@@ -194,26 +188,18 @@ func (fs *FileStorage[T]) readUnsafe(filename string) ([]T, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return []T{}, nil
 		}
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to read storage file"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, ioError("failed to read storage file", err)
 	}
 	if len(data) == 0 {
 		// Writes are atomic renames of non-empty files, so a zero-length
 		// file means the data was lost (for example by a crash before the
 		// rename reached the disk). Reading it as an empty list would let
 		// the next Append silently drop the key's history.
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("storage file is empty (corrupt)"),
-		)
+		return nil, corruptError("storage file is empty (corrupt)", nil)
 	}
 	var result []T
 	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to decode storage file"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, corruptError("failed to decode storage file", err)
 	}
 	return result, nil
 }
@@ -233,10 +219,7 @@ func (fs *FileStorage[T]) writeUnsafe(filename string, slice []T) error {
 		)
 	}
 	if err := writeFileAtomic(fs.baseDir, filename, jsonData); err != nil {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("failed to write storage file"),
-			errorkit.WithWrapped(err),
-		)
+		return ioError("failed to write storage file", err)
 	}
 	return nil
 }

@@ -28,8 +28,8 @@ func TestFileStorageAppendReturnsErrorOnUnwritableDir(t *testing.T) {
 		t.Fatalf("Append must return error when target dir is read-only")
 	}
 	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ACCESS_DENIED {
+		t.Fatalf("expected ERR_STORAGE_ACCESS_DENIED, got %v", err)
 	}
 }
 
@@ -50,8 +50,8 @@ func TestFileStorageGetReturnsErrorOnCorruptJSON(t *testing.T) {
 		t.Fatalf("List must return error on corrupt JSON")
 	}
 	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_CORRUPTED {
+		t.Fatalf("expected ERR_STORAGE_CORRUPTED, got %v", err)
 	}
 }
 
@@ -78,8 +78,8 @@ func TestFileStorageDeleteReturnsErrorWhenRemovalFails(t *testing.T) {
 		t.Fatalf("Delete must return error when unlink fails")
 	}
 	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ACCESS_DENIED {
+		t.Fatalf("expected ERR_STORAGE_ACCESS_DENIED, got %v", err)
 	}
 }
 

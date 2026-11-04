@@ -1,10 +1,6 @@
 package storage
 
-import (
-	"sync"
-
-	"github.com/trypanic/go-sdk/errorkit"
-)
+import "sync"
 
 // MemoryStorage is a generic, thread-safe in-memory store. It implements
 // both KVStorager (Put/Get with overwrite semantics) and AppendLogStorager
@@ -26,9 +22,7 @@ func NewMemory[T any]() *MemoryStorage[T] {
 // Put stores a single value at key, replacing any previous value.
 func (ms *MemoryStorage[T]) Put(key string, value *T) error {
 	if value == nil {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("Put: value must not be nil"),
-		)
+		return nilInputError("Put: value must not be nil")
 	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -52,9 +46,7 @@ func (ms *MemoryStorage[T]) Get(key string) (*T, bool, error) {
 // later Append could overwrite out from under them.
 func (ms *MemoryStorage[T]) Append(key string, item *T) (*[]T, error) {
 	if item == nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("Append: item must not be nil"),
-		)
+		return nil, nilInputError("Append: item must not be nil")
 	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()

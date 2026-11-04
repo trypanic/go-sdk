@@ -76,9 +76,22 @@ list, ok, err := fs.List("k")   // → &["first","second"], true, nil
 
 ### Errors
 
-Every method returns a typed `*errorkit.AppError` with code
-`ERR_STORAGE_ERROR` for I/O or decoding failures. `Delete` on a missing
-key is a no-op (no error); `List` on a missing key returns `(nil, false, nil)`.
+Every method returns a typed `*errorkit.AppError`; filesystem causes are
+wrapped, so `errors.Is` / `errors.As` reach them. `Delete` on a missing key is
+a no-op (no error); `List` on a missing key returns `(nil, false, nil)`.
+
+| Failure | Code | Retriable | HTTP |
+|---|---|---|---|
+| `Put(nil)` / `Append(nil)` (both stores) | `errorkit.ERR_VALIDATION_MISSING_FIELD` | no | 400 |
+| `FileStorage` key longer than `MaxFileKeyLength` (125 bytes) | `errorkit.ERR_VALIDATION` | no | 400 |
+| Permission denied (`fs.ErrPermission`) | `ERR_STORAGE_ACCESS_DENIED` | no | 502 |
+| Undecodable or zero-length storage file | `ERR_STORAGE_CORRUPTED` | no | 500 |
+| Any other I/O or encoding failure | `ERR_STORAGE_ERROR` | yes | 503 |
+
+`FileStorage` keys are limited to `MaxFileKeyLength` bytes because the
+hex-encoded file name (two characters per key byte plus `.json`) must fit the
+255-byte file-name limit of common filesystems. `Append`, `List` and `Delete`
+check the length before touching the disk.
 
 ### Filename encoding
 
