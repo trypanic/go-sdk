@@ -41,8 +41,15 @@ func TestSaveJSONWritesFile(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.json")
-	if err := SaveJSON(path, map[string]int{"n": 1}); err != nil {
+	if err := SaveJSON(path, map[string]string{"q": "<a>&"}); err != nil {
 		t.Fatalf("SaveJSON: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "{\"q\":\"<a>&\"}\n"; string(got) != want {
+		t.Fatalf("file content = %q, want %q", got, want)
 	}
 }
 

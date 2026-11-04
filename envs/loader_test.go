@@ -14,6 +14,9 @@ import (
 
 func TestNewLoaderReturnsConfigErrorWithParseDetails(t *testing.T) {
 	const requiredEnv = "ENVS_TEST_REQUIRED_VALUE"
+	// t.Setenv registers a restore of the previous state at cleanup;
+	// Unsetenv then makes the variable absent for this test only.
+	t.Setenv(requiredEnv, "")
 	if err := os.Unsetenv(requiredEnv); err != nil {
 		t.Fatalf("Unsetenv(%q) error = %v", requiredEnv, err)
 	}
