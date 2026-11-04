@@ -16,6 +16,7 @@ import (
 	"github.com/trypanic/go-sdk/algorithms"
 	"github.com/trypanic/go-sdk/errorkit"
 	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/telemetry"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/baggage"
@@ -691,4 +692,10 @@ func asAppError(err error, code errorkit.ErrorCode, reason string) error {
 		errorkit.WithReason("%s", reason),
 		errorkit.WithWrapped(err),
 	)
+}
+
+// WithInstrumenter uses the instrumenter's provider with the messaging scope.
+// A nil instrumenter disables span recording.
+func WithInstrumenter(i *telemetry.Instrumenter) PubSubOption {
+	return WithTracer(i.TracerProvider().Tracer("messaging"))
 }

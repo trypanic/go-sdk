@@ -7,6 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // Span is a type alias for trace.Span.
@@ -28,7 +29,8 @@ func init() {
 
 // Instrumenter creates spans from an explicit tracer.
 type Instrumenter struct {
-	tracer trace.Tracer
+	tracer   trace.Tracer
+	provider trace.TracerProvider
 }
 
 // InstrumenterConfig controls explicit telemetry construction.
@@ -46,7 +48,8 @@ func NewInstrumenter(config InstrumenterConfig) *Instrumenter {
 	}
 
 	return &Instrumenter{
-		tracer: provider.Tracer(cmp.Or(config.ScopeName, "app")),
+		provider: provider,
+		tracer:   provider.Tracer(cmp.Or(config.ScopeName, "app")),
 	}
 }
 
@@ -277,4 +280,13 @@ func (i *Instrumenter) DB(ctx context.Context, driver string, resource string, o
 
 func compatibilityInstrumenter() *Instrumenter {
 	return compat.Load()
+}
+
+// TracerProvider returns the provider captured at construction. A nil or
+// zero-value instrumenter returns a no-op provider for dependency injection.
+func (i *Instrumenter) TracerProvider() trace.TracerProvider {
+	if i == nil || i.provider == nil {
+		return noop.NewTracerProvider()
+	}
+	return i.provider
 }

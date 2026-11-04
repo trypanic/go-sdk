@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/telemetry"
 )
 
 // ServerOption configures a Server at construction time.
@@ -201,4 +202,16 @@ func WithClientStreamInterceptors(in ...grpc.StreamClientInterceptor) ClientOpti
 // grpc.NewClient, for anything this package does not expose directly.
 func WithRawDialOptions(o ...grpc.DialOption) ClientOption {
 	return func(b *clientBuild) { b.raw = append(b.raw, o...) }
+}
+
+// WithServerInstrumenter uses the instrumenter's provider for server spans.
+// A nil instrumenter disables recording through a no-op provider.
+func WithServerInstrumenter(i *telemetry.Instrumenter) ServerOption {
+	return WithServerTracerProvider(i.TracerProvider())
+}
+
+// WithClientInstrumenter uses the instrumenter's provider for client spans.
+// A nil instrumenter disables recording through a no-op provider.
+func WithClientInstrumenter(i *telemetry.Instrumenter) ClientOption {
+	return WithClientTracerProvider(i.TracerProvider())
 }

@@ -433,3 +433,9 @@ specific code with `errorkit.HasCode(err, code)` (or `errors.As` and
 | Context cancelled | Subscriber exits cleanly, connection is closed via `defer`; a message being processed is Nacked with requeue (not dead-lettered) and no further retry or backoff wait happens |
 | `Close` called | Active subscriptions stop as if their `ctx` were cancelled; later `Publish`/`Subscribe` calls fail with `ERR_MQ_CLOSED` |
 | Marshal / unmarshal failure | Error returned immediately (no retry — it would produce the same result) |
+
+Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
+`grpc.WithServerInstrumenter` / `grpc.WithClientInstrumenter` or
+`messaging.WithInstrumenter`; each keeps its component scope and uses
+`instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
+Hertz tracing remains an exception: its adapter uses the global provider.

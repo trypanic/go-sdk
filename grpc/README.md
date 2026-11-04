@@ -447,3 +447,9 @@ This package previously wrapped CloudWeGo Kitex. It now wraps
 The OTLP/gRPC dependency can register `x/net/trace` handlers on
 `http.DefaultServeMux`. Services must use a dedicated mux for public HTTP
 listeners rather than expose the process default mux.
+
+Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
+`grpc.WithServerInstrumenter` / `grpc.WithClientInstrumenter` or
+`messaging.WithInstrumenter`; each keeps its component scope and uses
+`instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
+Hertz tracing remains an exception: its adapter uses the global provider.
