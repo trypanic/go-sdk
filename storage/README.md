@@ -150,7 +150,14 @@ passed to `Append`.
 
 A key's file is created (and rewritten, see above) through a fresh temporary
 file in `baseDir`, created with `os.CreateTemp` (`O_EXCL`, a random `.tmp-*`
-name, so an existing file or symlink is never followed). The data is synced to
+name, so an existing file or symlink is never followed).
+
+Symlinks are never followed at the final path either. A key's `.jsonl` and
+`.json` files are read and appended to only if `Lstat` reports a regular
+file, the open uses `O_NOFOLLOW` (on Unix), and the opened file is the one
+`Lstat` saw. A symlink or other non-regular file at a key's path is treated as
+no data: `List` reports the key as absent, and `Append` replaces the link with
+a regular file through the atomic rename, leaving the link's target untouched. The data is synced to
 disk, the temporary file is renamed onto the final path, and the directory is
 synced so the rename survives a crash. Any failure leaves the target file
 untouched and removes the temporary file. A file therefore always starts

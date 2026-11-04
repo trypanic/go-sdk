@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -118,10 +119,16 @@ func (s *FileStorage[T]) Append(key string, item *T) (*[]T, error) {
 	items = append(items, *item)
 
 	if source == sourceLines {
-		if err := appendLine(s.pathFor(key), line); err != nil {
+		err := appendLine(s.pathFor(key), line)
+		if err == nil {
+			return &items, nil
+		}
+		if !errors.Is(err, errNotRegular) {
 			return nil, ioError("failed to append to storage file", err)
 		}
-		return &items, nil
+		// The path stopped being a regular file after it was read (for
+		// example a symlink was swapped in): replace it atomically instead
+		// of writing through it.
 	}
 	if err := s.writeAll(key, items); err != nil {
 		return nil, err
@@ -147,7 +154,7 @@ func (s *FileStorage[T]) List(key string) (*[]T, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	if source == sourceNone {
+	if !source.exists() {
 		return nil, false, nil
 	}
 	return &items, true, nil
@@ -213,7 +220,7 @@ func (s *FileStorage[T]) GetAll() (map[string][]T, error) {
 		if err != nil {
 			return nil, err
 		}
-		if source != sourceNone {
+		if source.exists() {
 			out[key] = items
 		}
 	}
@@ -268,34 +275,97 @@ func ownedKey(entry os.DirEntry) (string, bool) {
 type fileSource int
 
 const (
-	sourceNone   fileSource = iota // no file for the key
-	sourceLines                    // a complete JSON Lines file
-	sourceTorn                     // a JSON Lines file whose last line was torn
-	sourceLegacy                   // a legacy JSON array file
+	sourceNone       fileSource = iota // no file for the key
+	sourceLines                        // a complete JSON Lines file
+	sourceTorn                         // a JSON Lines file whose last line was torn
+	sourceLegacy                       // a legacy JSON array file
+	sourceNotRegular                   // the current path is a symlink or other non-regular file
 )
+
+// exists reports whether the key holds data. A non-regular file at the
+// current path (never created by FileStorage) is not data; Append replaces
+// it atomically.
+func (f fileSource) exists() bool {
+	return f != sourceNone && f != sourceNotRegular
+}
+
+// errNotRegular reports a path that is not a regular file, or that changed
+// between the Lstat check and the open.
+var errNotRegular = errors.New("storage: not a regular file")
 
 // readKey reads the key's items from its JSON Lines file or, when that file
 // does not exist, from its legacy array file. A missing key yields an empty
-// slice and sourceNone. Caller must hold the lock.
+// slice and sourceNone. Symlinks and other non-regular files are never read.
+// Caller must hold the lock.
 func (s *FileStorage[T]) readKey(key string) ([]T, fileSource, error) {
-	data, err := os.ReadFile(s.pathFor(key))
+	notRegular := false
+	data, err := readRegularFile(s.pathFor(key))
 	switch {
 	case err == nil:
 		return decodeLines[T](data)
+	case errors.Is(err, errNotRegular):
+		notRegular = true
 	case !errors.Is(err, os.ErrNotExist):
 		return nil, sourceNone, ioError("failed to read storage file", err)
 	}
 
-	data, err = os.ReadFile(s.legacyPathFor(key))
+	data, err = readRegularFile(s.legacyPathFor(key))
 	switch {
 	case err == nil:
 		items, err := decodeLegacy[T](data)
 		return items, sourceLegacy, err
-	case errors.Is(err, os.ErrNotExist):
+	case errors.Is(err, os.ErrNotExist), errors.Is(err, errNotRegular):
+		if notRegular {
+			return []T{}, sourceNotRegular, nil
+		}
 		return []T{}, sourceNone, nil
 	default:
 		return nil, sourceNone, ioError("failed to read storage file", err)
 	}
+}
+
+// openRegular opens name only if it is a regular file and never through a
+// symlink: Lstat must report a regular file, the open uses O_NOFOLLOW where
+// the platform has it, and the opened file must be the one Lstat saw
+// (os.SameFile), which closes the window between the two calls.
+func openRegular(name string, flag int) (*os.File, error) {
+	before, err := os.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() {
+		return nil, errNotRegular
+	}
+	f, err := os.OpenFile(name, flag|openSafeFlags, 0)
+	if err != nil {
+		if isSymlinkOpenError(err) {
+			return nil, errNotRegular
+		}
+		return nil, err
+	}
+	after, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if !os.SameFile(before, after) {
+		_ = f.Close()
+		return nil, errNotRegular
+	}
+	return f, nil
+}
+
+// readRegularFile is os.ReadFile through openRegular.
+func readRegularFile(name string) ([]byte, error) {
+	f, err := openRegular(name, os.O_RDONLY)
+	if err != nil {
+		return nil, err
+	}
+	data, err := io.ReadAll(f)
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return data, err
 }
 
 // decodeLines decodes a JSON Lines file. Files are created atomically with
@@ -363,10 +433,11 @@ func (s *FileStorage[T]) writeAll(key string, items []T) error {
 	return nil
 }
 
-// appendLine writes line and a newline at the end of an existing file in a
-// single write and syncs it.
+// appendLine writes line and a newline at the end of an existing regular
+// file in a single write and syncs it. It returns errNotRegular, without
+// writing, when the path is a symlink or not a regular file.
 func appendLine(filename string, line []byte) error {
-	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0)
+	f, err := openRegular(filename, os.O_WRONLY|os.O_APPEND)
 	if err != nil {
 		return err
 	}
