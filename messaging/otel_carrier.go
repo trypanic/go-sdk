@@ -3,6 +3,8 @@ package messaging
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -38,9 +40,5 @@ func (c amqpHeadersCarrier) Set(key, value string) {
 }
 
 func (c amqpHeadersCarrier) Keys() []string {
-	keys := make([]string, 0, len(c.h))
-	for k := range c.h {
-		keys = append(keys, k)
-	}
-	return keys
+	return slices.Collect(maps.Keys(c.h))
 }
