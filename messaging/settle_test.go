@@ -62,7 +62,7 @@ func newObservedPubSub() (*PubSub, *tracetest.SpanRecorder, *syncBuffer) {
 func receiveSpan(t *testing.T, rec *tracetest.SpanRecorder) sdktrace.ReadOnlySpan {
 	t.Helper()
 	for _, s := range rec.Ended() {
-		if s.Name() == "messaging.receive q" {
+		if s.Name() == "messaging.receive.q" {
 			return s
 		}
 	}

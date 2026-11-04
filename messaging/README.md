@@ -222,6 +222,21 @@ with structured fields (`queue`, `exchange`, `routing_key`, `error`,
 `retry_in` as a duration string) and the `trace_id`/`span_id` of the active
 span.
 
+### Tracing
+
+Spans are started on the `WithTracer` tracer (default
+`otel.Tracer("messaging")`) and named with the `telemetry.Messaging`
+convention, `messaging.<operation>.<queue>`.  W3C trace context and baggage
+travel in the AMQP headers (`WithPropagator`).
+
+| Span | Kind | Attributes |
+|------|------|------------|
+| `messaging.publish.<queue>` | Producer | `messaging.system=rabbitmq`, `messaging.destination.name=<queue>`, `messaging.operation.type=send`, `messaging.operation.name=publish`, `messaging.rabbitmq.exchange`, `event.id`, `event.type`, `correlation.id` |
+| `messaging.receive.<queue>` | Consumer | `messaging.system`, `messaging.destination.name`, `messaging.operation.type=receive`, `messaging.operation.name=receive`, `messaging.rabbitmq.exchange`, `messaging.rabbitmq.destination.routing_key`, `messaging.message.id` (when set) |
+| `messaging.process.<queue>` | Internal (child of receive, one per attempt) | `messaging.system`, `messaging.destination.name`, `messaging.operation.type=process`, `messaging.operation.name=process`, `retry.attempt` |
+
+Attribute keys follow OpenTelemetry semantic conventions v1.43.0.
+
 ### Publishing
 
 ```go
@@ -287,7 +302,7 @@ Delivery to handlers is **at-least-once**: handlers must be **idempotent**
 (deduplicate on `event_id`).  A message is acked only after its handler
 returns `nil`; if the channel dies before the ack reaches the broker (heartbeat
 timeout, broker restart), the broker redelivers it and the handler runs again.
-A failed `Ack`/`Nack` is recorded on the `messaging.receive` span and logged at
+A failed `Ack`/`Nack` is recorded on the `messaging.receive.<queue>` span and logged at
 Warn level (through `WithLogger` when set) with `ERR_MQ_CHANNEL_ERROR`.
 
 ### Closing

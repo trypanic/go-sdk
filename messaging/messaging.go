@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/otel/baggage"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.43.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -216,6 +217,15 @@ func (p *PubSub) lifetime() context.Context {
 	return p.life
 }
 
+// spanName follows the telemetry.Messaging convention
+// ("messaging.<operation>.<destination>"). The package builds the name itself
+// because it starts spans on a caller-supplied trace.Tracer (WithTracer),
+// which a telemetry.Instrumenter cannot wrap. Queue names come from the
+// topology, so the name is bounded.
+func spanName(op, queue string) string {
+	return "messaging." + op + "." + queue
+}
+
 func (p *PubSub) tracerOrDefault() trace.Tracer {
 	if p.tracer != nil {
 		return p.tracer
@@ -260,15 +270,16 @@ func (p *PubSub) Publish(ctx context.Context, queueName string, payload Event) e
 		)
 	}
 
-	// Producer span (one per PublishCtx call)
+	// Producer span (one per Publish call)
 	ctx, span := p.tracerOrDefault().Start(ctx,
-		"messaging.publish "+queueName,
+		spanName("publish", queueName),
 		trace.WithSpanKind(trace.SpanKindProducer),
 		trace.WithAttributes(
-			attribute.String("messaging.system", "rabbitmq"),
-			attribute.String("messaging.destination", queueName),
+			semconv.MessagingSystemRabbitMQ,
+			semconv.MessagingDestinationName(queueName),
+			semconv.MessagingOperationTypeSend,
+			semconv.MessagingOperationName("publish"),
 			attribute.String("messaging.rabbitmq.exchange", binding.Exchange),
-			attribute.String("messaging.operation", "publish"),
 			attribute.String("event.id", eventMsg.EventID),
 			attribute.String("event.type", eventMsg.EventType),
 			attribute.String("correlation.id", payload.CorrelationID),
@@ -412,16 +423,21 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	carrier := newCarrier(msg.Headers)
 	parentCtx := p.propagatorOrDefault().Extract(ctx, carrier)
 
+	recvAttrs := []attribute.KeyValue{
+		semconv.MessagingSystemRabbitMQ,
+		semconv.MessagingDestinationName(queueName),
+		semconv.MessagingOperationTypeReceive,
+		semconv.MessagingOperationName("receive"),
+		attribute.String("messaging.rabbitmq.exchange", msg.Exchange),
+		semconv.MessagingRabbitMQDestinationRoutingKey(msg.RoutingKey),
+	}
+	if msg.MessageId != "" {
+		recvAttrs = append(recvAttrs, semconv.MessagingMessageID(msg.MessageId))
+	}
 	recvCtx, recvSpan := p.tracerOrDefault().Start(parentCtx,
-		"messaging.receive "+queueName,
+		spanName("receive", queueName),
 		trace.WithSpanKind(trace.SpanKindConsumer),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "rabbitmq"),
-			attribute.String("messaging.destination", queueName),
-			attribute.String("messaging.rabbitmq.exchange", msg.Exchange),
-			attribute.String("messaging.rabbitmq.routing_key", msg.RoutingKey),
-			attribute.String("messaging.operation", "receive"),
-		),
+		trace.WithAttributes(recvAttrs...),
 	)
 	defer recvSpan.End()
 
@@ -437,8 +453,14 @@ func (p *PubSub) handleDelivery(ctx context.Context, queueName string, msg amqp.
 	run := func() (err error) {
 		attempt++
 		procCtx, procSpan := p.tracerOrDefault().Start(recvCtx,
-			"messaging.process "+queueName,
-			trace.WithAttributes(attribute.Int("retry.attempt", attempt)),
+			spanName("process", queueName),
+			trace.WithAttributes(
+				semconv.MessagingSystemRabbitMQ,
+				semconv.MessagingDestinationName(queueName),
+				semconv.MessagingOperationTypeProcess,
+				semconv.MessagingOperationName("process"),
+				attribute.Int("retry.attempt", attempt),
+			),
 		)
 		defer procSpan.End()
 
