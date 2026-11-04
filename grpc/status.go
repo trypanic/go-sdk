@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -119,9 +120,10 @@ type StatusPolicy struct {
 // errdetails.ErrorInfo (Reason = the code, Metadata["id"] = the error ID) so
 // callers can read them programmatically and correlate with server logs.
 //
-// Any other error falls back to status.Convert, which preserves an existing
-// gRPC status or yields codes.Unknown for a plain error. A nil error returns
-// nil.
+// A context error (context.DeadlineExceeded or context.Canceled, also when
+// wrapped) becomes codes.DeadlineExceeded or codes.Canceled. Any other error
+// falls back to status.Convert, which preserves an existing gRPC status or
+// yields codes.Unknown for a plain error. A nil error returns nil.
 func ToStatus(err error) error {
 	return ToStatusWithPolicy(err, StatusPolicy{})
 }
@@ -144,6 +146,10 @@ func ToStatusWithPolicy(err error, policy StatusPolicy) error {
 			st = withDetail
 		}
 		return st.Err()
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return status.FromContextError(err).Err()
 	}
 
 	return status.Convert(err).Err()

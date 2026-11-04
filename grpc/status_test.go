@@ -1,8 +1,11 @@
 package grpc
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -86,5 +89,35 @@ func TestToStatus_ExistingStatusPassthrough(t *testing.T) {
 	st := status.Convert(ToStatus(in))
 	if st.Code() != codes.PermissionDenied {
 		t.Fatalf("code = %s, want %s", st.Code(), codes.PermissionDenied)
+	}
+}
+
+func TestToStatus_ContextErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want codes.Code
+	}{
+		{"deadline", context.DeadlineExceeded, codes.DeadlineExceeded},
+		{"canceled", context.Canceled, codes.Canceled},
+		{"wrapped deadline", fmt.Errorf("load user: %w", context.DeadlineExceeded), codes.DeadlineExceeded},
+		{"wrapped canceled", fmt.Errorf("load user: %w", context.Canceled), codes.Canceled},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := status.Code(ToStatus(tc.err)); got != tc.want {
+				t.Fatalf("code = %s, want %s", got, tc.want)
+			}
+		})
+	}
+}
+
+// A real expired context, as a handler would see it.
+func TestToStatus_ExpiredContextErr(t *testing.T) {
+	ctx, cancel := context.WithTimeout(t.Context(), time.Nanosecond)
+	defer cancel()
+	<-ctx.Done()
+	if got := status.Code(ToStatus(ctx.Err())); got != codes.DeadlineExceeded {
+		t.Fatalf("code = %s, want %s", got, codes.DeadlineExceeded)
 	}
 }

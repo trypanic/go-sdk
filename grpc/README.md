@@ -122,8 +122,10 @@ So `ERR_DB_POSTGRES_UNAVAILABLE` (503, retriable) becomes `Unavailable`, which
 gRPC retry policies act on, and `ERR_AUTH_UNAUTHENTICATED` (401) becomes
 `Unauthenticated`.
 
-Non-`errorkit` errors fall back to `status.Convert` (an existing status passes
-through; a plain error becomes `codes.Unknown`).
+Non-`errorkit` errors: `context.DeadlineExceeded` and `context.Canceled` (also
+when wrapped, e.g. `ToStatus(ctx.Err())`) become `codes.DeadlineExceeded` and
+`codes.Canceled`; anything else falls back to `status.Convert` (an existing
+status passes through; a plain error becomes `codes.Unknown`).
 
 ## Defaults
 
