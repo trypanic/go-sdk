@@ -19,7 +19,7 @@ func TestWrapWithInstrumenterUsesExplicitInstrumenter(t *testing.T) {
 
 	storedProcedure := WrapWithInstrumenter[int](&fakeStoredProcedurer[int]{result: 1}, instrumenter)
 
-	result, err := storedProcedure.QueryRow(context.Background(), "SELECT * FROM amz_test_proc($1)", 1)
+	result, err := storedProcedure.QueryRow(t.Context(), "SELECT * FROM amz_test_proc($1)", 1)
 	if err != nil {
 		t.Fatalf("QueryRow returned error: %v", err)
 	}
