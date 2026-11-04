@@ -15,9 +15,10 @@ Structured, environment-aware logging for Go applications — built on zerolog w
   - [API Reference](#api-reference)
     - [Init](#init)
     - [DetectEnv](#detectenv)
+    - [NewLogProvider](#newlogprovider)
     - [InitLogProvider](#initlogprovider)
     - [NewOTLPWriter](#newotlpwriter)
-    - [LogProviderHandle.Shutdown](#logproviderhandleshutdown)
+    - [LogProviderHandle.Close / Shutdown](#logproviderhandleclose--shutdown)
     - [Error](#error)
     - [LogAndReturn](#logandreturn)
     - [Panic](#panic)
@@ -55,10 +56,12 @@ Structured, environment-aware logging for Go applications — built on zerolog w
 | `Dev`                | const           | `"development"`                                                    |
 | `Prod`               | const           | `"production"`                                                     |
 | `OTLPWriter`         | struct          | `io.Writer` that converts zerolog JSON lines to OTEL `LogRecord`s  |
-| `LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Shutdown` on exit            |
+| `LogProviderHandle`  | struct          | Wraps the SDK `LoggerProvider`; call `Close` (or `Shutdown`) on exit |
+| `LogProviderConfig`  | struct          | `NewLogProvider` config: service name, endpoint, TLS / insecure, headers, timeout |
 | `Init`               | func            | Creates, configures, and installs the global logger                |
 | `DetectEnv`          | func            | Reads `ENVIRONMENT` env var; defaults to `Prod`                    |
-| `InitLogProvider`    | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC     |
+| `NewLogProvider`     | func            | Creates and registers a global OTLP `LoggerProvider` over gRPC (TLS by default); returns errors |
+| `InitLogProvider`    | func            | Plaintext `NewLogProvider` wrapper that never fails (compatibility) |
 | `NewOTLPWriter`      | func            | Creates an `OTLPWriter` backed by the global `LoggerProvider`      |
 | `SetupOTLP`          | func            | Bundles `InitLogProvider` + `NewOTLPWriter` in correct order; returns handle + writer |
 | `Error`              | func            | Logs an `errorkit.AppError` at Error level via the global logger   |
@@ -201,17 +204,58 @@ Reads `os.Getenv("ENVIRONMENT")`, ignoring case and surrounding spaces. Returns 
 
 ---
 
+### NewLogProvider
+
+```go
+type LogProviderConfig struct {
+    ServiceName string            // required; service.name resource attribute
+    Endpoint    string            // required; collector host:port
+    Insecure    bool              // plaintext; default is TLS
+    TLSConfig   *tls.Config       // custom TLS (private CA, mTLS); exclusive with Insecure
+    Headers     map[string]string // sent with every export (auth, API key)
+    Timeout     time.Duration     // per-export timeout; 0 = exporter default (10s)
+}
+
+func NewLogProvider(ctx context.Context, cfg LogProviderConfig) (*LogProviderHandle, error)
+```
+
+Creates an OTLP gRPC log exporter for `cfg.Endpoint`, wraps it in a batching `log.LoggerProvider`, and registers it as the global OTEL `LoggerProvider`.
+
+- Transport security: TLS with the host's root CAs by default, `TLSConfig` when set, plaintext only with `Insecure: true`. It is always set explicitly, so the exporter's `OTEL_EXPORTER_OTLP_*` environment fallbacks cannot downgrade it.
+- Errors are `*errorkit.AppError`: `ERR_SYSTEM_CONFIG_INVALID` for a missing `ServiceName`/`Endpoint`, `Insecure` together with `TLSConfig`, a negative `Timeout` or an exporter configuration error; `ERR_INTERNAL` otherwise. On error the global provider is unchanged.
+- The exporter connects lazily: a wrong or unreachable endpoint is **not** reported at startup. Export failures go to the OTel error handler (`otel.SetErrorHandler`) and the records are dropped.
+- Must be called **before** `NewOTLPWriter` — `NewOTLPWriter` resolves the global provider.
+- Calling it again replaces the global provider; `Close` the previous handle yourself.
+- `ServiceName` must match the service name of your trace provider so the backend can correlate logs with traces.
+
+```go
+handle, err := logger.NewLogProvider(ctx, logger.LogProviderConfig{
+    ServiceName: serviceName,
+    Endpoint:    "otel-collector:4317",
+    Headers:     map[string]string{"authorization": "Bearer " + token},
+    Timeout:     5 * time.Second,
+})
+if err != nil {
+    return err
+}
+defer func() {
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    if err := handle.Close(shutdownCtx); err != nil {
+        logger.Error(err, "flush OTLP logs")
+    }
+}()
+```
+
+---
+
 ### InitLogProvider
 
 ```go
 func InitLogProvider(ctx context.Context, serviceName, collectorEndpoint string) *LogProviderHandle
 ```
 
-Creates an OTLP gRPC log exporter connected to `collectorEndpoint` (e.g. `"otel-collector:4317"`), wraps it in a batching `log.LoggerProvider`, and registers it as the global OTEL `LoggerProvider`.
-
-- Must be called **before** `NewOTLPWriter` — `NewOTLPWriter` resolves the global provider.
-- Uses `grpc.WithBlock()` so connection errors surface at startup. On failure it prints to stderr and returns a no-op provider; the service continues running but logs are not exported to SigNoz.
-- `serviceName` must match the value passed to your trace provider's `WithServiceName` option so SigNoz can correlate logs with traces.
+Compatibility wrapper: `NewLogProvider` with `Insecure: true` (plaintext) and no headers or timeout. It never returns an error: on failure it prints to stderr and returns a handle to a provider that exports nothing, and the service keeps running without exported logs. There is no blocking dial: an unreachable collector is not detected at startup. Prefer `NewLogProvider`.
 
 ---
 
@@ -236,13 +280,14 @@ Must be called after `InitLogProvider`.
 
 ---
 
-### LogProviderHandle.Shutdown
+### LogProviderHandle.Close / Shutdown
 
 ```go
+func (h *LogProviderHandle) Close(ctx context.Context) error
 func (h *LogProviderHandle) Shutdown(ctx context.Context)
 ```
 
-Flushes buffered log records, closes the gRPC exporter. Always defer this immediately after `InitLogProvider` returns.
+`Close` flushes buffered log records, closes the gRPC exporter and returns the error (an `*errorkit.AppError` with code `ERR_INTERNAL` wrapping the cause, so `errors.Is(err, context.DeadlineExceeded)` works). Give `ctx` its own timeout. `Shutdown` does the same and prints the error to stderr instead of returning it. Defer one of them immediately after the provider is created. Both are no-ops on a nil handle.
 
 ---
 
@@ -507,6 +552,8 @@ func main() {
 
 The same `serviceName` should be used by your trace provider so log records and trace spans correlate under one service in your observability backend.
 
+`SetupOTLP` uses `InitLogProvider`, so it ships records in plaintext and swallows setup errors. For TLS, headers, a timeout or error handling, call `NewLogProvider` and then `NewOTLPWriter(serviceName)` yourself, in that order.
+
 ---
 
 ### Instance API
@@ -630,9 +677,9 @@ Always call `WithTrace` first to avoid field collision with `WithErrorKit`.
 
 - **Global logger** — `Init` sets a package-level `*zerolog.Logger` and `zerolog.log.Logger`. Both are safe for concurrent use after `Init` returns. Do not call `Init` concurrently or after the service has started handling requests.
 - **`*OTLPWriter`** — `Write` is called by zerolog on every log event. zerolog guarantees exactly one `Write` call per event with a complete JSON line. `OTLPWriter` itself holds no mutable state and is safe for concurrent use.
-- **`LogProviderHandle`** — `Shutdown` should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
+- **`LogProviderHandle`** — `Close` (or `Shutdown`) should be called exactly once, during process teardown (via `defer`). The underlying `log.LoggerProvider` is safe for concurrent use during the process lifetime.
 - **Context loggers** — Loggers stored in a context via `WithLogger` (or any framework adapter that calls `(*zerolog.Logger).WithContext`) are `zerolog.Logger` values copied by value. They are safe for concurrent use.
-- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `LogProviderHandle.Shutdown`, which must be deferred when the OTLP path is used.
+- **Cleanup** — The `io.Closer` returned by `Init` is always `io.NopCloser(nil)`. The meaningful cleanup is `LogProviderHandle.Close` (or `Shutdown`), which must be deferred when the OTLP path is used.
 
 ---
 
