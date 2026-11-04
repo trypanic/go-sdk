@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -50,7 +51,15 @@ import (
 // you would otherwise write trace.Span.
 type Span = trace.Span
 
-var tracer trace.Tracer = otel.Tracer("app") // safe fallback default
+// compat is the instrumenter behind the package-level compatibility helpers
+// (Start, Job, Batch, External, Messaging, DB) and the nil-Instrumenter
+// fallback. InitTracer replaces it atomically, so it may race with span
+// creation safely.
+var compat atomic.Pointer[Instrumenter]
+
+func init() {
+	compat.Store(&Instrumenter{tracer: otel.Tracer("app")}) // safe fallback default
+}
 
 // Instrumenter creates spans from an explicit tracer.
 type Instrumenter struct {
@@ -113,7 +122,7 @@ func SpanFromContext(ctx context.Context) Span {
 // - The actual service identity is defined via OpenTelemetry Resource attributes.
 // - This tracer name is just the instrumentation scope.
 func InitTracer(serviceName string) {
-	tracer = otel.Tracer(serviceName)
+	compat.Store(&Instrumenter{tracer: otel.Tracer(serviceName)})
 }
 
 // Start creates a new span with the given name.
@@ -306,5 +315,5 @@ func (i *Instrumenter) DB(ctx context.Context, driver string, resource string, o
 }
 
 func compatibilityInstrumenter() *Instrumenter {
-	return &Instrumenter{tracer: tracer}
+	return compat.Load()
 }
