@@ -203,7 +203,10 @@ func (p *Publisher) reconnect(ctx context.Context) (publisherLink, error) {
 		p.mu.Unlock()
 		return publisherLink{}, errPublisherClosed()
 	}
+	// Detach the old link before closing it outside mu, so a concurrent
+	// Close does not close it a second time.
 	old := p.conn
+	p.conn, p.channel, p.returns = nil, nil, nil
 	p.mu.Unlock()
 	if old != nil && !old.IsClosed() {
 		if err := old.Close(); err != nil {

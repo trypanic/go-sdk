@@ -111,3 +111,25 @@ func TestPubSubCloseStopsSubscribers(t *testing.T) {
 	err = m.Subscribe(context.Background(), "q", "svc", func(context.Context, Message) error { return nil })
 	assert.Equal(t, ERR_MQ_CLOSED, requireAppError(t, err).Code())
 }
+
+// C5-007/C5-008: Close racing a reconnect does not close the connection the
+// reconnect already closed again (a spurious ErrClosed failure), and the
+// reconnect then reports ERR_MQ_CLOSED.
+func TestPublisherCloseRacingReconnectReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	b := newFakeBroker()
+	p := &Publisher{amqpURL: "amqp://fake", exchanges: testTopology().Exchanges, dial: b.dial}
+	require.NoError(t, p.connect())
+	p.markBroken()
+	started, release := blockDials(t, b)
+
+	done := make(chan error, 1)
+	go func() { done <- p.PublishWithContext(context.Background(), "events", "a", []byte(`{}`), nil) }()
+	<-started // the reconnect closed the old connection and is dialing
+
+	require.NoError(t, p.Close())
+	release()
+
+	assert.Equal(t, ERR_MQ_CLOSED, requireAppError(t, <-done).Code())
+}
