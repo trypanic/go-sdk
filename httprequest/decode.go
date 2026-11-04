@@ -19,6 +19,10 @@ func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
 		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 			With(errorkit.WithReason("'out' parameter must be a pointer"))
 	}
+	if outValue.IsNil() {
+		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+			With(errorkit.WithReason("'out' parameter must be a non-nil pointer"))
+	}
 
 	outType := outValue.Elem().Type()
 
@@ -54,7 +58,9 @@ func (h *HTTPRequest) decodeString(body io.Reader, out any) error {
 	if err != nil {
 		return h.buildDecodeError(err)
 	}
-	*(out.(*string)) = string(data)
+	// SetString accepts named string types; a type assertion to *string
+	// would panic on them.
+	reflect.ValueOf(out).Elem().SetString(string(data))
 	return nil
 }
 
@@ -121,7 +127,7 @@ func (h *HTTPRequest) decodeBool(body io.Reader, out any) error {
 		return h.buildDecodeError(err)
 	}
 
-	*(out.(*bool)) = val
+	reflect.ValueOf(out).Elem().SetBool(val)
 	return nil
 }
 
@@ -131,7 +137,7 @@ func (h *HTTPRequest) decodeBytes(body io.Reader, out any) error {
 	if err != nil {
 		return h.buildDecodeError(err)
 	}
-	*(out.(*[]byte)) = data
+	reflect.ValueOf(out).Elem().SetBytes(data)
 	return nil
 }
 
