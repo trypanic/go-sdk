@@ -9,7 +9,8 @@ URL construction helpers that safely combine a base URL, an optional path, and a
 | `BuildURL` | Function | Combine base, path, and query params into a `*url.URL`, returning a structured error on invalid input |
 | `BuildURLString` | Function | Convenience wrapper around `BuildURL` that returns the URL as a `string` |
 | `MustBuildURL` | Function | Like `BuildURL` but panics instead of returning an error; use only for hard-coded, known-good URLs |
-| `JoinPath` | Function | Append one or more path segments to a base URL, normalizing leading/trailing slashes between them |
+| `JoinPath` | Function | Append one or more path segments to a base URL, normalizing leading/trailing slashes between them; rejects `.`/`..` segments |
+| `JoinHTTPPath` | Function | Like `JoinPath`, but also requires an absolute `http`/`https` base with a host |
 
 ---
 
@@ -36,6 +37,9 @@ base := urlkit.MustBuildURL("https://api.example.com", "/health", nil)
 // Path-join: trims redundant slashes and skips empty segments
 j, _ := urlkit.JoinPath("https://api.example.com/", "/v1/", "/users/")
 // j == "https://api.example.com/v1/users"
+
+// Same, but the base must be an absolute http(s) URL with a host
+h, err := urlkit.JoinHTTPPath(cfg.APIBase, "v1", userID)
 ```
 
 ---
@@ -113,6 +117,50 @@ Calls `BuildURL` and panics with the returned error if construction fails. Inten
 
 ---
 
+### `JoinPath`
+
+```go
+func JoinPath(base string, segments ...string) (string, error)
+```
+
+Appends `segments` to the path of `base`:
+- Leading and trailing slashes of each segment and the trailing slash of the
+  base path are trimmed, then the parts are joined with a single `/`. The
+  result has no trailing slash.
+- Empty segments (after trimming) are skipped.
+- Segments are raw path text: `?` and `#` inside a segment are
+  percent-encoded, so a segment cannot add a query or fragment.
+- The query string of `base` is preserved.
+- A segment that contains a `.` or `..` element (`".."`, `"a/../b"`,
+  `"./x"`) is rejected, so a segment cannot escape the base path. Dots inside
+  an element (`"v1.2"`, `"..hidden"`) are allowed.
+- Any base accepted by `url.Parse` is accepted, including relative and
+  non-HTTP URLs. Use `JoinHTTPPath` when the result must be an HTTP URL.
+
+**Error conditions:**
+
+| Condition | errorkit code |
+|---|---|
+| `base` is an empty string | `ERR_VALIDATION_MISSING_FIELD` — reason: `"Base URL is required"` |
+| `base` cannot be parsed by `url.Parse` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Invalid base URL format"`, payload: `{"base_url": base}` |
+| a segment contains a `.` or `..` element | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"Path segment must not contain dot segments"`, payload: `{"base_url": base, "segment": segment}` |
+
+---
+
+### `JoinHTTPPath`
+
+```go
+func JoinHTTPPath(base string, segments ...string) (string, error)
+```
+
+Same as `JoinPath`, plus: `base` must use the `http` or `https` scheme and
+have a non-empty host. `"foo"`, `"/relative"`, `"javascript:alert(1)"`,
+`"ftp://host"` and `"https:///path"` are rejected with
+`ERR_VALIDATION_INVALID_FORMAT` (reason:
+`"Base URL must be an absolute http or https URL with a host"`).
+
+---
+
 ## Real-World Usage
 
 ### Vendor datasource — building signed API URLs
@@ -163,7 +211,7 @@ return authURL.String(), nil
 
 ## Lifecycle / Concurrency Notes
 
-All three functions are pure and stateless. They are safe for concurrent use without additional synchronisation.
+All functions are pure and stateless. They are safe for concurrent use without additional synchronisation.
 
 ---
 

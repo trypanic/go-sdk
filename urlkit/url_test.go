@@ -2,6 +2,7 @@ package urlkit
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -209,4 +210,74 @@ func TestBuildURLRejectsPathWithQueryFragmentOrDotSegments(t *testing.T) {
 			assert.Equal(t, errorkit.ERR_VALIDATION_INVALID_FORMAT, appErr.Code())
 		})
 	}
+}
+
+func TestJoinPathRejectsDotSegments(t *testing.T) {
+	t.Parallel()
+
+	for _, segs := range [][]string{
+		{"..", "x"},
+		{"v1", "."},
+		{"/../admin"},
+		{"a/../b"},
+		{"a/./b"},
+	} {
+		t.Run(strings.Join(segs, ","), func(t *testing.T) {
+			t.Parallel()
+
+			_, err := JoinPath("https://a.com/v1", segs...)
+			require.Error(t, err)
+			appErr, ok := errors.AsType[*errorkit.AppError](err)
+			require.True(t, ok)
+			assert.Equal(t, errorkit.ERR_VALIDATION_INVALID_FORMAT, appErr.Code())
+		})
+	}
+}
+
+func TestJoinPathKeepsDotsInsideSegments(t *testing.T) {
+	t.Parallel()
+
+	got, err := JoinPath("https://a.com", "v1.2", "..hidden", "file.json")
+	require.NoError(t, err)
+	assert.Equal(t, "https://a.com/v1.2/..hidden/file.json", got)
+}
+
+func TestJoinHTTPPath(t *testing.T) {
+	t.Parallel()
+
+	got, err := JoinHTTPPath("https://api.example.com/", "/v1/", "users")
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.example.com/v1/users", got)
+
+	got, err = JoinHTTPPath("http://localhost:8080?k=v", "health")
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost:8080/health?k=v", got)
+
+	for _, base := range []string{
+		"foo",
+		"/relative/path",
+		"javascript:alert(1)",
+		"ftp://files.example.com",
+		"https://",
+		"https:///no-host",
+	} {
+		t.Run(base, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := JoinHTTPPath(base, "x")
+			require.Error(t, err)
+			appErr, ok := errors.AsType[*errorkit.AppError](err)
+			require.True(t, ok)
+			assert.Equal(t, errorkit.ERR_VALIDATION_INVALID_FORMAT, appErr.Code())
+		})
+	}
+
+	_, err = JoinHTTPPath("https://a.com", "..")
+	require.Error(t, err)
+
+	_, err = JoinHTTPPath("", "x")
+	require.Error(t, err)
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	require.True(t, ok)
+	assert.Equal(t, errorkit.ERR_VALIDATION_MISSING_FIELD, appErr.Code())
 }

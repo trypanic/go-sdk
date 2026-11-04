@@ -97,31 +97,82 @@ func MustBuildURL(base, path string, params map[string]string) *url.URL {
 // JoinPath joins a base URL with one or more path segments, normalizing
 // any combination of leading/trailing slashes between them. Empty segments
 // are skipped. The base URL is parsed for validity; query strings on the
-// base are preserved.
+// base are preserved. Segments are raw (unescaped) path text: '?' and '#'
+// inside a segment are percent-encoded. A segment that contains a "." or
+// ".." path element (for example "..", "a/../b") is rejected with
+// ERR_VALIDATION_INVALID_FORMAT, so a segment cannot escape the base path.
+//
+// JoinPath accepts any base that url.Parse accepts, including relative and
+// non-HTTP URLs; use JoinHTTPPath to also require an http(s) base with a host.
 //
 // Example:
 //
 //	JoinPath("https://api.example.com/", "/v1/", "/users/")
 //	// → "https://api.example.com/v1/users"
 func JoinPath(base string, segments ...string) (string, error) {
+	u, err := parseBase(base)
+	if err != nil {
+		return "", err
+	}
+	return joinSegments(u, base, segments)
+}
+
+// JoinHTTPPath is like JoinPath but also requires base to be an absolute
+// http or https URL with a non-empty host. Any other base (relative,
+// scheme-less, "javascript:", "ftp:", no host) is rejected with
+// ERR_VALIDATION_INVALID_FORMAT.
+//
+// Example:
+//
+//	JoinHTTPPath("https://api.example.com", "v1", "users")
+//	// → "https://api.example.com/v1/users"
+func JoinHTTPPath(base string, segments ...string) (string, error) {
+	u, err := parseBase(base)
+	if err != nil {
+		return "", err
+	}
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+			errorkit.WithReason("Base URL must be an absolute http or https URL with a host"),
+			errorkit.WithPayload(map[string]string{"base_url": base}),
+		)
+	}
+	return joinSegments(u, base, segments)
+}
+
+// parseBase validates and parses a non-empty base URL.
+func parseBase(base string) (*url.URL, error) {
 	if base == "" {
-		return "", errorkit.NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).
+		return nil, errorkit.NewError(errorkit.ERR_VALIDATION_MISSING_FIELD).
 			With(errorkit.WithReason("Base URL is required"))
 	}
 	u, err := url.Parse(base)
 	if err != nil {
-		return "", errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+		return nil, errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
 			errorkit.WithReason("Invalid base URL format"),
 			errorkit.WithWrapped(err),
 			errorkit.WithPayload(map[string]string{"base_url": base}),
 		)
 	}
+	return u, nil
+}
 
+// joinSegments appends segments to the path of u and returns the result.
+func joinSegments(u *url.URL, base string, segments []string) (string, error) {
 	parts := []string{strings.TrimRight(u.Path, "/")}
 	for _, s := range segments {
 		s = strings.Trim(s, "/")
 		if s == "" {
 			continue
+		}
+		if hasDotSegment(s) {
+			return "", errorkit.NewError(errorkit.ERR_VALIDATION_INVALID_FORMAT).With(
+				errorkit.WithReason("Path segment must not contain dot segments"),
+				errorkit.WithPayload(map[string]string{
+					"base_url": base,
+					"segment":  s,
+				}),
+			)
 		}
 		parts = append(parts, s)
 	}
