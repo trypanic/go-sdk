@@ -1,0 +1,1077 @@
+[
+  {
+    "file": "algorithms/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "algorithms/public_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "batch/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "envs/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "envs/loader.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "envs/loader_table_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "envs/loader_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/chain_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/external_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/public_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/stack.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/stack_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "errorkit/stackless_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/client.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/doc.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/errorinfo_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/from_status_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/grpc_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/instrumenter_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/interceptors.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/interceptors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/limits_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/listen_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/options.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/options_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/recovery_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/roundtrip_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/server.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/status.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/status_fallback_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/status_policy_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/status_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/timeout_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/tls_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "grpc/tracing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpclient/errors_codes.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpclient/errors_codes_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpclient/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpclient/httpclient.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpclient/httpclient_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/audit.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/audit_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/backoff.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/backoff_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/buffering_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/chunked_limit_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/classification_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/concrete_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/coverage_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/decode.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/decode_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/dependencies_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/error_chain_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/errors_codes.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/errors_codes_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/httperror.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/httprequest.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/httprequest_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/idempotency_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/limits.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/limits_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/nolog_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/options_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/redaction_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/retry_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/tracing.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httprequest/tracing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/adapter_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/audit_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/context.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/context_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/error_chain_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/escape_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/functional_options_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/group.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/health_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/helpers_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/nomethod_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/options.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/recovery_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/request_logger.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/request_logger_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/routing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/run_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/server.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/shutdown_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/wrapper.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/hertz/wrapper_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/httpservertest/context.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/httpservertest/context_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/httpservertest/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/response.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/response_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "httpserver/status_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "internal/apicontract/names_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "internal/apicontract/packages_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "internal/integrationtest/container.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "internal/integrationtest/doc.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "ioutils/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "ioutils/imports_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "ioutils/ioutils_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "ioutils/printer.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "ioutils/save.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/client.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/client_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/env.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/env_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/secret.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/tracing.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/tracing_span_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/tracing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "llmclient/validation_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/context.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/coverage_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/errorkit.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/errorkit_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/instance.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/instance_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/logger.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/otel.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/otlp/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/otlp/logprovider.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/otlp/logprovider_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/otlp/nil_writer_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/redaction_fastpath_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/timestamp_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "logger/wrapper.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "marshal/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "marshal/json.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "marshal/json_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/amqp.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/error_chain_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/errors_codes.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/errors_codes_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/fromenv_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/instrumenter_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/log.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/messaging.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/messaging_integration_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/messagingtest/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/messagingtest/messager.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/messagingtest/messager_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/settle_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/subscription_context_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/topology.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "messaging/validate_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/adapter_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/classify_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/client.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/doc.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/errors.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/errors_codes.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/errors_codes_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/errors_example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/escape_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/mongo_integration_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/mongotest/client.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/mongotest/client_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/mongotest/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/tracing.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "mongo/tracing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/classify.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/classify_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/context_example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/doc.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/encode_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/errors.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/postgres.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/postgres_errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/postgres_integration_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/postgres_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/stored_procedure.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/stored_procedure_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/tracing.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "postgres/tracing_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/conformance_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/errors.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/errors_codes.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/errors_codes_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/file_storage.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/file_storage_legacy_key_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/file_storage_mode_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/file_storage_phase11_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/file_storage_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "storage/storage_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "stringutils/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "telemetry/adapters_errors_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "telemetry/end_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "telemetry/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "telemetry/helpers.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "telemetry/provider_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "urlkit/escaped_base_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "urlkit/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "urlkit/url.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "urlkit/url_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "validators/example_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "validators/stackless_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "validators/validators.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "validators/validators_table_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  },
+  {
+    "file": "validators/validators_test.go",
+    "exit": 0,
+    "output_sha256": "17ffc946d434cf55ee96ba9f25975f8f9b20e2252f32454101b88af460672f30"
+  }
+]

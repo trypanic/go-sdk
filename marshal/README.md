@@ -16,7 +16,7 @@ JSON encoding helpers that disable HTML escaping, preventing `<`, `>`, and `&` f
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/marshal"
+import "github.com/trypanic/go-sdk/v2/marshal"
 
 type Payload struct {
     Query string `json:"query"`
@@ -26,7 +26,7 @@ p := Payload{Query: "SELECT * FROM items WHERE name = '<widget>'"}
 
 // String variant
 s, err := marshal.NoEscape(p)
-// s == `{"query":"SELECT * FROM items WHERE name = '<widget>'"}`
+// s == "{\"query\":\"SELECT * FROM items WHERE name = '<widget>'\"}\n"
 
 // Byte slice variant
 b, err := marshal.NoEscapeBytes(p)
@@ -36,7 +36,7 @@ b, err := marshal.NoEscapeBytes(p)
 
 ## Configuration / Settings
 
-This package has no configuration struct or environment variables. Both functions are stateless.
+This package has no configuration struct or environment variables. All four functions are stateless.
 
 ---
 
@@ -91,37 +91,34 @@ prompt assembled by string concatenation).
 
 ## Real-World Usage
 
-### LLM gateway — encoding user messages
+### LLM requests — encoding a structured user message
 
-`marshal.NoEscape` is typically used to serialise the structured payload sent to the LLM, ensuring URL-like strings and angle-bracket characters are not HTML-escaped before being embedded in the prompt body.
+`marshal.NoEscape` is useful to serialise a structured payload that is
+embedded in an LLM prompt, so URL-like strings and angle brackets are not
+HTML-escaped.
 
 ```go
-userMessageJSON, err := marshal.NoEscape(userMessage)
+userMessageJSON, err := marshal.NoEscapeNoNewline(userMessage)
 if err != nil {
-    return "", wrapInternal(err, "failed to marshal user message")
+    return "", err // already an *errorkit.AppError (ERR_INTERNAL)
 }
-setup := llmclient.LLMRequestConfig{
-    UserMessage: string(userMessageJSON),
+answer, err := client.Execute(ctx, llmclient.RequestConfig{
+    UserMessage: userMessageJSON,
     // ...
-}
-resp, err := l.client.Execute(ctx, setup)
+})
 ```
 
-### Internal ioutils printer
+### `ioutils` debug dumps
 
-`marshal.NoEscape` is also the encoder used by `ioutils.PrintJSON` to dump debug values to stdout.
-
-```go
-// go-sdk/ioutils/printer.go
-data, _ := marshal.NoEscape(v)
-fmt.Println(string(data))
-```
+`ioutils.WriteJSON` (and therefore `ioutils.PrintJSON` and `ioutils.SaveJSON`)
+encodes with `marshal.NoEscapeBytes`, so debug dumps use the same encoding as
+this package.
 
 ---
 
 ## Lifecycle / Concurrency Notes
 
-Both functions are pure and stateless. They allocate a new `bytes.Buffer` and `json.Encoder` on every call and are safe for concurrent use without synchronisation.
+All four functions are pure and stateless. They allocate a new `bytes.Buffer` and `json.Encoder` on every call and are safe for concurrent use without synchronisation.
 
 ---
 

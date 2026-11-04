@@ -1,0 +1,14 @@
+{
+  "added_explicit": 35,
+  "removed_explicit": [],
+  "loop2_directness": {
+    "github.com/moby/moby/api": [
+      true,
+      false
+    ],
+    "github.com/moby/moby/client": [
+      true,
+      false
+    ]
+  }
+}

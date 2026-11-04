@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import (
 	"context"
@@ -6,9 +6,13 @@ import (
 	"reflect"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
+// StoredProcedurer runs a stored-procedure call and scans the result into T.
+// The JSON variants marshal jsonArg and pass it as the last positional
+// parameter ($N+1, after args).
 type StoredProcedurer[T any] interface {
 	QueryRow(ctx context.Context, query string, args ...any) (T, error)
 	Query(ctx context.Context, query string, args ...any) ([]T, error)
@@ -16,14 +20,23 @@ type StoredProcedurer[T any] interface {
 	QueryJSON(ctx context.Context, query string, jsonArg any, args ...any) ([]T, error)
 }
 
+// StoredProcedure is the untraced StoredProcedurer. Structs are scanned with
+// pgx.RowToStructByNameLax (by column name), other types with pgx.RowTo. It
+// holds no state besides Pool and is safe for concurrent use.
 type StoredProcedure[T any] struct {
 	Pool Querier
 }
 
-func NewStoredProcedure[T any](pool Querier) StoredProcedurer[T] {
-	return WrapWithTracing(StoredProcedure[T]{Pool: pool})
+// NewStoredProcedure returns a StoredProcedure on pool wrapped with
+// WrapWithTracing, so every call opens a span with the global tracer. Do not
+// wrap the result again; use WrapWithInstrumenter on a StoredProcedure value
+// to choose the tracer or disable tracing.
+func NewStoredProcedure[T any](pool Querier) *TracedProcedure[T] {
+	return &TracedProcedure[T]{inner: StoredProcedure[T]{Pool: pool}, instrumenter: telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})}
 }
 
+// QueryRow runs query and scans the single row it returns. No row is
+// ERR_DB_POSTGRES_NOT_FOUND.
 func (s StoredProcedure[T]) QueryRow(ctx context.Context, query string, args ...any) (
 	T,
 	error,
@@ -32,23 +45,18 @@ func (s StoredProcedure[T]) QueryRow(ctx context.Context, query string, args ...
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
 		var e T
-		return e, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to execute query row"),
-			errorkit.WithWrapped(err),
-		)
+		return e, classifyPgError(err, "failed to execute query row")
 	}
 
 	result, err := pgx.CollectOneRow(rows, pgRowMapper[T]())
 	if err != nil {
 		var e T
-		return e, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to scan query row"),
-			errorkit.WithWrapped(err),
-		)
+		return e, classifyPgError(err, "failed to scan query row")
 	}
 	return result, nil
 }
 
+// Query runs query and scans every row it returns.
 func (s StoredProcedure[T]) Query(ctx context.Context, query string, args ...any) (
 	[]T,
 	error,
@@ -56,21 +64,17 @@ func (s StoredProcedure[T]) Query(ctx context.Context, query string, args ...any
 	// nosemgrep: defer-rows-close -- pgx.CollectRows closes rows automatically.
 	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to execute query"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, classifyPgError(err, "failed to execute query")
 	}
 	results, err := pgx.CollectRows(rows, pgRowMapper[T]())
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
-			errorkit.WithReason("failed to collect query rows"),
-			errorkit.WithWrapped(err),
-		)
+		return nil, classifyPgError(err, "failed to collect query rows")
 	}
 	return results, nil
 }
 
+// QueryRowJSON is QueryRow with jsonArg marshaled to JSON and appended as
+// the last positional parameter.
 func (s StoredProcedure[T]) QueryRowJSON(
 	ctx context.Context,
 	query string,
@@ -85,6 +89,8 @@ func (s StoredProcedure[T]) QueryRowJSON(
 	return s.QueryRow(ctx, query, queryArgs...)
 }
 
+// QueryJSON is Query with jsonArg marshaled to JSON and appended as the last
+// positional parameter.
 func (s StoredProcedure[T]) QueryJSON(
 	ctx context.Context,
 	query string,
@@ -99,7 +105,7 @@ func (s StoredProcedure[T]) QueryJSON(
 }
 
 func pgRowMapper[T any]() pgx.RowToFunc[T] {
-	if reflect.TypeOf((*T)(nil)).Elem().Kind() == reflect.Struct {
+	if reflect.TypeFor[T]().Kind() == reflect.Struct {
 		return pgx.RowToStructByNameLax[T]
 	}
 	return pgx.RowTo[T]
@@ -108,7 +114,7 @@ func pgRowMapper[T any]() pgx.RowToFunc[T] {
 func appendJSONArg(args []any, jsonArg any) ([]any, error) {
 	inBytes, err := json.Marshal(jsonArg)
 	if err != nil {
-		return nil, errorkit.NewError(ERR_DB_POSTGRES_ERROR).With(
+		return nil, errorkit.NewError(ERR_DB_POSTGRES_ENCODE_FAILED).With(
 			errorkit.WithReason("failed to marshal query JSON argument"),
 			errorkit.WithWrapped(err),
 		)

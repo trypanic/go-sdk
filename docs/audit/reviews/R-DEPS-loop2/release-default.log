@@ -1,0 +1,374 @@
+$ task release:check
+task: [release:check] dirty=$(git status --porcelain)
+if [ -n "$dirty" ]; then
+  echo "gorelease needs a clean working tree; commit, stash or remove these paths first (git status --porcelain):" >&2
+  printf '%s\n' "$dirty" >&2
+  exit 1
+fi
+
+task: [release:check] go run golang.org/x/exp/cmd/gorelease@v0.0.0-20261014143641-f0251eb4aa3e -base=github.com/trypanic/go-sdk@v1.0.1
+# github.com/trypanic/go-sdk/algorithms
+## incompatible changes
+NewExponentialBackoff: changed from func(ExponentialBackoffConfig) github.com/cenkalti/backoff/v4.BackOff to func(ExponentialBackoffConfig) Backoff
+## compatible changes
+Backoff: added
+ExponentialBackoffConfig.MaxElapsedTime: added
+MaxRetriesLimit: added
+Stop: added
+
+# github.com/trypanic/go-sdk/v2/batch
+## compatible changes
+package added
+
+# github.com/trypanic/go-sdk/envs
+## incompatible changes
+NewLoader: removed
+## compatible changes
+Load: added
+LoadInto: added
+LoadWithOptions: added
+
+# github.com/trypanic/go-sdk/errorkit
+## incompatible changes
+Blue: removed
+Bold: removed
+ColorsEnabled: removed
+Cyan: removed
+ErrorRegistry: removed
+GenerateID: removed
+Gray: removed
+Green: removed
+MaxStackDepth: removed
+Purple: removed
+Red: removed
+Reset: removed
+Yellow: removed
+## compatible changes
+(*AppError).Public: added
+(*AppError).PublicJSON: added
+As: added
+ERR_EXTERNAL_INVALID_RESPONSE: added
+ERR_EXTERNAL_SERVICE_ERROR: added
+ERR_EXTERNAL_SERVICE_TIMEOUT: added
+ERR_EXTERNAL_SERVICE_UNAVAILABLE: added
+HasCode: added
+NewWithoutStack: added
+PublicError: added
+
+# github.com/trypanic/go-sdk/grpc
+## incompatible changes
+WithServerLogger: changed from func(*github.com/trypanic/go-sdk/logger.Logger) ServerOption to func(*github.com/trypanic/go-sdk/v2/logger.Logger) ServerOption
+## compatible changes
+(*Server).ListenAndServe: added
+FromStatus: added
+ServerConfig.Creds: added
+ServerConfig.MaxConcurrentStreams: added
+StatusPolicy: added
+ToStatusWithPolicy: added
+WithClientDefaultTimeout: added
+WithClientInsecure: added
+WithClientInstrumenter: added
+WithServerErrorDomain: added
+WithServerInsecure: added
+WithServerInstrumenter: added
+WithServerOTelOptions: added
+WithServerPublicEndpoint: added
+
+# github.com/trypanic/go-sdk/httpclient
+## incompatible changes
+ERR_EXTERNAL_INVALID_RESPONSE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_EXTERNAL_SERVICE_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_EXTERNAL_SERVICE_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_EXTERNAL_SERVICE_UNAVAILABLE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+## compatible changes
+DefaultDialTimeout: added
+
+# github.com/trypanic/go-sdk/httprequest
+## incompatible changes
+ERR_AUTH_INTEGRATION_NOT_FOUND: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_AUTH_INVALID_CREDENTIALS: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_AUTH_INVALID_TOKEN: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_AUTH_TOKEN_EXPIRED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_AUTH_UNAUTHENTICATED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_AUTH_UNAUTHORIZED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_NETWORK_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_NETWORK_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+HTTPRequest: removed
+HTTPRequester: removed
+New: changed from func(*net/http.Client) HTTPRequester to func(*net/http.Client) *Request
+NewHTTPRequestWithRetry: removed
+NewWithInstrumenter: changed from func(*net/http.Client, *github.com/trypanic/go-sdk/telemetry.Instrumenter) HTTPRequester to func(*net/http.Client, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) *Request
+NewWithOptions: changed from func(*net/http.Client, ...Option) HTTPRequester to func(*net/http.Client, ...Option) *Request
+NewWithoutTracing: changed from func(*net/http.Client) HTTPRequester to func(*net/http.Client) *Request
+Option: changed from func(*HTTPRequest) to func(*Request)
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+WrapWithInstrumenter: changed from func(HTTPRequester, *github.com/trypanic/go-sdk/telemetry.Instrumenter) HTTPRequester to func(Requester, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) Requester
+WrapWithTracing: changed from func(HTTPRequester) HTTPRequester to func(Requester) Requester
+## compatible changes
+DefaultMaxResponseBytes: added
+ERR_REQUEST_CANCELED: added
+Request: added
+Requester: added
+RetryConfig.MaxElapsed: added
+RetryConfig.RetryNonIdempotent: added
+WithInstrumenter: added
+WithMaxResponseBytes: added
+
+# github.com/trypanic/go-sdk/httpserver
+## incompatible changes
+HTTPContext: removed
+HTTPServer: removed
+HandlerFunc: changed from func(context.Context, HTTPContext) to func(context.Context, Context)
+MiddlewareFunc: changed from func(context.Context, HTTPContext, HandlerFunc) to func(context.Context, Context, HandlerFunc)
+RouterGroup.HEAD: added
+RouterGroup.Handle: added
+RouterGroup.OPTIONS: added
+RouterGroup.PATCH: added
+## compatible changes
+Context: added
+DefaultHealthPath: added
+Reply.Code: added
+ReplyError: added
+Server: added
+ServerOptions.HealthCheck: added
+ServerOptions.HealthPath: added
+StatusFor: added
+
+# github.com/trypanic/go-sdk/httpserver/hertz
+## incompatible changes
+New: changed from func(github.com/trypanic/go-sdk/httpserver.ServerConfig) github.com/trypanic/go-sdk/httpserver.HTTPServer to func(github.com/trypanic/go-sdk/v2/httpserver.ServerConfig) *Server
+NewWithOptions: changed from func(github.com/trypanic/go-sdk/httpserver.ServerConfig, github.com/trypanic/go-sdk/httpserver.ServerOptions) github.com/trypanic/go-sdk/httpserver.HTTPServer to func(github.com/trypanic/go-sdk/v2/httpserver.ServerConfig, github.com/trypanic/go-sdk/v2/httpserver.ServerOptions) *Server
+RequestLoggerMiddleware: changed from func(*github.com/trypanic/go-sdk/logger.Logger) github.com/cloudwego/hertz/pkg/app.HandlerFunc to func(*github.com/trypanic/go-sdk/v2/logger.Logger) github.com/cloudwego/hertz/pkg/app.HandlerFunc
+## compatible changes
+NewEngine: added
+NewServer: added
+RequestIDHeader: added
+RequestLogger: added
+Server: added
+ServerOption: added
+WithAudit: added
+WithHealth: added
+WithLogger: added
+WithReply: added
+WithoutAudit: added
+WithoutHealth: added
+WithoutNoMethod: added
+WithoutNoRoute: added
+WithoutRecovery: added
+WithoutTracing: added
+
+# github.com/trypanic/go-sdk/v2/httpserver/httpservertest
+## compatible changes
+package added
+
+# github.com/trypanic/go-sdk/llmclient
+## incompatible changes
+(*Client).Execute: changed from func(context.Context, LLMRequestConfig) (string, error) to func(context.Context, RequestConfig) (string, error)
+LLMProvider: removed
+LLMRequest: removed
+LLMRequestConfig: removed
+LLMResponse: removed
+New: changed from func(github.com/trypanic/go-sdk/httprequest.HTTPRequester, Config) LLMProvider to func(github.com/trypanic/go-sdk/v2/httprequest.Requester, Config) *Client
+NewClient: changed from func(github.com/trypanic/go-sdk/httprequest.HTTPRequester, Config) *Client to func(github.com/trypanic/go-sdk/v2/httprequest.Requester, Config) *Client
+NewWithInstrumenter: changed from func(github.com/trypanic/go-sdk/httprequest.HTTPRequester, Config, *github.com/trypanic/go-sdk/telemetry.Instrumenter) LLMProvider to func(github.com/trypanic/go-sdk/v2/httprequest.Requester, Config, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) *Client
+NewWithoutTracing: changed from func(github.com/trypanic/go-sdk/httprequest.HTTPRequester, Config) LLMProvider to func(github.com/trypanic/go-sdk/v2/httprequest.Requester, Config) *Client
+WrapWithInstrumenter: changed from func(LLMProvider, *github.com/trypanic/go-sdk/telemetry.Instrumenter) LLMProvider to func(Provider, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) Provider
+WrapWithTracing: changed from func(LLMProvider) LLMProvider to func(Provider) Provider
+## compatible changes
+APIKeyEnvVar: added
+Client.GoString: added
+Client.String: added
+Config.AllowInsecureEndpoint: added
+Config.GoString: added
+Config.LogValue: added
+Config.MarshalJSON: added
+Config.String: added
+ConfigFromEnv: added
+DefaultTimeout: added
+EndpointEnvVar: added
+Provider: added
+Request: added
+RequestConfig: added
+Response: added
+
+# github.com/trypanic/go-sdk/logger
+## incompatible changes
+(*Logger).ErrorCtx: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+(*Logger).WarnCtx: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+Blue: removed
+Config.OTLPWriter: changed from *OTLPWriter to io.Writer
+Config: old is comparable, new is not
+ErrorCtx: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+Init: changed from func(string, string, ...*OTLPWriter) (*github.com/rs/zerolog.Logger, io.Closer) to func(string, string, ...io.Writer) (*github.com/rs/zerolog.Logger, io.Closer)
+InitLogProvider: removed
+LogErrorWithTrace: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+LogProviderHandle: removed
+LogWarnWithTrace: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+NewOTLPWriter: removed
+OTLPWriter: removed
+Reset: removed
+SetupOTLP: removed
+WarnCtx: changed from func(context.Context, *github.com/trypanic/go-sdk/errorkit.AppError, string) to func(context.Context, *github.com/trypanic/go-sdk/v2/errorkit.AppError, string)
+WithErrorKit: changed from func(*github.com/rs/zerolog.Event, *github.com/trypanic/go-sdk/errorkit.AppError) *github.com/rs/zerolog.Event to func(*github.com/rs/zerolog.Event, *github.com/trypanic/go-sdk/v2/errorkit.AppError) *github.com/rs/zerolog.Event
+## compatible changes
+Config.Redactor: added
+
+# github.com/trypanic/go-sdk/v2/logger/otlp
+## compatible changes
+package added
+
+# github.com/trypanic/go-sdk/messaging
+## incompatible changes
+ERR_MQ_AUTH_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_CHANNEL_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_CONNECTION_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_CONSUME_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_EXCHANGE_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_PUBLISH_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_QUEUE_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_MQ_UNAVAILABLE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+Messager: removed
+NewPubSub: changed from func(string, ...PubSubOption) (Messager, error) to func(string, ...PubSubOption) (*PubSub, error)
+PubSub: old is comparable, new is not
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+WithLogger: changed from func(*github.com/trypanic/go-sdk/logger.Logger) PubSubOption to func(*github.com/trypanic/go-sdk/v2/logger.Logger) PubSubOption
+## compatible changes
+(*Publisher).PublishWithContext: added
+(*Topology).Validate: added
+Broker: added
+DefaultDialTimeout: added
+DefaultPrefetch: added
+ERR_MQ_CLOSED: added
+NewPubSubContext: added
+NewPubSubFromEnv: added
+NewPubSubFromEnvContext: added
+WithConnectionName: added
+WithDeclareTopology: added
+WithDialTimeout: added
+WithHeartbeat: added
+WithInstrumenter: added
+WithTLSConfig: added
+
+# github.com/trypanic/go-sdk/v2/messaging/messagingtest
+## compatible changes
+package added
+
+# github.com/trypanic/go-sdk/mongo
+## incompatible changes
+BulkWriteResult.GetDeletedCount: added
+BulkWriteResult.GetInsertedCount: added
+BulkWriteResult.GetMatchedCount: added
+BulkWriteResult.GetModifiedCount: added
+BulkWriteResult.GetUpsertedCount: added
+BulkWriteResult.GetUpsertedIDs: added
+Client: no longer implements BulkWriteResult
+ClientPort: no longer implements BulkWriteResult
+Collection: no longer implements BulkWriteResult
+Config: no longer implements BulkWriteResult
+Cursor.Decode: added
+Cursor.Err: added
+Cursor.Next: added
+Cursor: no longer implements BulkWriteResult
+DeleteResult: no longer implements BulkWriteResult
+ERR_DB_MONGO_AUTH_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_MONGO_DECODE_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_MONGO_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_MONGO_NOT_FOUND: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_MONGO_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_MONGO_UNAVAILABLE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+InsertManyResult: no longer implements BulkWriteResult
+InsertOneResult: no longer implements BulkWriteResult
+New: changed from func(context.Context, Config) (ClientPort, error) to func(context.Context, Config, ...ClientOption) (*Client, error)
+NewWithInstrumenter: changed from func(context.Context, Config, *github.com/trypanic/go-sdk/telemetry.Instrumenter) (ClientPort, error) to func(context.Context, Config, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter, ...ClientOption) (*Client, error)
+NewWithoutTracing: changed from func(context.Context, Config) (ClientPort, error) to func(context.Context, Config, ...ClientOption) (*Client, error)
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+SingleResult: no longer implements BulkWriteResult
+UpdateResult: no longer implements BulkWriteResult
+WrapWithInstrumenter: changed from func(ClientPort, *github.com/trypanic/go-sdk/telemetry.Instrumenter) ClientPort to func(ClientPort, *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) ClientPort
+## compatible changes
+(*Client).Unwrap: added
+ClientOption: added
+ERR_DB_MONGO_CANCELED: added
+NewFromClient: added
+WithClientOptions: added
+
+# github.com/trypanic/go-sdk/v2/mongo/mongotest
+## compatible changes
+package added
+
+# github.com/trypanic/go-sdk/postgres
+## incompatible changes
+ERR_DB_POSTGRES_AUTH_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_POSTGRES_CONNECTION_FAILED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_POSTGRES_DEADLOCK: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_POSTGRES_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_POSTGRES_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_DB_POSTGRES_UNAVAILABLE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+NewPostgresClient: removed
+NewPostgresClientFromEnv: removed
+NewStoredProcedure: changed from func(Querier) StoredProcedurer[T] to func(Querier) *TracedProcedure[T]
+PostgresEnvVar: removed
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+WrapWithInstrumenter: changed from func(StoredProcedurer[T], *github.com/trypanic/go-sdk/telemetry.Instrumenter) StoredProcedurer[T] to func(StoredProcedurer[T], *github.com/trypanic/go-sdk/v2/telemetry.Instrumenter) StoredProcedurer[T]
+## compatible changes
+Config.ConnectTimeout: added
+DSNEnvVar: added
+ERR_DB_POSTGRES_CANCELED: added
+ERR_DB_POSTGRES_ENCODE_FAILED: added
+ERR_DB_POSTGRES_NOT_FOUND: added
+New: added
+NewContext: added
+NewFromEnv: added
+NewFromEnvContext: added
+TracedProcedure: added
+
+# github.com/trypanic/go-sdk/slices
+## incompatible changes
+package removed
+
+# github.com/trypanic/go-sdk/storage
+## incompatible changes
+AppendLogStorager: removed
+ERR_STORAGE_ACCESS_DENIED: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_STORAGE_ERROR: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_STORAGE_INVALID_CREDENTIALS: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_STORAGE_TIMEOUT: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ERR_STORAGE_UNAVAILABLE: changed from github.com/trypanic/go-sdk/errorkit.ErrorCode to github.com/trypanic/go-sdk/v2/errorkit.ErrorCode
+ErrorMetadata: changed from []github.com/trypanic/go-sdk/errorkit.Metadata to []github.com/trypanic/go-sdk/v2/errorkit.Metadata
+KVStorager: removed
+NewFileStorage: changed from func(string) (*FileStorage[T], error) to func(string, ...FileStorageOption) (*FileStorage[T], error)
+RegisterErrors: changed from func(*github.com/trypanic/go-sdk/errorkit.Registry) error to func(*github.com/trypanic/go-sdk/v2/errorkit.Registry) error
+## compatible changes
+AppendLog: added
+DefaultDirMode: added
+DefaultFileMode: added
+ERR_STORAGE_CORRUPTED: added
+FileStorageOption: added
+KVStore: added
+MaxFileKeyLength: added
+WithDirMode: added
+WithFileMode: added
+
+# github.com/trypanic/go-sdk/telemetry
+## compatible changes
+(*Instrumenter).TracerProvider: added
+End: added
+
+# github.com/trypanic/go-sdk/urlkit
+## compatible changes
+JoinHTTPPath: added
+
+# summary
+Cannot suggest a release version.
+Base module path is different from release.
+
+exit status 1
+task: Failed to run task "release:check": exit status 1

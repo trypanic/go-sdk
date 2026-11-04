@@ -1,0 +1,1 @@
+$ go vet /tmp/DEPS-review2/AGENTS.md-0.go

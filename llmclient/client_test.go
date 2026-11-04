@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/trypanic/go-sdk/httprequest"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpclient"
+	"github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 type captureRequester struct {
@@ -19,7 +21,7 @@ type captureRequester struct {
 func (c *captureRequester) Do(ctx context.Context, cfg httprequest.RequestConfig, out any) error {
 	c.cfg = cfg
 	c.ctx = ctx
-	resp, ok := out.(*LLMResponse)
+	resp, ok := out.(*Response)
 	if !ok {
 		return nil
 	}
@@ -35,15 +37,15 @@ func TestNewClientExecutePostsToConfiguredEndpointWithBearer(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "key-123", Endpoint: "http://llm.example/v1/chat"})
+	c := NewClient(stub, Config{APIKey: "key-123", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(context.Background(), LLMRequestConfig{
+	if _, err := c.Execute(t.Context(), RequestConfig{
 		Model: "m1", SystemPrompt: "s", UserMessage: "u",
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if stub.cfg.URL != "http://llm.example/v1/chat" {
+	if stub.cfg.URL != "https://llm.example/v1/chat" {
 		t.Fatalf("URL = %q, want endpoint from Config", stub.cfg.URL)
 	}
 	if stub.cfg.Method != "POST" {
@@ -58,10 +60,10 @@ func TestExecuteAppliesConfiguredTimeoutAsContextDeadline(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u", Timeout: 50 * time.Millisecond})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: 50 * time.Millisecond})
 
 	start := time.Now()
-	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -74,17 +76,36 @@ func TestExecuteAppliesConfiguredTimeoutAsContextDeadline(t *testing.T) {
 	}
 }
 
-func TestExecuteNoDeadlineWhenTimeoutZero(t *testing.T) {
+func TestExecuteNoDeadlineWhenTimeoutNegative(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat", Timeout: -1})
 
-	if _, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"}); err != nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, ok := stub.ctx.Deadline(); ok {
-		t.Fatalf("did not expect ctx deadline when Timeout == 0")
+		t.Fatalf("did not expect ctx deadline when Timeout < 0")
+	}
+}
+
+func TestExecuteDefaultDeadlineWhenTimeoutZero(t *testing.T) {
+	t.Parallel()
+
+	stub := &captureRequester{}
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
+
+	start := time.Now()
+	if _, err := c.Execute(t.Context(), RequestConfig{Model: "m"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	deadline, ok := stub.ctx.Deadline()
+	if !ok {
+		t.Fatal("Timeout == 0 must apply DefaultTimeout, not leave the call unbounded")
+	}
+	if d := deadline.Sub(start); d < DefaultTimeout || d > DefaultTimeout+time.Second {
+		t.Fatalf("deadline offset = %v, want about DefaultTimeout (%v)", d, DefaultTimeout)
 	}
 }
 
@@ -92,9 +113,9 @@ func TestExecuteRequiresModel(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(context.Background(), LLMRequestConfig{}); err == nil {
+	if _, err := c.Execute(t.Context(), RequestConfig{}); err == nil {
 		t.Fatalf("expected error when Model is empty")
 	}
 }
@@ -103,9 +124,9 @@ func TestExecutePayloadOmitsStreamField(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	if _, err := c.Execute(context.Background(), LLMRequestConfig{
+	if _, err := c.Execute(t.Context(), RequestConfig{
 		Model: "m", SystemPrompt: "s", UserMessage: "u",
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -127,13 +148,54 @@ func TestExecuteReturnsResponseContentUnchanged(t *testing.T) {
 	t.Parallel()
 
 	stub := &captureRequester{responseText: "```json\n{\"a\":1}\n```"}
-	c := NewClient(stub, Config{APIKey: "k", Endpoint: "u"})
+	c := NewClient(stub, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
 
-	got, err := c.Execute(context.Background(), LLMRequestConfig{Model: "m"})
+	got, err := c.Execute(t.Context(), RequestConfig{Model: "m"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got != stub.responseText {
 		t.Fatalf("Execute returned %q, want %q (no post-processing)", got, stub.responseText)
+	}
+}
+
+type emptyChoicesRequester struct{}
+
+func (emptyChoicesRequester) Do(context.Context, httprequest.RequestConfig, any) error { return nil }
+
+func TestExecuteEmptyChoicesIsInvalidResponse(t *testing.T) {
+	t.Parallel()
+
+	c := NewClient(emptyChoicesRequester{}, Config{APIKey: "k", Endpoint: "https://llm.example/v1/chat"})
+	_, err := c.Execute(t.Context(), RequestConfig{Model: "m1"})
+
+	appErr, ok := err.(*errorkit.AppError)
+	if !ok {
+		t.Fatalf("want *errorkit.AppError, got %T (%v)", err, err)
+	}
+	if appErr.Code() != httpclient.ERR_EXTERNAL_INVALID_RESPONSE {
+		t.Fatalf("code = %s, want %s", appErr.Code(), httpclient.ERR_EXTERNAL_INVALID_RESPONSE)
+	}
+	if appErr.Metadata.Retriable {
+		t.Fatal("an empty choices list must not be retriable")
+	}
+}
+
+func TestLLMRequestOmitsZeroTuningFields(t *testing.T) {
+	t.Parallel()
+
+	b, err := json.Marshal(Request{Model: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte("max_tokens")) || bytes.Contains(b, []byte("temperature")) {
+		t.Fatalf("zero tuning fields must be omitted, got %s", b)
+	}
+	b, err = json.Marshal(Request{Model: "m", MaxTokens: 5, Temperature: 0.5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte(`"max_tokens":5`)) || !bytes.Contains(b, []byte(`"temperature":0.5`)) {
+		t.Fatalf("set tuning fields must be sent, got %s", b)
 	}
 }

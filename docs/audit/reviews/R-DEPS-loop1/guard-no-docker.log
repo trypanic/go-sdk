@@ -1,0 +1,16 @@
+$ env DOCKER_HOST=unix:///tmp/DEPS-review1/no-docker.sock go test -v -short -tags integration -run Integration -count=1 ./postgres ./mongo ./messaging
+=== RUN   TestPostgresIntegration
+    postgres_integration_test.go:26: requires local PostgreSQL container
+--- SKIP: TestPostgresIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/postgres  0.008s
+=== RUN   TestMongoIntegration
+    mongo_integration_test.go:26: requires local MongoDB container
+--- SKIP: TestMongoIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/mongo     0.006s
+=== RUN   TestRabbitMQIntegration
+    messaging_integration_test.go:24: requires local RabbitMQ container
+--- SKIP: TestRabbitMQIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/messaging 0.006s

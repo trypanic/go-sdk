@@ -1,0 +1,14 @@
+{"name": "check", "command": "task check", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 0, "seconds": 0.11}
+{"name": "task-test", "command": "task test", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.08}
+{"name": "tagged-vet", "command": "go vet -tags integration ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.04}
+{"name": "tagged-staticcheck", "command": "staticcheck -tags integration ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.05}
+{"name": "tagged-vuln", "command": "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -tags=integration -test ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.01}
+{"name": "lint", "command": "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download GOSUMDB=off task lint", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 0, "seconds": 0.43}
+{"name": "release-default", "command": "task release:check", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 201, "seconds": 0.12}
+{"name": "release-comparison", "command": "task release:check RELEASE_VERSION=v2.0.0", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 0, "seconds": 0.12}
+{"name": "release-initial", "command": "task release:check BASE=none RELEASE_VERSION=v2.0.0", "cwd": "/tmp/DEPS-review2/clone", "exit": 201, "expected": 0, "seconds": 0.11}
+{"name": "coverage", "command": "go test -short -count=1 -coverprofile=/tmp/DEPS-review2/coverage.out ./... && go tool cover -func=/tmp/DEPS-review2/coverage.out", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.04}
+{"name": "short-no-docker", "command": "DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -tags integration -short ./...", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.04}
+{"name": "short-no-docker-verbose", "command": "DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -v -tags integration -short -run \"Integration|TestBindLoopback\" ./postgres ./mongo ./messaging ./internal/integrationtest", "cwd": "/tmp/DEPS-review2/clone", "exit": 1, "expected": 0, "seconds": 0.01}
+{"name": "format", "command": "gofmt -l .", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.04}
+{"name": "status", "command": "git status --porcelain", "cwd": "/tmp/DEPS-review2/clone", "exit": 0, "expected": 0, "seconds": 0.01}

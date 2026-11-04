@@ -10,10 +10,10 @@ type QueueTopology struct {
 	Name       string         `json:"name"`
 	Durable    bool           `json:"durable"`
 	AutoDelete bool           `json:"autoDelete"`
-	TTL        int64          `json:"ttl,omitempty"`
-	MaxLength  int            `json:"maxLength,omitempty"`
+	TTL        int64          `json:"ttl,omitzero"`
+	MaxLength  int            `json:"maxLength,omitzero"`
 	Overflow   string         `json:"overflow,omitempty"`
-	Prefetch   int            `json:"prefetch,omitempty"`
+	Prefetch   int            `json:"prefetch,omitzero"`
 	QueueMode  string         `json:"queueMode,omitempty"`
 	Arguments  map[string]any `json:"arguments,omitempty"`
 	DLX        *DLXConfig     `json:"dlx,omitempty"`
@@ -67,11 +67,17 @@ type Message struct {
 // return an error to trigger the queue's retry policy.
 type MessageHandler func(ctx context.Context, msg Message) error
 
-// Messager is the public contract for publish/subscribe operations.
+// Broker is the public contract for publish/subscribe operations.
 // Use this interface in function signatures to allow mocking in tests.
-type Messager interface {
-	// keep old methods for backward compatibility
+type Broker interface {
+	// Publish sends payload to the exchange and routing keys that the
+	// topology binds to queueName, and waits for the broker's confirms.
 	Publish(ctx context.Context, queueName string, payload Event) error
+	// Subscribe consumes queueName as serviceName, calling handler for each
+	// delivery, until ctx ends, Close is called or an unrecoverable error
+	// occurs.
 	Subscribe(ctx context.Context, queueName string, serviceName string, handler MessageHandler) error
+	// Close stops every subscription and closes the publisher; it is
+	// terminal.
 	Close() error
 }

@@ -1,0 +1,110 @@
+{
+  "tool": "semgrep",
+  "generated_at": "2026-11-04T06:23:46Z",
+  "mode": "full",
+  "runner": "docker semgrep/semgrep:1.95.0@sha256:30e6afa99ebd8e7b4115d4904898108eb4bf77025819e9263f09cf14e6f6e549 (.semgrep.yml p/golang p/gosec p/secrets)",
+  "summary": {
+    "total": 12,
+    "errors": 0,
+    "warnings": 12,
+    "info": 0
+  },
+  "findings": [
+    {
+      "severity": "WARNING",
+      "path": "httpclient/httpclient_test.go",
+      "line": 68,
+      "column": 13,
+      "check_id": "go.lang.security.audit.crypto.missing-ssl-minversion.missing-ssl-minversion",
+      "message": "`MinVersion` is missing from this TLS configuration.  By default, as of Go 1.22, TLS 1.2 is currently used as the minimum. General purpose web applications should default to TLS 1.3 with all other protocols disabled.  Only where it is known that a web server must support legacy clients with unsupported an insecure browsers (such as Internet Explorer 10), it may be necessary to enable TLS 1.0 to provide support. Add `MinVersion: tls.VersionTLS13' to the TLS configuration to bump the minimum version to TLS 1.3."
+    },
+    {
+      "severity": "WARNING",
+      "path": "internal/backoff/backoff.go",
+      "line": 5,
+      "column": 3,
+      "check_id": "go.lang.security.audit.crypto.math_random.math-random-used",
+      "message": "Do not use `math/rand`. Use `crypto/rand` instead."
+    },
+    {
+      "severity": "WARNING",
+      "path": "internal/integrationtest/container.go",
+      "line": 96,
+      "column": 1,
+      "check_id": "context-must-be-first-param",
+      "message": "context.Context must be the first parameter of any function."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/amqp.go",
+      "line": 72,
+      "column": 26,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/amqp.go",
+      "line": 266,
+      "column": 30,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/amqp.go",
+      "line": 271,
+      "column": 30,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/amqp.go",
+      "line": 503,
+      "column": 27,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/amqp.go",
+      "line": 561,
+      "column": 14,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/messaging.go",
+      "line": 148,
+      "column": 26,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/messaging.go",
+      "line": 166,
+      "column": 33,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/messaging.go",
+      "line": 182,
+      "column": 26,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    },
+    {
+      "severity": "WARNING",
+      "path": "messaging/messaging.go",
+      "line": 236,
+      "column": 61,
+      "check_id": "no-context-background-in-request-path",
+      "message": "Do not create context.Background() in request handlers. Propagate the caller's ctx."
+    }
+  ]
+}

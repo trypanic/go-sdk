@@ -1,0 +1,20 @@
+$ DOCKER_HOST=unix:///tmp/DEPS-review2/absent.sock go test -count=1 -v -tags integration -short -run "Integration|TestBindLoopback" ./postgres ./mongo ./messaging ./internal/integrationtest
+=== RUN   TestPostgresIntegration
+    postgres_integration_test.go:26: requires local PostgreSQL container
+--- SKIP: TestPostgresIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/postgres  0.100s
+=== RUN   TestMongoIntegration
+    mongo_integration_test.go:26: requires local MongoDB container
+--- SKIP: TestMongoIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/mongo 0.101s
+=== RUN   TestRabbitMQIntegration
+    messaging_integration_test.go:24: requires local RabbitMQ container
+--- SKIP: TestRabbitMQIntegration (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/messaging 0.094s
+=== RUN   TestBindLoopbackPreservesReaperLifecycle
+--- PASS: TestBindLoopbackPreservesReaperLifecycle (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/internal/integrationtest  0.112s

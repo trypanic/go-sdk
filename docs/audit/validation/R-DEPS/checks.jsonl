@@ -1,0 +1,36 @@
+{"name": "integration-staticcheck", "command": ["staticcheck", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.57}
+{"name": "integration-repeat", "command": ["go", "test", "-race", "-tags", "integration", "-run", "Integration", "-count=2", "-shuffle=on", "-timeout=10m", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 7.01}
+{"name": "integration-short", "command": ["go", "test", "-tags", "integration", "-short", "./..."], "exit": 0, "seconds": 0.75}
+{"name": "normal-short", "command": ["go", "test", "-short", "./..."], "exit": 0, "seconds": 0.55}
+{"name": "integration-vet", "command": ["go", "vet", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.3}
+{"name": "release-before", "command": ["task", "release:check"], "exit": 201, "seconds": 8.88}
+{"name": "v2-build", "command": ["go", "build", "./..."], "exit": 0, "seconds": 0.46}
+{"name": "v2-vet", "command": ["go", "vet", "./..."], "exit": 0, "seconds": 1.14}
+{"name": "v2-task-test", "command": ["task", "test"], "exit": 0, "seconds": 2.7}
+{"name": "go126-short", "command": ["env", "GOTOOLCHAIN=go1.26.10", "go", "test", "-short", "./..."], "exit": 0, "seconds": 17.94}
+{"name": "v2-integration", "command": ["task", "test:integration"], "exit": 0, "seconds": 14.34}
+{"name": "v2-coverage", "command": ["go", "test", "-short", "-coverprofile=/tmp/DEPS-validation/coverage.out", "./..."], "exit": 0, "seconds": 4.21}
+{"name": "go126-integration-short", "command": ["env", "GOTOOLCHAIN=go1.26.10", "go", "test", "-tags", "integration", "-short", "./..."], "exit": 0, "seconds": 5.78}
+{"name": "v2-lint", "command": ["env", "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download", "GOSUMDB=off", "task", "lint"], "exit": 0, "seconds": 5.14}
+{"name": "v2-check", "command": ["task", "check"], "exit": 0, "seconds": 42.81}
+{"name": "v2-hooks", "command": ["task", "precommit:run"], "exit": 0, "seconds": 6.3}
+{"name": "v2-integration-vuln", "command": ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "-tags", "integration", "./..."], "exit": 1, "seconds": 7.87}
+{"name": "release-initial-v2", "command": ["task", "release:check", "BASE=none", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 22.6}
+{"name": "release-cross-major", "command": ["task", "release:check", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 21.16}
+{"name": "integration-test-vuln", "command": ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "-tags=integration", "-test", "./postgres/...", "./mongo/...", "./messaging/..."], "exit": 0, "seconds": 4.67}
+{"name": "fixed-integration", "command": ["task", "test:integration"], "exit": 0, "seconds": 6.58}
+{"name": "fixed-go126-integration-short", "command": ["env", "GOTOOLCHAIN=go1.26.10", "go", "test", "-tags", "integration", "-short", "./..."], "exit": 0, "seconds": 1.71}
+{"name": "fixed-integration-staticcheck", "command": ["staticcheck", "-tags", "integration", "./..."], "exit": 0, "seconds": 1.89}
+{"name": "fixed-check", "command": ["task", "check"], "exit": 0, "seconds": 18.99}
+{"name": "release-initial-v2-corrected", "command": ["task", "release:check", "BASE=none", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 6.19}
+{"name": "final-format", "command": ["gofmt", "-l", "."], "exit": 0, "seconds": 0.03}
+{"name": "integration-short-no-docker", "command": ["env", "DOCKER_HOST=unix:///tmp/rdeps-no-docker.sock", "go", "test", "-tags", "integration", "-short", "-run", "Integration", "-count=1", "-v", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 0.58}
+{"name": "release-final-comparison", "command": ["task", "release:check", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 4.46}
+{"name": "final-lint", "command": ["env", "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download", "GOSUMDB=off", "task", "lint"], "exit": 0, "seconds": 4.19}
+{"name": "final-diff-check", "command": ["git", "diff", "--check", "5e57bba..HEAD"], "exit": 0, "seconds": 0.01}
+{"name": "final-integration-vet", "command": ["go", "vet", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.66}
+{"name": "release-final-default", "command": ["task", "release:check"], "exit": 201, "seconds": 6.29}
+{"name": "agents_example-build", "command": ["go", "build", "-o", "/tmp/DEPS-validation/agents_example", "/tmp/DEPS-validation/agents_example.go"], "exit": 0, "seconds": 0.71}
+{"name": "agents_example-vet", "command": ["go", "vet", "/tmp/DEPS-validation/agents_example.go"], "exit": 0, "seconds": 0.15}
+{"name": "readme_example-build", "command": ["go", "build", "-o", "/tmp/DEPS-validation/readme_example", "/tmp/DEPS-validation/readme_example.go"], "exit": 0, "seconds": 0.25}
+{"name": "readme_example-vet", "command": ["go", "vet", "/tmp/DEPS-validation/readme_example.go"], "exit": 0, "seconds": 0.09}

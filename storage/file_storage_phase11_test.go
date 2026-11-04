@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestFileStorageAppendReturnsErrorOnUnwritableDir(t *testing.T) {
@@ -27,9 +27,9 @@ func TestFileStorageAppendReturnsErrorOnUnwritableDir(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Append must return error when target dir is read-only")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != ERR_STORAGE_ACCESS_DENIED {
+		t.Fatalf("expected ERR_STORAGE_ACCESS_DENIED, got %v", err)
 	}
 }
 
@@ -49,9 +49,9 @@ func TestFileStorageGetReturnsErrorOnCorruptJSON(t *testing.T) {
 	if err == nil {
 		t.Fatalf("List must return error on corrupt JSON")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != ERR_STORAGE_CORRUPTED {
+		t.Fatalf("expected ERR_STORAGE_CORRUPTED, got %v", err)
 	}
 }
 
@@ -77,9 +77,9 @@ func TestFileStorageDeleteReturnsErrorWhenRemovalFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Delete must return error when unlink fails")
 	}
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != ERR_STORAGE_ERROR {
-		t.Fatalf("expected ERR_STORAGE_ERROR, got %v", err)
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != ERR_STORAGE_ACCESS_DENIED {
+		t.Fatalf("expected ERR_STORAGE_ACCESS_DENIED, got %v", err)
 	}
 }
 
@@ -153,7 +153,7 @@ func TestFileStorageGetAllRoundTripsKeys(t *testing.T) {
 
 // Compile-time interface conformance: split interfaces.
 var (
-	_ KVStorager[int]        = (*MemoryStorage[int])(nil)
-	_ AppendLogStorager[int] = (*MemoryStorage[int])(nil)
-	_ AppendLogStorager[int] = (*FileStorage[int])(nil)
+	_ KVStore[int]   = (*MemoryStorage[int])(nil)
+	_ AppendLog[int] = (*MemoryStorage[int])(nil)
+	_ AppendLog[int] = (*FileStorage[int])(nil)
 )

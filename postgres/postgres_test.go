@@ -1,21 +1,21 @@
-package database
+package postgres
 
 import (
 	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {
-	_, err := NewPostgresClient(Config{})
+	_, err := New(Config{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
@@ -25,17 +25,17 @@ func TestNewPostgresClient_MissingDSN_ReturnsConfigError(t *testing.T) {
 }
 
 func TestNewPostgresClient_DoesNotReadEnvVar(t *testing.T) {
-	// Setting POSTGRES_DSN must not influence NewPostgresClient — the env
-	// fallback is now opt-in via NewPostgresClientFromEnv.
+	// Setting POSTGRES_DSN must not influence New — the env
+	// fallback is now opt-in via NewFromEnv.
 	t.Setenv("POSTGRES_DSN", "postgres://from-env:secret@host/db")
 
-	_, err := NewPostgresClient(Config{})
+	_, err := New(Config{})
 	if err == nil {
 		t.Fatal("expected error when DSN missing despite env var being set")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
 		t.Fatalf("expected ERR_SYSTEM_CONFIG_INVALID, got %v", err)
 	}
 }
@@ -43,13 +43,13 @@ func TestNewPostgresClient_DoesNotReadEnvVar(t *testing.T) {
 func TestNewPostgresClientFromEnv_MissingEnvReturnsConfigError(t *testing.T) {
 	t.Setenv("POSTGRES_DSN", "")
 
-	_, err := NewPostgresClientFromEnv(Config{})
+	_, err := NewFromEnv(Config{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok || appErr.Code() != errorkit.ERR_SYSTEM_CONFIG_INVALID {
 		t.Fatalf("expected ERR_SYSTEM_CONFIG_INVALID, got %v", err)
 	}
 }

@@ -7,14 +7,14 @@ String transformation utilities for normalizing identifiers and stripping Markdo
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `NormalizeText` | Function | Convert a human-readable string into a lowercase, underscore-separated, alphanumeric-only identifier |
-| `RemoveMarkdownCodeBlock` | Function | Strip a wrapping ` ``` ` / ` ```lang ` code fence from a string when it covers the entire content |
+| `RemoveMarkdownCodeBlock` | Function | Strip a wrapping ` ``` ` / ` ```lang ` / `~~~` code fence from a string when it is exactly one block covering the entire content |
 
 ---
 
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/stringutils"
+import "github.com/trypanic/go-sdk/v2/stringutils"
 
 // Normalize a field name or category path
 key := stringutils.NormalizeText("Men's Clothing & Accessories")
@@ -44,15 +44,17 @@ func NormalizeText(input string) string
 
 Transforms `input` into a lowercase, underscore-delimited token suitable for use as an identifier or map key.
 
-**Steps applied in order:**
-1. Convert all characters to lowercase with `strings.ToLower`.
-2. Replace every space character (`U+0020`) with an underscore (`_`).
-3. Strip every character that is not an ASCII letter (`a-z`), ASCII digit (`0-9`), or underscore (`_`).
+**Steps applied to each character, in a single pass (no regular expression):**
+1. Convert it to lowercase (`unicode.ToLower`, the same mapping as `strings.ToLower`).
+2. Replace a space character (`U+0020`) with an underscore (`_`).
+3. Drop it unless it is an ASCII letter (`a-z`), ASCII digit (`0-9`), or underscore (`_`).
 
 **Edge cases:**
-- Characters outside the ASCII range (e.g., accented letters, CJK) are removed entirely.
+- Characters outside the ASCII range (e.g., accented letters, CJK) are removed entirely, with the lowercase exception below.
 - Consecutive spaces produce consecutive underscores (e.g., `"a  b"` → `"a__b"`).
-- An empty string or a string of only non-matching characters returns `""`.
+- An empty string or a string of only non-matching characters returns `""` (for example `"日本語"` → `""`).
+- The result is lossy and **not injective**: different inputs can collide (`"a-b"` and `"ab"` both give `"ab"`; `"Café"` and `"caf"` both give `"caf"`). Do not use it as a unique key without handling collisions and the empty result.
+- Lowercasing runs before the ASCII filter, so the few non-ASCII letters whose lowercase form is ASCII are kept: the Kelvin sign `U+212A` gives `"k"` and `"İstanbul"` gives `"istanbul"`.
 
 **Error conditions:** None.
 
@@ -64,20 +66,22 @@ Transforms `input` into a lowercase, underscore-delimited token suitable for use
 func RemoveMarkdownCodeBlock(input string) string
 ```
 
-Returns the inner content of `input` if — and only if — the entire string (after trimming leading/trailing whitespace) is wrapped in a single Markdown code fence. Otherwise returns `input` unchanged.
+Returns the inner content of `input` if — and only if — the entire string (after trimming leading/trailing whitespace) is exactly one Markdown fenced code block. Otherwise returns `input` unchanged.
 
-**Fence formats recognised:**
-- ` ``` `
-- ` ```json `, ` ```go `, or any other language tag immediately after the opening ` ``` `
+**Grammar (parsed line by line):**
+- **Opening fence** (first line): three or more backticks (` ``` `, ` ```` `) or tildes (`~~~`), followed by an optional info string. The info string may contain any characters (`json`, `python3`, `c++`, `objective-c`, `js title="a.js"`, trailing spaces), except that a backtick fence's info string must not contain a backtick.
+- **Closing fence** (last line): the same fence character repeated at least as many times as in the opening fence, optionally surrounded by spaces or tabs.
+- **No inner fence line:** if any line between them starts (after spaces or tabs) with at least as many fence characters as the opening fence, the input is not a single block and is returned as-is. A longer outer fence (` ```` `) may therefore wrap shorter inner fences (` ``` `).
 
 **Line ending support:** Both `\n` and `\r\n` are handled.
 
-**The outer fence must span the whole string.** If there is any content before the opening fence or after the closing fence (ignoring trailing spaces/tabs), the string is returned as-is.
+**The outer fence must span the whole string.** If there is any content before the opening fence or after the closing fence, the string is returned as-is.
 
 **Edge cases:**
 - Leading and trailing whitespace around the fence is trimmed before matching, and the extracted content is also trimmed before being returned.
-- Nested or multiple fences within the content are not altered.
-- An empty code block (` ```\n\n``` `) returns `""`.
+- Several blocks (for example two ` ```json ` blocks with prose between them) are returned unchanged, not merged.
+- An empty code block (` ```\n``` ` or ` ```\n\n``` `) returns `""`.
+- Two backticks (` `` `) are not a fence; mixed fence characters (` ``` ` … `~~~`) do not match.
 
 **Error conditions:** None.
 
@@ -85,21 +89,26 @@ Returns the inner content of `input` if — and only if — the entire string (a
 
 ## Real-World Usage
 
-### LLM gateway — stripping code fences from model output
+### LLM responses — stripping code fences from model output
 
-`RemoveMarkdownCodeBlock` is typically called immediately after receiving a raw LLM response. Models often wrap JSON answers in a ` ```json … ``` ` fence; this call removes the fence before `json.Unmarshal` is attempted.
+`RemoveMarkdownCodeBlock` is typically called right after receiving a raw LLM
+response. Models often wrap JSON answers in a ` ```json … ``` ` fence; this
+call removes the fence before `json.Unmarshal` is attempted.
 
 ```go
-raw, err := l.callLLM(ctx, llmConfig, systemPrompt, chunk)
+answer, err := client.Execute(ctx, cfg) // *llmclient.Client, returns the message content
 if err != nil {
-    return nil, wrapExternal(err, fmt.Sprintf("LLM call failed on chunk %d", i))
+    return nil, err
 }
 
-raw = stringutils.RemoveMarkdownCodeBlock(raw)
+raw := stringutils.RemoveMarkdownCodeBlock(answer)
 
-var partial []entities.EnrichAttribute
-if err := json.Unmarshal([]byte(raw), &partial); err != nil {
-    return nil, wrapExternal(err, fmt.Sprintf("unmarshal failed on chunk %d", i))
+var attrs []Attribute
+if err := json.Unmarshal([]byte(raw), &attrs); err != nil {
+    return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
+        errorkit.WithReason("model answer is not valid JSON"),
+        errorkit.WithWrapped(err),
+    )
 }
 ```
 
@@ -107,7 +116,7 @@ if err := json.Unmarshal([]byte(raw), &partial); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-Both functions are pure and stateless. The compiled regular expressions (`codeBlockRegex`) are package-level variables initialised once at program start via `regexp.MustCompile`. Both functions are safe for concurrent use without additional synchronisation.
+Both functions are pure and stateless and are safe for concurrent use without additional synchronisation. Neither function uses regular expressions: `NormalizeText` is a single pass over the input that allocates only the result, and `RemoveMarkdownCodeBlock` parses the input line by line.
 
 ---
 
@@ -115,5 +124,5 @@ Both functions are pure and stateless. The compiled regular expressions (`codeBl
 
 | Package | Role |
 |---|---|
-| `regexp` | Compiled regular expression for fence detection |
-| `strings` | Lowercasing, space replacement, and trimming |
+| `unicode`, `unicode/utf8` | Lowercasing non-ASCII characters in `NormalizeText` |
+| `strings` | Result building, fence parsing, and trimming |

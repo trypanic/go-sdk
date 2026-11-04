@@ -2,7 +2,8 @@ package hertz
 
 import (
 	"context"
-	"strings"
+	"encoding/json"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/middlewares/server/recovery"
@@ -12,25 +13,38 @@ import (
 
 	hertztracing "github.com/hertz-contrib/obs-opentelemetry/tracing"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpserver"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/httpserver"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
+	"github.com/trypanic/go-sdk/v2/logger"
 )
 
-// New builds a Hertz-backed httpserver.HTTPServer using the compatibility
+// New builds a Hertz-backed httpserver.Server using the compatibility
 // profile (every built-in middleware on, audit redacted by default,
 // 404/405 for unknown routes/methods, wall-clock Reply timestamp).
-func New(cfg httpserver.ServerConfig) httpserver.HTTPServer {
+func New(cfg httpserver.ServerConfig) *Server {
 	return NewWithOptions(cfg, httpserver.DefaultServerOptions())
 }
 
-// NewWithOptions builds a Hertz-backed httpserver.HTTPServer with explicit
+// NewWithOptions builds a Hertz-backed httpserver.Server with explicit
 // middleware switches. Pass DefaultServerOptions() and override fields for
 // fine-grained control.
-func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) httpserver.HTTPServer {
+func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions) *Server {
+	return newServer(cfg, srvOpts, nil)
+}
+
+func newServer(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOptions, base *logger.Logger) *Server {
 	srvOpts = applyOptionDefaults(srvOpts)
 
-	opts := []config.Option{server.WithHostPorts(cfg.Address())}
+	opts := []config.Option{
+		server.WithHostPorts(cfg.Address()),
+		// The caller's context bounds Shutdown; Hertz's own cap (5 s by
+		// default) would cut the drain short and still report success.
+		server.WithExitWaitTime(shutdownWaitCeiling),
+		// Without it Hertz answers an unknown method with the NoRoute
+		// response and never calls the NoMethod handler.
+		server.WithHandleMethodNotAllowed(srvOpts.EnableNoMethod),
+	}
 	if cfg.ReadTimeout > 0 {
 		opts = append(opts, server.WithReadTimeout(cfg.ReadTimeout))
 	}
@@ -38,22 +52,41 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		opts = append(opts, server.WithWriteTimeout(cfg.WriteTimeout))
 	}
 
-	var (
-		engine    *server.Hertz
-		tracerCfg *hertztracing.Config
-	)
+	var tracerCfg *hertztracing.Config
 	if srvOpts.EnableTracing {
 		tracerOpt, cfgT := hertztracing.NewServerTracer()
 		tracerCfg = cfgT
-		engine = server.Default(append([]config.Option{tracerOpt}, opts...)...)
+		opts = append([]config.Option{tracerOpt}, opts...)
+	}
+	// server.New, not server.Default: Default always adds Hertz's own
+	// recovery, which would ignore EnableRecovery and log panics through
+	// hlog instead of the SDK logger.
+	engine := server.New(opts...)
+
+	// The SDK recovery is the outermost middleware, so it also covers
+	// panics in the built-in middlewares below.
+	if srvOpts.EnableRecovery {
+		handler := RecoveryHandler
+		if base != nil {
+			handler = func(ctx context.Context, c *app.RequestContext, err any, stack []byte) {
+				RecoveryHandler(base.IntoContext(ctx), c, err, stack)
+			}
+		}
+		engine.Use(recovery.Recovery(recovery.WithRecoveryHandler(handler)))
+	}
+	if base != nil {
+		engine.Use(RequestLoggerMiddleware(base))
+	}
+	if srvOpts.EnableTracing {
 		engine.Use(hertztracing.ServerMiddleware(tracerCfg))
-	} else {
-		engine = server.Default(opts...)
 	}
 
-	if srvOpts.EnableRecovery {
-		engine.Use(recovery.Recovery(recovery.WithRecoveryHandler(RecoveryHandler)))
+	w := &Server{
+		engine:    engine,
+		config:    cfg,
+		replyOpts: srvOpts.Reply,
 	}
+	engine.Use(w.trackInFlight)
 	if srvOpts.EnableAudit {
 		engine.Use(hertzInboundAuditMiddleware(srvOpts.Audit))
 	}
@@ -65,19 +98,14 @@ func NewWithOptions(cfg httpserver.ServerConfig, srvOpts httpserver.ServerOption
 		engine.NoMethod(noMethodHandler(srvOpts))
 	}
 	if srvOpts.EnableHealth {
-		engine.GET("/health", health())
+		engine.GET(srvOpts.HealthPath, health(srvOpts.HealthCheck))
 	}
 
-	return &wrapperHertzServer{
-		engine:    engine,
-		config:    cfg,
-		replyOpts: srvOpts.Reply,
-	}
+	return w
 }
 
-// applyOptionDefaults backfills any zero-valued fields in srvOpts with
-// the values from DefaultServerOptions. This keeps NewWithOptions safe
-// when callers construct ServerOptions partially.
+// applyOptionDefaults fills non-boolean defaults. Boolean zero values remain
+// disabled in NewWithOptions; NewServer starts with all defaults enabled.
 func applyOptionDefaults(o httpserver.ServerOptions) httpserver.ServerOptions {
 	d := httpserver.DefaultServerOptions()
 	if o.NoRouteStatus == 0 {
@@ -89,6 +117,9 @@ func applyOptionDefaults(o httpserver.ServerOptions) httpserver.ServerOptions {
 	if o.Audit.BodyRedactor == nil {
 		o.Audit.BodyRedactor = d.Audit.BodyRedactor
 	}
+	if o.HealthPath == "" {
+		o.HealthPath = d.HealthPath
+	}
 	if o.Reply.Layout == "" {
 		o.Reply.Layout = d.Reply.Layout
 	}
@@ -98,13 +129,18 @@ func applyOptionDefaults(o httpserver.ServerOptions) httpserver.ServerOptions {
 	return o
 }
 
-// RecoveryHandler is the Hertz panic-recovery handler installed when
-// ServerOptions.EnableRecovery is true.
+// RecoveryHandler is the Hertz panic-recovery handler installed, as the
+// outermost middleware, when ServerOptions.EnableRecovery is true. It logs
+// one structured error line (with trace_id/span_id and the panic stack in
+// "panic_stack") through logger.CtxOrGlobal(ctx) and aborts with HTTP 500.
 func RecoveryHandler(ctx context.Context, c *app.RequestContext, err any, stack []byte) {
 	appErr := errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
 		errorkit.WithReason("panic recovered: %v", err),
 	)
-	logger.ErrorCtx(ctx, appErr, "httpserver: panic recovered")
+	event := logger.WithTrace(ctx, logger.CtxOrGlobal(ctx).Error())
+	logger.WithErrorKit(event, appErr).
+		Str("panic_stack", string(stack)).
+		Msg("httpserver: panic recovered")
 	c.AbortWithStatus(consts.StatusInternalServerError)
 }
 
@@ -132,7 +168,7 @@ func wrapHandlerFunc(o httpserver.ServerOptions) app.HandlerFunc {
 	h := o.NoRouteHandler
 	replyOpts := o.Reply
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: replyOpts}
 		h(ctx, hctx)
 	}
 }
@@ -141,86 +177,101 @@ func wrapMethodHandlerFunc(o httpserver.ServerOptions) app.HandlerFunc {
 	h := o.NoMethodHandler
 	replyOpts := o.Reply
 	return func(ctx context.Context, c *app.RequestContext) {
-		hctx := &hertzContext{requestCtx: c, replyOpts: replyOpts}
+		hctx := &hertzContext{ctx: ctx, requestCtx: c, replyOpts: replyOpts}
 		h(ctx, hctx)
 	}
 }
 
-// hertzInboundAuditMiddleware logs one structured entry per inbound request.
-// Bodies pass through audit.BodyRedactor; CaptureBodies=false (default)
-// combined with DefaultBodyRedactor logs `[REDACTED]` for any non-empty body.
+// hertzInboundAuditMiddleware logs one structured entry per inbound request
+// through logger.CtxOrGlobal(ctx), with trace_id/span_id from the active
+// span. It records the method, the path (never the query string), the
+// status, the headers with credential values masked by the shared redact
+// rules, the bodies and the duration.
+//
+// Bodies follow AuditOptions: with CaptureBodies=false (default) every
+// non-empty body is logged as "[REDACTED]" whatever BodyRedactor is set;
+// with CaptureBodies=true they pass through BodyRedactor. Streamed bodies
+// are never read and are logged as "[STREAM]".
 func hertzInboundAuditMiddleware(audit httpserver.AuditOptions) app.HandlerFunc {
-	redact := audit.BodyRedactor
-	if redact == nil {
-		redact = httpserver.DefaultBodyRedactor
+	redactBody := httpserver.BodyRedactor(httpserver.DefaultBodyRedactor)
+	if audit.CaptureBodies && audit.BodyRedactor != nil {
+		redactBody = audit.BodyRedactor
 	}
 	return func(ctx context.Context, c *app.RequestContext) {
-		//start := time.Now()
-		//
-		//method := string(c.Method())
-		//path := string(c.Path())
-
-		reqBodyRaw := c.Request.Body()
-		reqBody := make([]byte, len(reqBodyRaw))
-		copy(reqBody, reqBodyRaw)
-
-		reqHeaders := make(map[string]string)
-		c.Request.Header.VisitAll(func(key, value []byte) {
-			if !isInboundSensitiveHeader(string(key)) {
-				reqHeaders[string(key)] = string(value)
-			}
-		})
+		start := time.Now()
 
 		c.Next(ctx)
 
-		//statusCode := c.Response.StatusCode()
-		//respBody := c.Response.Body()
-
-		respHeaders := make(map[string]string)
-		c.Response.Header.VisitAll(func(key, value []byte) {
-			if !isInboundSensitiveHeader(string(key)) {
-				respHeaders[string(key)] = string(value)
-			}
+		reqHeaders := map[string]string{}
+		c.Request.Header.VisitAll(func(key, value []byte) {
+			reqHeaders[string(key)] = inboundHeaderValue(string(key), string(value))
 		})
+		respHeaders := map[string]string{}
+		c.Response.Header.VisitAll(func(key, value []byte) {
+			respHeaders[string(key)] = inboundHeaderValue(string(key), string(value))
+		})
+		// Hertz keeps Set-Cookie outside VisitAll.
+		c.Response.Header.VisitAllCookie(func(key, _ []byte) {
+			respHeaders["Set-Cookie"] = redact.Placeholder
+		})
+		reqHeadersJSON, _ := json.Marshal(reqHeaders)
+		respHeadersJSON, _ := json.Marshal(respHeaders)
 
-		//reqHeadersJSON, _ := json.Marshal(reqHeaders)
-		//respHeadersJSON, _ := json.Marshal(respHeaders)
-		//
-		//reqBodyOut := redact(reqBody)
-		//respBodyOut := redact(respBody)
+		reqBody := auditBody(c.Request.IsBodyStream(), c.Request.BodyBytes(), redactBody)
+		respBody := auditBody(c.Response.IsBodyStream(), c.Response.BodyBytes(), redactBody)
 
-		//logger.
-		//	WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
-		//	Str("event", "http.audit.inbound").
-		//	Str("method", method).
-		//	Str("path", path).
-		//	Int("status_code", statusCode).
-		//	RawJSON("request.headers", reqHeadersJSON).
-		//	Str("request.body", string(reqBodyOut)).
-		//	RawJSON("response.headers", respHeadersJSON).
-		//	Str("response.body", string(respBodyOut)).
-		//	Int64("duration_ms", time.Since(start).Milliseconds()).
-		//	Msg("http: inbound audit")
+		logger.
+			WithTrace(ctx, logger.CtxOrGlobal(ctx).Info()).
+			Str("event", "http.audit.inbound").
+			Str("method", string(c.Method())).
+			Str("path", string(c.Path())).
+			Int("status_code", c.Response.StatusCode()).
+			RawJSON("request.headers", reqHeadersJSON).
+			Str("request.body", reqBody).
+			RawJSON("response.headers", respHeadersJSON).
+			Str("response.body", respBody).
+			Int64("duration_ms", time.Since(start).Milliseconds()).
+			Msg("http: inbound audit")
 	}
 }
 
-var sensitiveInboundHeaderKeys = map[string]struct{}{
-	"authorization":  {},
-	"x-api-key":      {},
-	"api-key":        {},
-	"cookie":         {},
-	"set-cookie":     {},
-	"x-auth-token":   {},
-	"x-access-token": {},
+// auditBody returns the log form of a body. Streams are not consumed.
+func auditBody(stream bool, body []byte, redactBody httpserver.BodyRedactor) string {
+	if stream {
+		return "[STREAM]"
+	}
+	return string(redactBody(body))
 }
 
+// isInboundSensitiveHeader reports whether an inbound header may carry a
+// credential; it applies the rules shared with httprequest.
 func isInboundSensitiveHeader(key string) bool {
-	_, ok := sensitiveInboundHeaderKeys[strings.ToLower(key)]
-	return ok
+	return redact.IsSensitiveHeader(key)
 }
 
-func health() app.HandlerFunc {
+// inboundHeaderValue returns the log form of an inbound header value.
+func inboundHeaderValue(key, value string) string {
+	return redact.HeaderValue(key, value)
+}
+
+// health answers the built-in health endpoint. With a check it is a
+// readiness probe; the check error is logged, never sent to the client.
+func health(check func(context.Context) error) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
-		c.JSON(200, map[string]any{"status": "healthy"})
+		if check != nil {
+			if err := check(ctx); err != nil {
+				appErr := errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
+					errorkit.WithReason("health check failed"),
+					errorkit.WithWrapped(err),
+				)
+				logger.WarnCtx(ctx, appErr, "httpserver: health check failed")
+				c.JSON(consts.StatusServiceUnavailable, map[string]any{"status": "unhealthy"})
+				return
+			}
+		}
+		c.JSON(consts.StatusOK, map[string]any{"status": "healthy"})
 	}
 }
+
+// NewEngine creates a concrete server with direct access to its Hertz engine.
+func NewEngine(cfg httpserver.ServerConfig) *Server { return New(cfg) }

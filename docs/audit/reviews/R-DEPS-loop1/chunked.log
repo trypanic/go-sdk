@@ -1,0 +1,6 @@
+$ go test -race -short -count=1 -run TestChunkedJSONTrailingLimit ./httprequest
+--- FAIL: TestChunkedJSONTrailingLimit (0.00s)
+    chunked_limit_test.go:28: expected non-retriable oversize error; got <nil>
+FAIL
+FAIL    github.com/trypanic/go-sdk/v2/httprequest       0.011s
+FAIL

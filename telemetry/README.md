@@ -1,6 +1,8 @@
 # telemetry
 
 `telemetry` centralizes OpenTelemetry span creation and naming helpers.
+`Span` is an alias of `trace.Span`, so callers rarely need to import
+`go.opentelemetry.io/otel/trace` themselves.
 
 ## Explicit Instrumenter
 
@@ -81,3 +83,37 @@ ctx, span := instrumenter.Messaging(
     telemetry.WithString("queue", "queue-name"),
 )
 ```
+
+`WithString`, `WithInt`, `WithBool` and `WithSpanKind` are span start
+options; the `SetAttr*` helpers set attributes on a running span;
+`RecordError` records the error and sets the span status to `Error` in one
+call (a nil error is a no-op).
+
+## Naming Rules
+
+- Span names describe operations, never the service: the service name and
+  version belong in the TracerProvider's Resource attributes.
+- Pass bounded values (operation and resource names), never IDs or other
+  per-request values, so the number of distinct span names stays small.
+- `example_test.go` holds runnable examples (`go doc -all`, pkg.go.dev).
+
+## Concurrency
+
+`Instrumenter` values and the package-level helpers are safe for concurrent
+use. `InitTracer` replaces the compatibility instrumenter atomically and may
+run concurrently with span creation, but it is meant to be called once at
+startup.
+
+Tracing injection accepts a shared `*telemetry.Instrumenter`. Use
+`grpc.WithServerInstrumenter` / `grpc.WithClientInstrumenter` or
+`messaging.WithInstrumenter`; each keeps its component scope and uses
+`instr.TracerProvider()`. A nil instrumenter selects a no-op provider.
+Hertz tracing remains an exception: its adapter uses the global provider.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.

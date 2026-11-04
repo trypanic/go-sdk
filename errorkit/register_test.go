@@ -216,6 +216,7 @@ func TestOverrideMetadata_ReplacesExisting(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register: %v", err)
 	}
+	t.Cleanup(func() { forgetGlobalCode(code) })
 
 	ok := OverrideMetadata(code, func(m *Metadata) {
 		m.Description = "after"

@@ -1,0 +1,1 @@
+$ go vet /tmp/DEPS-review2/README.md-0.go

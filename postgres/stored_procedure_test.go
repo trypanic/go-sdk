@@ -1,4 +1,4 @@
-package database
+package postgres
 
 import (
 	"context"
@@ -11,24 +11,24 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
-func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsPostgresError(t *testing.T) {
+func TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsEncodingError(t *testing.T) {
 	sut := StoredProcedure[map[string]any]{}
 
-	_, err := sut.QueryRowJSON(context.Background(), "SELECT 1", make(chan int))
+	_, err := sut.QueryRowJSON(t.Context(), "SELECT 1", make(chan int))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 
-	if appErr.Code() != ERR_DB_POSTGRES_ERROR {
-		t.Fatalf("expected code %s, got %s", ERR_DB_POSTGRES_ERROR, appErr.Code())
+	if appErr.Code() != ERR_DB_POSTGRES_ENCODE_FAILED {
+		t.Fatalf("expected code %s, got %s", ERR_DB_POSTGRES_ENCODE_FAILED, appErr.Code())
 	}
 }
 
@@ -44,7 +44,8 @@ func TestStoredProcedureQuery_ScalarRows_ReturnsValues(t *testing.T) {
 	}
 	sut := StoredProcedure[int]{Pool: fakeQuerier{rows: rows}}
 
-	got, err := sut.Query(context.Background(), "SELECT * FROM count_values()")
+	// nosemgrep: defer-rows-close -- StoredProcedure.Query returns []T, not rows.
+	got, err := sut.Query(t.Context(), "SELECT * FROM count_values()")
 	if err != nil {
 		t.Fatalf("Query(count_values) error: %v", err)
 	}
@@ -65,7 +66,7 @@ func TestStoredProcedureQueryRow_ScalarRow_ReturnsUUID(t *testing.T) {
 	}
 	sut := StoredProcedure[uuid.UUID]{Pool: fakeQuerier{rows: rows}}
 
-	got, err := sut.QueryRow(context.Background(), "SELECT * FROM create_batch()")
+	got, err := sut.QueryRow(t.Context(), "SELECT * FROM create_batch()")
 	if err != nil {
 		t.Fatalf("QueryRow(create_batch) error: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestStoredProcedureQueryRow_StructRow_ReturnsNamedFields(t *testing.T) {
 	}
 	sut := StoredProcedure[jobRow]{Pool: fakeQuerier{rows: rows}}
 
-	got, err := sut.QueryRow(context.Background(), "SELECT * FROM get_job()")
+	got, err := sut.QueryRow(t.Context(), "SELECT * FROM get_job()")
 	if err != nil {
 		t.Fatalf("QueryRow(get_job) error: %v", err)
 	}
@@ -169,7 +170,7 @@ func (r *fakeRows) Scan(dest ...any) error {
 		}
 
 		targetValue := reflect.ValueOf(target)
-		if targetValue.Kind() != reflect.Ptr || targetValue.IsNil() {
+		if targetValue.Kind() != reflect.Pointer || targetValue.IsNil() {
 			return fmt.Errorf("scan destination %d is not a non-nil pointer", i)
 		}
 

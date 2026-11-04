@@ -1,0 +1,17 @@
+# semgrep reads this file instead of its built-in ignore list, which drops
+# *_test.go and test/ directories. Without this file a full scan (`.`) skipped
+# every test while a staged scan (explicit file paths) included them, so the
+# same rules gave different results by mode (X2-006).
+#
+# Decision: tests are in scope. Rules that must not apply to tests exclude
+# them per rule with `paths.exclude` in .semgrep.yml.
+:include .gitignore
+
+.git/
+.skillshare/
+.claude/
+.staticanalysis/
+docs/
+vendor/
+dist/
+bin/

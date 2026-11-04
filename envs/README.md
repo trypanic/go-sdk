@@ -8,26 +8,31 @@ Thin wrapper around [`caarlos0/env`](https://github.com/caarlos0/env) that parse
 
 | Symbol | Kind | Purpose |
 |---|---|---|
-| `NewLoader` | `func(c any) error` | Parse environment variables into a config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `Load[T]` | `func[T any]() (T, error)` | Parse environment variables into a new `T` and return it; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `LoadInto` | `func(c any) error` | Parse environment variables into an existing config struct; returns `ERR_SYSTEM_CONFIG_INVALID` on failure |
+| `LoadWithOptions` | `func(c any, opts env.Options) error` | Like `LoadInto`, with `caarlos0/env` options (prefix, custom parsers, injected environment map) |
 
 ---
 
 ## Quick Start
 
 ```go
-import "github.com/trypanic/go-sdk/envs"
+import "github.com/trypanic/go-sdk/v2/envs"
 
 type Config struct {
     Host string `env:"SERVER_HOST" envDefault:"0.0.0.0"`
     Port int    `env:"SERVER_PORT,required"`
 }
 
-func Load() (*Config, error) {
-    cfg := &Config{}
-    if err := envs.NewLoader(cfg); err != nil {
-        return nil, err
-    }
-    return cfg, nil
+cfg, err := envs.Load[Config]()
+if err != nil {
+    return err // *errorkit.AppError, ERR_SYSTEM_CONFIG_INVALID
+}
+
+// Equivalent, filling an existing struct:
+var c Config
+if err := envs.LoadInto(&c); err != nil {
+    return err
 }
 ```
 
@@ -35,14 +40,14 @@ func Load() (*Config, error) {
 
 ## Configuration / Settings
 
-`NewLoader` accepts any pointer to a struct whose fields are annotated with struct tags understood by `caarlos0/env/v11`.
+`LoadInto` accepts any pointer to a struct whose fields are annotated with struct tags understood by `caarlos0/env/v11`.
 
 ### Struct Tag Reference
 
 | Tag | Type | Default | Description |
 |---|---|---|---|
 | `env:"VAR_NAME"` | `string` | — | Maps the field to the named environment variable |
-| `env:"VAR_NAME,required"` | `string` | — | Marks the variable as mandatory; `NewLoader` returns an error if it is absent or empty |
+| `env:"VAR_NAME,required"` | `string` | — | Marks the variable as mandatory; loading fails if it is not set (a set but empty value passes; add `notEmpty` to reject it) |
 | `envDefault:"value"` | `string` | — | Value used when the environment variable is not set |
 
 ### Supported Field Types
@@ -66,7 +71,7 @@ type RedisConfig struct {
     DB       int    `env:"REDIS_DB"       envDefault:"0"`
 }
 
-// Top-level config composes sub-configs; NewLoader parses all fields recursively.
+// Top-level config composes sub-configs; LoadInto parses all fields recursively.
 type Config struct {
     Server ServerConfig
     Redis  RedisConfig
@@ -77,10 +82,46 @@ type Config struct {
 
 ## API Reference
 
-### `NewLoader`
+### `Load`
 
 ```go
-func NewLoader(c any) error
+func Load[T any]() (T, error)
+```
+
+Allocates a `T`, parses the environment into it (same rules and errors as
+`LoadInto`) and returns it. On failure it returns the zero `T` (never a
+partially loaded value) and the `ERR_SYSTEM_CONFIG_INVALID` error. `T` must be
+a struct type, not a pointer; any other type fails with
+`ERR_SYSTEM_CONFIG_INVALID`.
+
+---
+
+### `LoadWithOptions`
+
+```go
+func LoadWithOptions(c any, opts env.Options) error
+```
+
+Same as `LoadInto`, but calls `env.ParseWithOptions(c, opts)` from
+`caarlos0/env/v11`, so callers can set a `Prefix`, custom parsers (`FuncMap`)
+or an `Environment` map that replaces the process environment. The last one
+lets tests of consumer code avoid mutating the process environment:
+
+```go
+import "github.com/caarlos0/env/v11"
+
+var cfg Config
+err := envs.LoadWithOptions(&cfg, env.Options{
+    Environment: map[string]string{"SERVER_PORT": "8080"},
+})
+```
+
+---
+
+### `LoadInto`
+
+```go
+func LoadInto(c any) error
 ```
 
 **Parameters**
@@ -95,14 +136,19 @@ func NewLoader(c any) error
 2. If parsing succeeds, returns `nil`.
 3. If parsing fails for any reason (missing required variable, type conversion error, etc.), returns a structured `*errorkit.AppError` with:
    - Code: `errorkit.ERR_SYSTEM_CONFIG_INVALID` (HTTP 500, non-retriable)
-   - Reason: `"failed to parse environment variables"`
-   - Wrapped: the original `error` from `env.Parse`
+   - Reason: `"failed to parse environment variables: <details>"`, where the details name the
+     variables, fields and types involved but **never the raw values** (a secret assigned to
+     an `int` field does not end up in logs)
+   - Wrapped: a value-free error with the same details whose chain still contains the
+     original `caarlos0/env` error, so `errors.As(err, &env.ParseError{})` and similar
+     checks keep working; `Pretty()`, `PrettyJSON()` and the logger print only the
+     value-free text
 
 **Error conditions**
 
 | Condition | errorkit Code | Notes |
 |---|---|---|
-| Required variable absent or empty | `ERR_SYSTEM_CONFIG_INVALID` | The wrapped error names the missing variable |
+| Required variable not set (or empty with `notEmpty`) | `ERR_SYSTEM_CONFIG_INVALID` | The reason names the missing variable |
 | Value cannot be converted to field type | `ERR_SYSTEM_CONFIG_INVALID` | e.g. `"abc"` for an `int` field |
 | `c` is `nil` or not a pointer | `ERR_SYSTEM_CONFIG_INVALID` | Propagated from `env.Parse` |
 
@@ -111,17 +157,16 @@ func NewLoader(c any) error
 ```go
 import (
     "errors"
-    "github.com/trypanic/go-sdk/errorkit"
-    "github.com/trypanic/go-sdk/envs"
+    "github.com/trypanic/go-sdk/v2/errorkit"
+    "github.com/trypanic/go-sdk/v2/envs"
 )
 
 cfg := &Config{}
-if err := envs.NewLoader(cfg); err != nil {
-    var appErr *errorkit.AppError
-    if errors.As(err, &appErr) {
+if err := envs.LoadInto(cfg); err != nil {
+    if appErr, ok := errors.AsType[*errorkit.AppError](err); ok {
         // appErr.ErrCode  == errorkit.ERR_SYSTEM_CONFIG_INVALID
-        // appErr.Reason   == "failed to parse environment variables"
-        // appErr.Wrapped  == original env.Parse error
+        // appErr.Reason   == "failed to parse environment variables: ..." (no values)
+        // errors.As(err, &env.ParseError{}) reaches the original env.Parse error
         log.Fatalf("config error: %s", appErr.Pretty())
     }
 }
@@ -131,7 +176,7 @@ if err := envs.NewLoader(cfg); err != nil {
 
 ## Real-World Usage
 
-The pattern below shows loading both shared and caller-specific configuration. `envs.NewLoader` is the intended standardised entry point for caller-specific config structs.
+The pattern below shows loading both shared and caller-specific configuration. `envs.LoadInto` is the intended standardised entry point for caller-specific config structs.
 
 ### Caller-specific config alongside shared config
 
@@ -150,14 +195,14 @@ type Auth struct {
 package main
 
 import (
-    "github.com/trypanic/go-sdk/envs"
-    "github.com/trypanic/go-sdk/logger"
+    "github.com/trypanic/go-sdk/v2/envs"
+    "github.com/trypanic/go-sdk/v2/logger"
 )
 
 func main() {
     // Load caller-specific env vars with structured error on failure.
     authConfig := &Auth{}
-    if err := envs.NewLoader(authConfig); err != nil {
+    if err := envs.LoadInto(authConfig); err != nil {
         logger.Panic(err)
     }
 
@@ -167,7 +212,7 @@ func main() {
 
 ### Generic helper pattern
 
-When a caller defines multiple independent config sections, call `NewLoader` once per top-level struct or use a single aggregate struct:
+When a caller defines multiple independent config sections, call `LoadInto` once per top-level struct or use a single aggregate struct:
 
 ```go
 type Config struct {
@@ -177,7 +222,7 @@ type Config struct {
 }
 
 cfg := &Config{}
-if err := envs.NewLoader(cfg); err != nil {
+if err := envs.LoadInto(cfg); err != nil {
     return err
 }
 ```
@@ -186,8 +231,8 @@ if err := envs.NewLoader(cfg); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-- `NewLoader` has no internal state and is safe to call from multiple goroutines simultaneously, though in practice it is called once at process startup before any concurrent code runs.
-- The function reads from the process environment at call time. Environment variables must be set before `NewLoader` is invoked (e.g. via a `.env` file loaded by `godotenv`, or injected by the container runtime).
+- `Load`, `LoadInto` and `LoadWithOptions` have no internal state and are safe to call from multiple goroutines simultaneously, though in practice they are called once at process startup before any concurrent code runs.
+- The functions read from the process environment at call time (`LoadWithOptions` reads `opts.Environment` instead when it is set). Environment variables must be set before loading (e.g. via a `.env` file loaded by `godotenv`, or injected by the container runtime).
 - There is no `Close` or teardown step — the populated struct is a plain Go value.
 
 ---
@@ -197,4 +242,4 @@ if err := envs.NewLoader(cfg); err != nil {
 | Package | Role |
 |---|---|
 | `github.com/caarlos0/env/v11` | Parses environment variables into annotated Go structs |
-| `github.com/trypanic/go-sdk/errorkit` | Wraps parse failures as structured `AppError` with code `ERR_SYSTEM_CONFIG_INVALID` |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Wraps parse failures as structured `AppError` with code `ERR_SYSTEM_CONFIG_INVALID` |

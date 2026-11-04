@@ -1,13 +1,13 @@
-# `database` — PostgreSQL Pool & Generic Stored-Procedure Runner
+# `postgres` — PostgreSQL Pool & Generic Stored-Procedure Runner
 
-Package `database` provides:
+Package `postgres` provides:
 
 1. A pgx/v5 connection-pool factory with explicit DSN handling and pool tuning.
 2. A generic stored-procedure runner that scans rows into `T` via `pgx.RowToStructByNameLax`
    for structs or `pgx.RowTo` for scalars.
-3. An optional, opt-in tracing wrapper that creates one span per stored-procedure call.
+3. A traced stored-procedure constructor and explicit wrappers that create one client span per call.
 
-The package itself does **not** install pgx tracing on the pool — telemetry is opt-in.
+The package itself does **not** install pgx tracing on the pool — driver-level telemetry is opt-in.
 Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx tracing](#adding-pgx-tracing)).
 
 ## Table of Contents
@@ -16,13 +16,14 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Constructors](#constructors)
-  - [NewPostgresClient](#newpostgresclient)
-  - [NewPostgresClientFromEnv](#newpostgresclientfromenv)
+  - [New](#new)
+  - [NewFromEnv](#newfromenv)
 - [DSN Normalization](#dsn-normalization)
 - [Stored Procedures](#stored-procedures)
   - [Interface](#interface)
   - [Constructors](#stored-procedure-constructors)
   - [Method Reference](#method-reference)
+- [Error Handling](#error-handling)
 - [Tracing](#tracing)
   - [Stored-procedure span wrapper](#stored-procedure-span-wrapper)
   - [Adding pgx tracing](#adding-pgx-tracing)
@@ -37,10 +38,10 @@ Callers that want pgx-driver tracing wire it up themselves (see [Adding pgx trac
 | Symbol | Kind | Purpose |
 |---|---|---|
 | `Config` | struct | DSN + pool tuning fields |
-| `PostgresEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewPostgresClientFromEnv` |
-| `NewPostgresClient` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
-| `NewPostgresClientFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `NewPostgresClient` |
-| `normalizePostgresDSN` | func (unexported) | Re-encodes `@` characters in passwords so pgx can parse the DSN |
+| `DSNEnvVar` | const | `"POSTGRES_DSN"` — the only env var the SDK reads, and only via `NewFromEnv` |
+| `New` | func | Builds a `*pgxpool.Pool` from an explicit `Config`; never reads env |
+| `NewFromEnv` | func | Reads `POSTGRES_DSN`, then forwards to `New` |
+| `normalizePostgresDSN` | func (unexported) | Percent-encodes raw `@`, `/`, `?`, `#` in URL passwords so pgx can parse the DSN |
 | `Querier` | interface | `Query` + `QueryRow`; `*pgxpool.Pool` and `pgx.Tx` both implement it |
 | `Execer` | interface | `Exec` |
 | `ClientPort` | interface | `Querier` + `Execer` + `Begin` + `Close` |
@@ -60,10 +61,10 @@ import (
     "log"
     "time"
 
-    "github.com/trypanic/go-sdk/database"
+    "github.com/trypanic/go-sdk/v2/postgres" // package identifier: postgres
 )
 
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             "postgres://user:pass@localhost:5432/mydb?sslmode=disable",
     MaxConnLifetime: time.Hour,
     MaxConnIdleTime: time.Minute,
@@ -80,7 +81,7 @@ type Item struct {
     Name string `db:"name"`
 }
 
-sp := database.NewStoredProcedure[Item](pool)
+sp := postgres.NewStoredProcedure[Item](pool)
 
 ctx := context.Background()
 
@@ -112,8 +113,8 @@ type Config struct {
 }
 ```
 
-The package reads no environment variables in `NewPostgresClient`. The convenience helper
-`NewPostgresClientFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
+The package reads no environment variables in `New`. The convenience helper
+`NewFromEnv` reads `POSTGRES_DSN` once at construction and forwards the rest of
 `Config` unchanged. SDK consumers that prefer a different env var name should read it themselves
 and assign `Config.DSN`.
 
@@ -121,40 +122,63 @@ and assign `Config.DSN`.
 
 ## Constructors
 
-### NewPostgresClient
+### New
 
 ```go
-func NewPostgresClient(cfg Config) (*pgxpool.Pool, error)
+func New(cfg Config) (*pgxpool.Pool, error)
 ```
 
 Behavior:
 
 1. Returns `ERR_SYSTEM_CONFIG_INVALID` if `cfg.DSN` is empty.
-2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@` parse correctly.
+2. Calls `normalizePostgresDSN(cfg.DSN)` so passwords containing `@`, `/`, `?` or `#` parse
+   correctly (see [DSN Normalization](#dsn-normalization)).
 3. Parses with `pgxpool.ParseConfig`, applies the four pool-tuning fields, then connects with a
-   5-second timeout context.
+   5-second timeout context by default. The context variants preserve caller deadlines.
 4. Pings the database. If the ping fails the pool is closed before returning the error.
 
-All errors are wrapped with `errorkit.ERR_DB_POSTGRES_ERROR` and carry the underlying error
-in the payload.
+Errors are classified as described in [Error Handling](#error-handling) (a DSN that cannot be
+parsed is `ERR_SYSTEM_CONFIG_INVALID`, a failed dial is `ERR_DB_POSTGRES_CONNECTION_FAILED`, a
+rejected password is `ERR_DB_POSTGRES_AUTH_FAILED`, …). The driver error is attached as
+the wrapped cause (`errors.Is` / `errors.As` reach `*pgconn.ParseConfigError`,
+`*pgconn.ConnectError`, `context.DeadlineExceeded`, …) and the payload carries only the
+driver's `Error()` text, in which pgx masks the password. The driver error value itself is
+never used as the payload: `*pgconn.ParseConfigError` exports the unredacted connection string.
 
-### NewPostgresClientFromEnv
+### NewFromEnv
 
 ```go
-func NewPostgresClientFromEnv(cfg Config) (*pgxpool.Pool, error)
+func NewFromEnv(cfg Config) (*pgxpool.Pool, error)
 ```
 
-Reads `os.Getenv(PostgresEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
-`NewPostgresClient`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
+Reads `os.Getenv(DSNEnvVar)` (`"POSTGRES_DSN"`) and assigns it to `cfg.DSN` before calling
+`New`. Returns `ERR_SYSTEM_CONFIG_INVALID` if the env var is unset or empty.
 
 ---
 
 ## DSN Normalization
 
-PostgreSQL passwords often contain `@`, e.g. `postgres://user:pa@ss@host/db`.
-`pgxpool.ParseConfig` cannot parse the raw form. `normalizePostgresDSN` percent-encodes the
-password (and only the password) so the DSN becomes valid before parsing. The function is
-idempotent — passing an already-encoded DSN returns it unchanged.
+PostgreSQL passwords often contain `@`, `/`, `?` or `#`, e.g. `postgres://user:pa@s/s@host/db`.
+`pgxpool.ParseConfig` cannot parse every raw form (a `/` ends the host part, an extra `@`
+is read as part of the host). For `postgres://` and `postgresql://` URLs,
+`normalizePostgresDSN` percent-encodes the user and the password (and nothing else) before
+parsing. Key/value DSNs (`host=… password=…`) are passed through unchanged.
+
+Rules:
+
+- The userinfo ends at the **last `@` before the first `/`, `?` or `#` that follows the first
+  `@`**. A password may therefore contain `@`, `/`, `?`, `#` and `:`, but an `@` inside the
+  password must not be followed by `/`, `?` or `#` later in the same password.
+- If no `@` appears before the first `/`, `?` or `#` and that prefix already reads as
+  `host[:port]` (for example `postgres://db:5432/app@x`, where the `@` belongs to the database
+  name), the DSN is left unchanged. A password whose text before its first `/`, `?` or `#` is
+  made only of digits (`user:1234/x@host`) is ambiguous with a port: percent-encode it.
+- Existing percent-escapes are decoded first, so an already encoded DSN is returned
+  unchanged (the function is idempotent). A literal `%` in a raw password must be written
+  as `%25`.
+
+A fuzz target (`FuzzNormalizePostgresDSN`) checks idempotency and the round trip through
+`pgconn.ParseConfig` for passwords inside these rules.
 
 ---
 
@@ -182,13 +206,14 @@ The `Pool` field on the concrete `StoredProcedure[T]` is a `Querier`, so `*pgxpo
 | Constructor | Tracing |
 |---|---|
 | `NewStoredProcedure[T](pool)` | Auto-traced via the global OTel tracer (compatibility) |
-| `WrapWithTracing[T](sp)` | Same — explicit wrap |
+| `WrapWithTracing[T](sp)` | Same — explicit wrap of an untraced `StoredProcedure[T]{Pool: pool}`; do not wrap the result of `NewStoredProcedure` again (two spans per call) |
 | `WrapWithInstrumenter[T](sp, instrumenter)` | Wraps with an explicit `*telemetry.Instrumenter`; pass `nil` to disable tracing entirely |
 
 ### Method Reference
 
 - **`QueryRow`** — runs `query` with the given positional `args`, returns the single row scanned
-  into `T`. Pgx-level errors are wrapped with `ERR_DB_POSTGRES_ERROR`.
+  into `T`. No matching row is `ERR_DB_POSTGRES_NOT_FOUND` (404, not retriable); other failures
+  are classified as described in [Error Handling](#error-handling).
 
 - **`Query`** — runs `query` with the given positional `args`, returns all rows scanned into
   `[]T`.
@@ -203,20 +228,47 @@ are forwarded as-is.
 
 ---
 
+## Error Handling
+
+Every error is an `*errorkit.AppError` that wraps the driver error, so `errors.Is(err,
+pgx.ErrNoRows)`, `errors.As(err, &pgErr)` (`*pgconn.PgError`) and `errors.Is(err,
+context.Canceled)` keep working. The code follows the cause:
+
+| Cause | Code | Retriable | HTTP |
+|---|---|---|---|
+| `pgx.ErrNoRows` (`QueryRow` matched nothing) | `ERR_DB_POSTGRES_NOT_FOUND` | no | 404 |
+| `context.Canceled` | `ERR_DB_POSTGRES_CANCELED` | no | 499 |
+| `*pgconn.ParseConfigError` (bad DSN) | `errorkit.ERR_SYSTEM_CONFIG_INVALID` | no | 500 |
+| `context.DeadlineExceeded`, `pgconn.Timeout`, network timeout | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
+| SQLSTATE `23505` (unique violation) | `errorkit.ERR_VALIDATION_DUPLICATE` | no | 409 |
+| Other SQLSTATE class `23` (not null, foreign key, check, exclusion) | `errorkit.ERR_VALIDATION_INCONSISTENT` | no | 400 |
+| SQLSTATE `40001` (serialization failure), `40P01` (deadlock) | `ERR_DB_POSTGRES_DEADLOCK` | yes | 409 |
+| SQLSTATE `57014` (`statement_timeout`, cancel request), `55P03` (`lock_timeout`, `NOWAIT`) | `ERR_DB_POSTGRES_TIMEOUT` | yes | 504 |
+| SQLSTATE class `28` (authorization) | `ERR_DB_POSTGRES_AUTH_FAILED` | no | 502 |
+| SQLSTATE class `08`, `53300`, `57P01`–`57P05` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| `*pgconn.ConnectError` (dial or handshake failed) | `ERR_DB_POSTGRES_CONNECTION_FAILED` | yes | 503 |
+| `pgconn.ErrConnClosed`, other `net.Error` | `ERR_DB_POSTGRES_UNAVAILABLE` | yes | 503 |
+| Anything else | `ERR_DB_POSTGRES_ERROR` | yes | 503 |
+
+A JSON argument that cannot be marshaled (`QueryJSON`, `QueryRowJSON`) returns
+`ERR_DB_POSTGRES_ENCODE_FAILED` (HTTP 500, nonretriable) before any query is sent. The original JSON encoding error remains in the error chain.
+
+---
+
 ## Tracing
 
 ### Stored-procedure span wrapper
 
 `NewStoredProcedure[T]`, `WrapWithTracing[T]`, and `WrapWithInstrumenter[T]` install a wrapper
 that opens one span per call. The span name is derived from the SQL string by extracting the
-function name in `SELECT * FROM <fn>(...)`:
+unquoted, optionally schema-qualified routine in `SELECT ... FROM <fn>(...)` or `CALL <fn>(...)`:
 
 ```
-SELECT * FROM get_item($1)             → span: "postgres.get_item"
-SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items"
+SELECT * FROM get_item($1)             → span: "postgres.get_item.query"
+SELECT id  FROM insert_items($1::jsonb) → span: "postgres.insert_items.query"
 ```
 
-If the regular expression does not match the SQL, the span name falls back to `"postgres.query"`.
+If the regular expression does not match the SQL, the span name falls back to `"postgres.unknown.query"`.
 
 Pass `nil` to `WrapWithInstrumenter` to skip the wrapper and use the bare `StoredProcedure[T]`
 directly.
@@ -248,7 +300,7 @@ inherit the dependency.
 
 ```go
 // Wire pool + repository
-pool, err := database.NewPostgresClient(database.Config{
+pool, err := postgres.New(postgres.Config{
     DSN:             cfg.Postgres.DSN,
     MaxConnLifetime: cfg.Postgres.MaxConnLifetime,
     MaxConnIdleTime: cfg.Postgres.MaxConnIdleTime,
@@ -260,14 +312,14 @@ if err != nil {
 }
 defer pool.Close()
 
-sp := database.NewStoredProcedure[entities.Item](pool)
+sp := postgres.NewStoredProcedure[entities.Item](pool)
 repo := repository.NewItem(sp)
 ```
 
 ```go
 // Repository methods
 type ItemRepo struct {
-    sp database.StoredProcedurer[entities.Item]
+    sp postgres.StoredProcedurer[entities.Item]
 }
 
 func (r *ItemRepo) Get(ctx context.Context, id int64) (*entities.Item, error) {
@@ -305,8 +357,41 @@ freely across goroutines.
 |---|---|
 | `github.com/jackc/pgx/v5` | PostgreSQL driver and row scanning utilities |
 | `github.com/jackc/pgx/v5/pgxpool` | Connection pool |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
-| `github.com/trypanic/go-sdk/telemetry` | Optional tracing wrapper for stored-procedure calls |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/telemetry` | Optional tracing wrapper for stored-procedure calls |
 
 The package has **no dependency on `otelpgx`** or any other pgx tracer. Callers that want
 driver-level tracing wire it up themselves.
+
+### Cancellable setup
+
+`NewContext(ctx, cfg)` and `NewFromEnvContext(ctx, cfg)`
+use the caller context during pool creation and verification. With no deadline,
+the default setup timeout is five seconds. Positive `Config.ConnectTimeout`
+caps setup even with a later caller deadline; negative values are rejected.
+The caller owns `pool.Close()`. Canceling the construction context after success
+does not close the pool or control later queries.
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+`NewStoredProcedure` returns `*TracedProcedure[T]`; its `Unwrap()` returns the
+underlying `StoredProcedurer[T]`. It does not own or close the supplied pool.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+PostgreSQL operation spans carry `db.system=postgresql`.
+
+Span names now follow `postgres.<routine>.query`; for example, `CALL audit.clean($1)` produces `postgres.audit.clean.query`. Update dashboards that used the previous names. SQL text and argument values are not span-name components.

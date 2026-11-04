@@ -1,0 +1,107 @@
+$ sh /tmp/DEPS-review1/bindings.sh
+=== RUN   TestPostgresIntegration
+2026/11/04 00:52:52 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: bb32bb8e8fea903c3bc75009aa5774b73ad9c791e1328648e07138da9c4bfa31
+  Test ProcessID: b9b5cf90-d9a5-44b6-af35-1d1ba878ad56
+2026/11/04 00:52:52 🐳 Creating container for image postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+2026/11/04 00:52:52 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:52:53 ⏳ Waiting for Reaper "64309d46" to be ready
+2026/11/04 00:52:53 🔥 Reaper obtained from Docker for this test session 64309d46
+2026/11/04 00:52:53 ✅ Container created: 2f7a5be3732f
+2026/11/04 00:52:53 🐳 Starting container: 2f7a5be3732f
+2026/11/04 00:52:53 ✅ Container started: 2f7a5be3732f
+2026/11/04 00:52:53 ⏳ Waiting for container id 2f7a5be3732f image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5. Waiting for: log message "database system is ready to accept connections" (occurrence: 2)
+2026/11/04 00:52:54 🔔 Container is ready: 2f7a5be3732f
+    postgres_integration_test.go:28: actual published ports: map[5432/tcp:[{HostIP:0.0.0.0 HostPort:32809} {HostIP::: HostPort:32809}]]
+=== RUN   TestPostgresIntegration/stored_procedure_JSON_and_rows
+=== RUN   TestPostgresIntegration/missing_row_and_unique_violation_preserve_causes
+=== RUN   TestPostgresIntegration/cancellation_and_server_timeout
+2026/11/04 00:52:54 🐳 Stopping container: 2f7a5be3732f
+2026/11/04 00:52:54 ✅ Container stopped: 2f7a5be3732f
+2026/11/04 00:52:54 🐳 Terminating container: 2f7a5be3732f
+2026/11/04 00:52:54 🚫 Container terminated: 2f7a5be3732f
+--- PASS: TestPostgresIntegration (1.93s)
+    --- PASS: TestPostgresIntegration/stored_procedure_JSON_and_rows (0.00s)
+    --- PASS: TestPostgresIntegration/missing_row_and_unique_violation_preserve_causes (0.00s)
+    --- PASS: TestPostgresIntegration/cancellation_and_server_timeout (0.05s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/postgres  1.958s
+=== RUN   TestMongoIntegration
+2026/11/04 00:52:52 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: bb32bb8e8fea903c3bc75009aa5774b73ad9c791e1328648e07138da9c4bfa31
+  Test ProcessID: 89f484f1-d2f7-4ad9-8d4a-a22cd1249f2f
+2026/11/04 00:52:52 🐳 Creating container for image mongo:9.0.4-resolute@sha256:714cc3db1e396e5a464b8443ccde50e53283368809401f53f1997b684ddb5be0
+2026/11/04 00:52:52 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:52:52 ✅ Container created: 64309d46286f
+2026/11/04 00:52:52 🐳 Starting container: 64309d46286f
+2026/11/04 00:52:53 ✅ Container started: 64309d46286f
+2026/11/04 00:52:53 ⏳ Waiting for container id 64309d46286f image: testcontainers/ryuk:0.14.0. Waiting for: all of: [log message "Started", port 8080/tcp to be listening]
+2026/11/04 00:52:53 Shell not found in container
+2026/11/04 00:52:53 🔔 Container is ready: 64309d46286f
+2026/11/04 00:52:53 ✅ Container created: 81788134fe3c
+2026/11/04 00:52:53 🐳 Starting container: 81788134fe3c
+2026/11/04 00:52:53 ✅ Container started: 81788134fe3c
+2026/11/04 00:52:53 ⏳ Waiting for container id 81788134fe3c image: mongo:9.0.4-resolute@sha256:714cc3db1e396e5a464b8443ccde50e53283368809401f53f1997b684ddb5be0. Waiting for: log message "Waiting for connections"
+2026/11/04 00:52:53 🔔 Container is ready: 81788134fe3c
+    mongo_integration_test.go:28: actual published ports: map[27017/tcp:[{HostIP:0.0.0.0 HostPort:32810} {HostIP::: HostPort:32810}]]
+=== RUN   TestMongoIntegration/write_results_and_streaming_cursor
+=== RUN   TestMongoIntegration/classified_errors_and_cursor_decode
+=== RUN   TestMongoIntegration/borrowed_adapter_preserves_owner_connection
+2026/11/04 00:52:53 🐳 Stopping container: 81788134fe3c
+2026/11/04 00:52:53 ✅ Container stopped: 81788134fe3c
+2026/11/04 00:52:53 🐳 Terminating container: 81788134fe3c
+2026/11/04 00:52:53 🚫 Container terminated: 81788134fe3c
+--- PASS: TestMongoIntegration (1.10s)
+    --- PASS: TestMongoIntegration/write_results_and_streaming_cursor (0.01s)
+    --- PASS: TestMongoIntegration/classified_errors_and_cursor_decode (0.01s)
+    --- PASS: TestMongoIntegration/borrowed_adapter_preserves_owner_connection (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/mongo     1.132s
+=== RUN   TestRabbitMQIntegration
+2026/11/04 00:52:52 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: bb32bb8e8fea903c3bc75009aa5774b73ad9c791e1328648e07138da9c4bfa31
+  Test ProcessID: 8d0d31df-2577-4960-a009-41fffbbe4435
+2026/11/04 00:52:52 🐳 Creating container for image rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce
+2026/11/04 00:52:52 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:52:53 ⏳ Waiting for Reaper "64309d46" to be ready
+2026/11/04 00:52:53 🔥 Reaper obtained from Docker for this test session 64309d46
+2026/11/04 00:52:53 ✅ Container created: 2953aff5a859
+2026/11/04 00:52:53 🐳 Starting container: 2953aff5a859
+2026/11/04 00:52:53 ✅ Container started: 2953aff5a859
+2026/11/04 00:52:53 ⏳ Waiting for container id 2953aff5a859 image: rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce. Waiting for: log message "Server startup complete"
+2026/11/04 00:52:55 🔔 Container is ready: 2953aff5a859
+    messaging_integration_test.go:26: actual published ports: map[4369/tcp:[] 5671/tcp:[] 5672/tcp:[{HostIP:0.0.0.0 HostPort:32808} {HostIP::: HostPort:32808}] 15691/tcp:[] 15692/tcp:[] 25672/tcp:[]]
+=== RUN   TestRabbitMQIntegration/confirmed_publish_and_consume_survive_setup_cancellation
+=== RUN   TestRabbitMQIntegration/mandatory_returns_are_failures
+=== RUN   TestRabbitMQIntegration/close_stops_an_active_subscription_and_is_terminal
+2026/11/04 00:52:55 🐳 Stopping container: 2953aff5a859
+2026/11/04 00:52:55 ✅ Container stopped: 2953aff5a859
+2026/11/04 00:52:55 🐳 Terminating container: 2953aff5a859
+2026/11/04 00:52:55 🚫 Container terminated: 2953aff5a859
+--- PASS: TestRabbitMQIntegration (2.71s)
+    --- PASS: TestRabbitMQIntegration/confirmed_publish_and_consume_survive_setup_cancellation (0.01s)
+    --- PASS: TestRabbitMQIntegration/mandatory_returns_are_failures (0.00s)
+    --- PASS: TestRabbitMQIntegration/close_stops_an_active_subscription_and_is_terminal (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/messaging 2.737s

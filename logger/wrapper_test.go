@@ -6,10 +6,10 @@ import (
 )
 
 func TestErrorBeforeInitDoesNotPanic(t *testing.T) {
-	previousGlobal := global
-	global = nil
+	previousGlobal := global.Load()
+	global.Store(nil)
 	t.Cleanup(func() {
-		global = previousGlobal
+		global.Store(previousGlobal)
 	})
 
 	defer func() {

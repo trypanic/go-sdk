@@ -1,14 +1,16 @@
 package storage
 
 import (
+	"slices"
 	"sync"
-
-	"github.com/trypanic/go-sdk/errorkit"
 )
 
 // MemoryStorage is a generic, thread-safe in-memory store. It implements
-// both KVStorager (Put/Get with overwrite semantics) and AppendLogStorager
+// both KVStore (Put/Get with overwrite semantics) and AppendLog
 // (Append/List with append semantics) over disjoint internal maps.
+//
+// Create it with NewMemory: the zero value has nil maps and panics on the
+// first Put or Append.
 type MemoryStorage[T any] struct {
 	single map[string]T
 	list   map[string][]T
@@ -26,9 +28,7 @@ func NewMemory[T any]() *MemoryStorage[T] {
 // Put stores a single value at key, replacing any previous value.
 func (ms *MemoryStorage[T]) Put(key string, value *T) error {
 	if value == nil {
-		return errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("Put: value must not be nil"),
-		)
+		return nilInputError("Put: value must not be nil")
 	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -52,14 +52,12 @@ func (ms *MemoryStorage[T]) Get(key string) (*T, bool, error) {
 // later Append could overwrite out from under them.
 func (ms *MemoryStorage[T]) Append(key string, item *T) (*[]T, error) {
 	if item == nil {
-		return nil, errorkit.NewError(ERR_STORAGE_ERROR).With(
-			errorkit.WithReason("Append: item must not be nil"),
-		)
+		return nil, nilInputError("Append: item must not be nil")
 	}
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.list[key] = append(ms.list[key], *item)
-	out := append([]T(nil), ms.list[key]...)
+	out := slices.Clone(ms.list[key])
 	return &out, nil
 }
 
@@ -72,7 +70,7 @@ func (ms *MemoryStorage[T]) List(key string) (*[]T, bool, error) {
 	if !ok {
 		return nil, false, nil
 	}
-	out := append([]T(nil), slice...)
+	out := slices.Clone(slice)
 	return &out, true, nil
 }
 

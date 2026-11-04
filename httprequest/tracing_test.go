@@ -1,12 +1,11 @@
 package httprequest
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 func TestNewWithoutTracingSkipsSpanWrapper(t *testing.T) {
@@ -18,12 +17,12 @@ func TestNewWithoutTracingSkipsSpanWrapper(t *testing.T) {
 	defer srv.Close()
 
 	r := NewWithoutTracing(srv.Client())
-	if _, ok := r.(*tracingHTTPRequester); ok {
-		t.Fatalf("NewWithoutTracing should return unwrapped HTTPRequest, got tracingHTTPRequester")
+	if r.instrumenter != nil {
+		t.Fatalf("NewWithoutTracing should return unwrapped Request, got tracingHTTPRequester")
 	}
 
 	var out string
-	if err := r.Do(context.Background(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, &out); err != nil {
+	if err := r.Do(t.Context(), RequestConfig{Method: http.MethodGet, URL: srv.URL}, &out); err != nil {
 		t.Fatalf("plain Do failed: %v", err)
 	}
 }

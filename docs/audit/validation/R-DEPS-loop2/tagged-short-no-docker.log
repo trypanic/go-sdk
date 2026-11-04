@@ -1,0 +1,1080 @@
+=== RUN   TestBindLoopbackPreservesReaperLifecycle
+--- PASS: TestBindLoopbackPreservesReaperLifecycle (0.01s)
+PASS
+ok  	github.com/trypanic/go-sdk/v2/internal/integrationtest	0.122s
+=== RUN   TestStoredProcedureErrorMatrix
+=== PAUSE TestStoredProcedureErrorMatrix
+=== RUN   TestStoredProcedureQueryRow_NoRowsIsNotFound
+=== PAUSE TestStoredProcedureQueryRow_NoRowsIsNotFound
+=== RUN   TestNewPostgresClient_ErrorClassification
+=== RUN   TestNewPostgresClient_ErrorClassification/parse_failure_is_a_configuration_error
+=== RUN   TestNewPostgresClient_ErrorClassification/dial_failure_is_a_connection_error
+--- PASS: TestNewPostgresClient_ErrorClassification (0.00s)
+    --- PASS: TestNewPostgresClient_ErrorClassification/parse_failure_is_a_configuration_error (0.00s)
+    --- PASS: TestNewPostgresClient_ErrorClassification/dial_failure_is_a_connection_error (0.00s)
+=== RUN   TestConstructorCanceledContext
+--- PASS: TestConstructorCanceledContext (0.00s)
+=== RUN   TestConstructorCancelsStalledHandshake
+--- PASS: TestConstructorCancelsStalledHandshake (0.00s)
+=== RUN   TestNormalizePostgresDSN_Table
+=== PAUSE TestNormalizePostgresDSN_Table
+=== RUN   TestNormalizePostgresDSN_LeavesOtherFormsUnchanged
+=== PAUSE TestNormalizePostgresDSN_LeavesOtherFormsUnchanged
+=== RUN   TestJSONArgumentFailureIsNotRetriable
+--- PASS: TestJSONArgumentFailureIsNotRetriable (0.00s)
+=== RUN   TestErrorMetadataRegisteredInGlobalRegistry
+--- PASS: TestErrorMetadataRegisteredInGlobalRegistry (0.00s)
+=== RUN   TestRegisterErrorsIdempotent
+--- PASS: TestRegisterErrorsIdempotent (0.00s)
+=== RUN   TestRegisterErrorsIntoIsolatedRegistry
+--- PASS: TestRegisterErrorsIntoIsolatedRegistry (0.00s)
+=== RUN   TestNewPostgresClient_ParseError_DoesNotLeakPassword
+--- PASS: TestNewPostgresClient_ParseError_DoesNotLeakPassword (0.00s)
+=== RUN   TestNewPostgresClient_PingError_KeepsCause
+--- PASS: TestNewPostgresClient_PingError_KeepsCause (0.00s)
+=== RUN   TestNewPostgresClient_MissingDSN_ReturnsConfigError
+--- PASS: TestNewPostgresClient_MissingDSN_ReturnsConfigError (0.00s)
+=== RUN   TestNewPostgresClient_DoesNotReadEnvVar
+--- PASS: TestNewPostgresClient_DoesNotReadEnvVar (0.00s)
+=== RUN   TestNewPostgresClientFromEnv_MissingEnvReturnsConfigError
+--- PASS: TestNewPostgresClientFromEnv_MissingEnvReturnsConfigError (0.00s)
+=== RUN   TestNormalizePostgresDSN_EscapesAtSignsInPassword
+--- PASS: TestNormalizePostgresDSN_EscapesAtSignsInPassword (0.00s)
+=== RUN   TestNormalizePostgresDSN_DoesNotDoubleEscapePassword
+--- PASS: TestNormalizePostgresDSN_DoesNotDoubleEscapePassword (0.00s)
+=== RUN   TestQualifiedProcedureSpanNames
+--- PASS: TestQualifiedProcedureSpanNames (0.00s)
+=== RUN   TestStoredProcedureJSONArgumentOrder
+=== PAUSE TestStoredProcedureJSONArgumentOrder
+=== RUN   TestStoredProcedureSuccessClosesRows
+=== PAUSE TestStoredProcedureSuccessClosesRows
+=== RUN   TestProcSpanName
+=== PAUSE TestProcSpanName
+=== RUN   TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsEncodingError
+--- PASS: TestStoredProcedureQueryRowJSON_MarshalFailure_ReturnsEncodingError (0.00s)
+=== RUN   TestStoredProcedureQuery_ScalarRows_ReturnsValues
+=== PAUSE TestStoredProcedureQuery_ScalarRows_ReturnsValues
+=== RUN   TestStoredProcedureQueryRow_ScalarRow_ReturnsUUID
+=== PAUSE TestStoredProcedureQueryRow_ScalarRow_ReturnsUUID
+=== RUN   TestStoredProcedureQueryRow_StructRow_ReturnsNamedFields
+=== PAUSE TestStoredProcedureQueryRow_StructRow_ReturnsNamedFields
+=== RUN   TestWrapWithInstrumenterUsesExplicitInstrumenter
+--- PASS: TestWrapWithInstrumenterUsesExplicitInstrumenter (0.00s)
+=== RUN   TestWrapWithInstrumenterNilReturnsInner
+=== PAUSE TestWrapWithInstrumenterNilReturnsInner
+=== RUN   TestPostgresIntegration
+    postgres_integration_test.go:26: requires local PostgreSQL container
+--- SKIP: TestPostgresIntegration (0.00s)
+=== CONT  TestStoredProcedureErrorMatrix
+=== CONT  TestStoredProcedureQuery_ScalarRows_ReturnsValues
+=== CONT  TestStoredProcedureJSONArgumentOrder
+=== RUN   TestStoredProcedureErrorMatrix/unique_violation_23505
+=== CONT  TestNormalizePostgresDSN_Table
+=== CONT  TestStoredProcedureQueryRow_ScalarRow_ReturnsUUID
+=== CONT  TestProcSpanName
+=== CONT  TestStoredProcedureSuccessClosesRows
+=== RUN   TestStoredProcedureJSONArgumentOrder/QueryJSON
+=== RUN   TestStoredProcedureSuccessClosesRows/Query
+=== PAUSE TestStoredProcedureSuccessClosesRows/Query
+=== RUN   TestNormalizePostgresDSN_Table/slash_in_password
+=== PAUSE TestNormalizePostgresDSN_Table/slash_in_password
+=== RUN   TestNormalizePostgresDSN_Table/slash_and_query
+=== PAUSE TestNormalizePostgresDSN_Table/slash_and_query
+=== RUN   TestNormalizePostgresDSN_Table/at_signs_in_password
+=== PAUSE TestStoredProcedureJSONArgumentOrder/QueryJSON
+=== CONT  TestStoredProcedureQueryRow_NoRowsIsNotFound
+=== RUN   TestStoredProcedureJSONArgumentOrder/QueryRowJSON
+=== PAUSE TestStoredProcedureJSONArgumentOrder/QueryRowJSON
+=== CONT  TestStoredProcedureJSONArgumentOrder/QueryJSON
+--- PASS: TestStoredProcedureQuery_ScalarRows_ReturnsValues (0.00s)
+--- PASS: TestStoredProcedureQueryRow_ScalarRow_ReturnsUUID (0.00s)
+--- PASS: TestProcSpanName (0.00s)
+=== CONT  TestStoredProcedureJSONArgumentOrder/QueryRowJSON
+--- PASS: TestStoredProcedureQueryRow_NoRowsIsNotFound (0.00s)
+=== PAUSE TestStoredProcedureErrorMatrix/unique_violation_23505
+--- PASS: TestStoredProcedureJSONArgumentOrder (0.00s)
+    --- PASS: TestStoredProcedureJSONArgumentOrder/QueryJSON (0.00s)
+    --- PASS: TestStoredProcedureJSONArgumentOrder/QueryRowJSON (0.00s)
+=== RUN   TestStoredProcedureSuccessClosesRows/QueryRow
+=== RUN   TestStoredProcedureErrorMatrix/foreign_key_violation_23503
+=== PAUSE TestStoredProcedureSuccessClosesRows/QueryRow
+=== PAUSE TestStoredProcedureErrorMatrix/foreign_key_violation_23503
+=== CONT  TestStoredProcedureSuccessClosesRows/QueryRow
+=== RUN   TestStoredProcedureErrorMatrix/not_null_violation_23502
+=== CONT  TestStoredProcedureSuccessClosesRows/Query
+=== PAUSE TestStoredProcedureErrorMatrix/not_null_violation_23502
+--- PASS: TestStoredProcedureSuccessClosesRows (0.00s)
+    --- PASS: TestStoredProcedureSuccessClosesRows/QueryRow (0.00s)
+    --- PASS: TestStoredProcedureSuccessClosesRows/Query (0.00s)
+=== RUN   TestStoredProcedureErrorMatrix/check_violation_23514
+=== CONT  TestNormalizePostgresDSN_LeavesOtherFormsUnchanged
+=== PAUSE TestStoredProcedureErrorMatrix/check_violation_23514
+--- PASS: TestNormalizePostgresDSN_LeavesOtherFormsUnchanged (0.00s)
+=== CONT  TestWrapWithInstrumenterNilReturnsInner
+--- PASS: TestWrapWithInstrumenterNilReturnsInner (0.00s)
+=== RUN   TestStoredProcedureErrorMatrix/serialization_failure_40001
+=== PAUSE TestStoredProcedureErrorMatrix/serialization_failure_40001
+=== PAUSE TestNormalizePostgresDSN_Table/at_signs_in_password
+=== RUN   TestStoredProcedureErrorMatrix/deadlock_40P01
+=== PAUSE TestStoredProcedureErrorMatrix/deadlock_40P01
+=== RUN   TestStoredProcedureErrorMatrix/invalid_password_28P01
+=== PAUSE TestStoredProcedureErrorMatrix/invalid_password_28P01
+=== RUN   TestStoredProcedureErrorMatrix/invalid_authorization_28000
+=== PAUSE TestStoredProcedureErrorMatrix/invalid_authorization_28000
+=== RUN   TestStoredProcedureErrorMatrix/too_many_connections_53300
+=== PAUSE TestStoredProcedureErrorMatrix/too_many_connections_53300
+=== RUN   TestStoredProcedureErrorMatrix/admin_shutdown_57P01
+=== PAUSE TestStoredProcedureErrorMatrix/admin_shutdown_57P01
+=== RUN   TestStoredProcedureErrorMatrix/connection_exception_08006
+=== PAUSE TestStoredProcedureErrorMatrix/connection_exception_08006
+=== RUN   TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014
+=== RUN   TestNormalizePostgresDSN_Table/question_mark_and_at_sign
+=== PAUSE TestNormalizePostgresDSN_Table/question_mark_and_at_sign
+=== RUN   TestNormalizePostgresDSN_Table/hash_and_slash
+=== PAUSE TestNormalizePostgresDSN_Table/hash_and_slash
+=== RUN   TestNormalizePostgresDSN_Table/no_path
+=== PAUSE TestNormalizePostgresDSN_Table/no_path
+=== RUN   TestNormalizePostgresDSN_Table/at_sign_in_query_only
+=== PAUSE TestNormalizePostgresDSN_Table/at_sign_in_query_only
+=== CONT  TestStoredProcedureQueryRow_StructRow_ReturnsNamedFields
+=== RUN   TestNormalizePostgresDSN_Table/at_sign_in_database_without_credentials
+=== PAUSE TestNormalizePostgresDSN_Table/at_sign_in_database_without_credentials
+--- PASS: TestStoredProcedureQueryRow_StructRow_ReturnsNamedFields (0.00s)
+=== PAUSE TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014
+=== RUN   TestNormalizePostgresDSN_Table/at_sign_in_query_without_credentials
+=== RUN   TestStoredProcedureErrorMatrix/lock_not_available_55P03
+=== PAUSE TestNormalizePostgresDSN_Table/at_sign_in_query_without_credentials
+=== PAUSE TestStoredProcedureErrorMatrix/lock_not_available_55P03
+=== RUN   TestNormalizePostgresDSN_Table/ipv6_host
+=== RUN   TestStoredProcedureErrorMatrix/other_server_error_42883
+=== PAUSE TestNormalizePostgresDSN_Table/ipv6_host
+=== PAUSE TestStoredProcedureErrorMatrix/other_server_error_42883
+=== RUN   TestNormalizePostgresDSN_Table/postgresql_scheme
+=== RUN   TestStoredProcedureErrorMatrix/context_canceled
+=== PAUSE TestNormalizePostgresDSN_Table/postgresql_scheme
+=== PAUSE TestStoredProcedureErrorMatrix/context_canceled
+=== RUN   TestNormalizePostgresDSN_Table/already_encoded
+=== PAUSE TestNormalizePostgresDSN_Table/already_encoded
+=== RUN   TestStoredProcedureErrorMatrix/wrapped_context_canceled
+=== CONT  TestNormalizePostgresDSN_Table/slash_in_password
+=== PAUSE TestStoredProcedureErrorMatrix/wrapped_context_canceled
+=== RUN   TestStoredProcedureErrorMatrix/deadline_exceeded
+=== PAUSE TestStoredProcedureErrorMatrix/deadline_exceeded
+=== RUN   TestStoredProcedureErrorMatrix/net_timeout
+=== PAUSE TestStoredProcedureErrorMatrix/net_timeout
+=== RUN   TestStoredProcedureErrorMatrix/conn_closed
+=== PAUSE TestStoredProcedureErrorMatrix/conn_closed
+=== RUN   TestStoredProcedureErrorMatrix/no_rows_from_driver
+=== PAUSE TestStoredProcedureErrorMatrix/no_rows_from_driver
+=== RUN   TestStoredProcedureErrorMatrix/generic
+=== CONT  TestNormalizePostgresDSN_Table/at_sign_in_query_only
+=== PAUSE TestStoredProcedureErrorMatrix/generic
+=== CONT  TestStoredProcedureErrorMatrix/unique_violation_23505
+=== RUN   TestStoredProcedureErrorMatrix/unique_violation_23505/Query_fails
+=== CONT  TestNormalizePostgresDSN_Table/ipv6_host
+=== CONT  TestNormalizePostgresDSN_Table/slash_and_query
+=== CONT  TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014
+=== RUN   TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014/Query_fails
+=== CONT  TestNormalizePostgresDSN_Table/at_sign_in_query_without_credentials
+=== CONT  TestStoredProcedureErrorMatrix/deadline_exceeded
+=== CONT  TestStoredProcedureErrorMatrix/check_violation_23514
+=== RUN   TestStoredProcedureErrorMatrix/deadline_exceeded/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/check_violation_23514/Query_fails
+=== CONT  TestNormalizePostgresDSN_Table/no_path
+=== RUN   TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/not_null_violation_23502
+=== CONT  TestNormalizePostgresDSN_Table/hash_and_slash
+=== RUN   TestStoredProcedureErrorMatrix/not_null_violation_23502/Query_fails
+=== CONT  TestStoredProcedureErrorMatrix/foreign_key_violation_23503
+=== RUN   TestStoredProcedureErrorMatrix/foreign_key_violation_23503/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/check_violation_23514/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/context_canceled
+=== RUN   TestStoredProcedureErrorMatrix/context_canceled/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/foreign_key_violation_23503/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/deadline_exceeded/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/not_null_violation_23502/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/wrapped_context_canceled
+=== RUN   TestStoredProcedureErrorMatrix/wrapped_context_canceled/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/context_canceled/rows.Err_mid-iteration
+=== CONT  TestNormalizePostgresDSN_Table/question_mark_and_at_sign
+=== CONT  TestNormalizePostgresDSN_Table/at_sign_in_database_without_credentials
+=== CONT  TestStoredProcedureErrorMatrix/generic
+=== CONT  TestStoredProcedureErrorMatrix/no_rows_from_driver
+=== RUN   TestStoredProcedureErrorMatrix/generic/Query_fails
+=== CONT  TestNormalizePostgresDSN_Table/at_signs_in_password
+=== RUN   TestStoredProcedureErrorMatrix/wrapped_context_canceled/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/no_rows_from_driver/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/unique_violation_23505/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/other_server_error_42883
+=== CONT  TestStoredProcedureErrorMatrix/net_timeout
+=== RUN   TestStoredProcedureErrorMatrix/no_rows_from_driver/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/other_server_error_42883/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/generic/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/net_timeout/Query_fails
+=== CONT  TestStoredProcedureErrorMatrix/conn_closed
+=== CONT  TestStoredProcedureErrorMatrix/lock_not_available_55P03
+=== RUN   TestStoredProcedureErrorMatrix/conn_closed/Query_fails
+=== CONT  TestStoredProcedureErrorMatrix/connection_exception_08006
+=== CONT  TestNormalizePostgresDSN_Table/postgresql_scheme
+=== RUN   TestStoredProcedureErrorMatrix/lock_not_available_55P03/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/other_server_error_42883/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/admin_shutdown_57P01
+=== RUN   TestStoredProcedureErrorMatrix/net_timeout/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/admin_shutdown_57P01/Query_fails
+=== CONT  TestNormalizePostgresDSN_Table/already_encoded
+=== RUN   TestStoredProcedureErrorMatrix/connection_exception_08006/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/conn_closed/rows.Err_mid-iteration
+--- PASS: TestNormalizePostgresDSN_Table (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/slash_in_password (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/at_sign_in_query_only (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/slash_and_query (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/ipv6_host (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/no_path (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/hash_and_slash (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/at_sign_in_query_without_credentials (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/at_signs_in_password (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/at_sign_in_database_without_credentials (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/question_mark_and_at_sign (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/postgresql_scheme (0.00s)
+    --- PASS: TestNormalizePostgresDSN_Table/already_encoded (0.00s)
+=== RUN   TestStoredProcedureErrorMatrix/admin_shutdown_57P01/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/connection_exception_08006/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/invalid_password_28P01
+=== RUN   TestStoredProcedureErrorMatrix/lock_not_available_55P03/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/invalid_password_28P01/Query_fails
+=== CONT  TestStoredProcedureErrorMatrix/deadlock_40P01
+=== RUN   TestStoredProcedureErrorMatrix/deadlock_40P01/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/invalid_password_28P01/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/serialization_failure_40001
+=== RUN   TestStoredProcedureErrorMatrix/serialization_failure_40001/Query_fails
+=== CONT  TestStoredProcedureErrorMatrix/too_many_connections_53300
+=== RUN   TestStoredProcedureErrorMatrix/too_many_connections_53300/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/deadlock_40P01/rows.Err_mid-iteration
+=== CONT  TestStoredProcedureErrorMatrix/invalid_authorization_28000
+=== RUN   TestStoredProcedureErrorMatrix/too_many_connections_53300/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/invalid_authorization_28000/Query_fails
+=== RUN   TestStoredProcedureErrorMatrix/serialization_failure_40001/rows.Err_mid-iteration
+=== RUN   TestStoredProcedureErrorMatrix/invalid_authorization_28000/rows.Err_mid-iteration
+--- PASS: TestStoredProcedureErrorMatrix (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/query_canceled_or_statement_timeout_57014/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/check_violation_23514 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/check_violation_23514/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/check_violation_23514/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/foreign_key_violation_23503 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/foreign_key_violation_23503/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/foreign_key_violation_23503/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/not_null_violation_23502 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/not_null_violation_23502/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/not_null_violation_23502/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/wrapped_context_canceled (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/wrapped_context_canceled/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/wrapped_context_canceled/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/no_rows_from_driver (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/no_rows_from_driver/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/no_rows_from_driver/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/unique_violation_23505 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/unique_violation_23505/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/unique_violation_23505/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/generic (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/generic/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/generic/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/deadline_exceeded (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/deadline_exceeded/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/deadline_exceeded/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/context_canceled (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/context_canceled/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/context_canceled/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/other_server_error_42883 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/other_server_error_42883/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/other_server_error_42883/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/net_timeout (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/net_timeout/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/net_timeout/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/connection_exception_08006 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/connection_exception_08006/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/connection_exception_08006/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/admin_shutdown_57P01 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/admin_shutdown_57P01/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/admin_shutdown_57P01/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/lock_not_available_55P03 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/lock_not_available_55P03/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/lock_not_available_55P03/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/invalid_password_28P01 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/invalid_password_28P01/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/invalid_password_28P01/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/conn_closed (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/conn_closed/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/conn_closed/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/deadlock_40P01 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/deadlock_40P01/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/deadlock_40P01/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/too_many_connections_53300 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/too_many_connections_53300/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/too_many_connections_53300/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/serialization_failure_40001 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/serialization_failure_40001/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/serialization_failure_40001/rows.Err_mid-iteration (0.00s)
+    --- PASS: TestStoredProcedureErrorMatrix/invalid_authorization_28000 (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/invalid_authorization_28000/Query_fails (0.00s)
+        --- PASS: TestStoredProcedureErrorMatrix/invalid_authorization_28000/rows.Err_mid-iteration (0.00s)
+=== RUN   FuzzNormalizePostgresDSN
+=== RUN   FuzzNormalizePostgresDSN/seed#0
+=== RUN   FuzzNormalizePostgresDSN/seed#1
+=== RUN   FuzzNormalizePostgresDSN/seed#2
+=== RUN   FuzzNormalizePostgresDSN/seed#3
+=== RUN   FuzzNormalizePostgresDSN/seed#4
+=== RUN   FuzzNormalizePostgresDSN/seed#5
+=== RUN   FuzzNormalizePostgresDSN/seed#6
+=== RUN   FuzzNormalizePostgresDSN/seed#7
+--- PASS: FuzzNormalizePostgresDSN (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#0 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#1 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#2 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#3 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#4 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#5 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#6 (0.00s)
+    --- PASS: FuzzNormalizePostgresDSN/seed#7 (0.00s)
+=== RUN   ExampleNewContext
+--- PASS: ExampleNewContext (0.00s)
+PASS
+ok  	github.com/trypanic/go-sdk/v2/postgres	0.065s
+=== RUN   TestSingleResultAdapterDecode
+=== PAUSE TestSingleResultAdapterDecode
+=== RUN   TestSingleResultAdapterDecodeSuccess
+=== PAUSE TestSingleResultAdapterDecodeSuccess
+=== RUN   TestCursorAdapterAll
+=== PAUSE TestCursorAdapterAll
+=== RUN   TestCursorAdapterAllSuccess
+=== PAUSE TestCursorAdapterAllSuccess
+=== RUN   TestCursorAdapterAllRejectsNonSlice
+=== PAUSE TestCursorAdapterAllRejectsNonSlice
+=== RUN   TestCursorAdapterStreams
+=== PAUSE TestCursorAdapterStreams
+=== RUN   TestCursorAdapterStreamErrors
+=== PAUSE TestCursorAdapterStreamErrors
+=== RUN   TestBulkWriteResultAdapterGetters
+=== PAUSE TestBulkWriteResultAdapterGetters
+=== RUN   TestWrapOperationErrorMatrix
+=== PAUSE TestWrapOperationErrorMatrix
+=== RUN   TestNewConfigErrorIsConfigInvalid
+=== PAUSE TestNewConfigErrorIsConfigInvalid
+=== RUN   TestWrapDecodeError
+=== PAUSE TestWrapDecodeError
+=== RUN   TestExplicitDriverOptionsOverrideConfig
+--- PASS: TestExplicitDriverOptionsOverrideConfig (0.00s)
+=== RUN   TestApplyDefaultsRetryWritesNilEnablesIt
+=== PAUSE TestApplyDefaultsRetryWritesNilEnablesIt
+=== RUN   TestApplyDefaultsRetryWritesFalsePreserved
+=== PAUSE TestApplyDefaultsRetryWritesFalsePreserved
+=== RUN   TestApplyDefaultsRetryWritesTruePreserved
+=== PAUSE TestApplyDefaultsRetryWritesTruePreserved
+=== RUN   TestNormalizeURI
+=== PAUSE TestNormalizeURI
+=== RUN   TestErrorMetadataRegisteredInGlobalRegistry
+--- PASS: TestErrorMetadataRegisteredInGlobalRegistry (0.00s)
+=== RUN   TestRegisterErrorsIdempotent
+--- PASS: TestRegisterErrorsIdempotent (0.00s)
+=== RUN   TestRegisterErrorsIntoIsolatedRegistry
+--- PASS: TestRegisterErrorsIntoIsolatedRegistry (0.00s)
+=== RUN   TestParseObjectID_InvalidFormat_ReturnsAppError
+--- PASS: TestParseObjectID_InvalidFormat_ReturnsAppError (0.00s)
+=== RUN   TestWrapOperationError_Mappings
+=== RUN   TestWrapOperationError_Mappings/deadline_exceeded
+=== RUN   TestWrapOperationError_Mappings/not_found
+--- PASS: TestWrapOperationError_Mappings (0.00s)
+    --- PASS: TestWrapOperationError_Mappings/deadline_exceeded (0.00s)
+    --- PASS: TestWrapOperationError_Mappings/not_found (0.00s)
+=== RUN   TestClientOptionsPrecedence
+=== PAUSE TestClientOptionsPrecedence
+=== RUN   TestStartupPingTimeout
+=== PAUSE TestStartupPingTimeout
+=== RUN   TestWrapWithInstrumenterNilReturnsInner
+=== PAUSE TestWrapWithInstrumenterNilReturnsInner
+=== RUN   TestWrapWithInstrumenterAddsSpanWrapper
+=== PAUSE TestWrapWithInstrumenterAddsSpanWrapper
+=== RUN   TestTracingCursorAllRunsInsideASpan
+=== PAUSE TestTracingCursorAllRunsInsideASpan
+=== RUN   TestTracingClientPortTracesPingAndClose
+=== PAUSE TestTracingClientPortTracesPingAndClose
+=== RUN   TestTracingCollectionSpanNames
+=== PAUSE TestTracingCollectionSpanNames
+=== RUN   TestBorrowedClientEscapeHatch
+--- PASS: TestBorrowedClientEscapeHatch (0.00s)
+=== RUN   TestBorrowedClientTracingAndNilOptOut
+--- PASS: TestBorrowedClientTracingAndNilOptOut (0.00s)
+=== RUN   TestMongoIntegration
+    mongo_integration_test.go:26: requires local MongoDB container
+--- SKIP: TestMongoIntegration (0.00s)
+=== CONT  TestSingleResultAdapterDecode
+=== RUN   TestSingleResultAdapterDecode/decode_failure
+=== PAUSE TestSingleResultAdapterDecode/decode_failure
+=== RUN   TestSingleResultAdapterDecode/no_documents
+=== PAUSE TestSingleResultAdapterDecode/no_documents
+=== RUN   TestSingleResultAdapterDecode/operation_failure
+=== PAUSE TestSingleResultAdapterDecode/operation_failure
+=== RUN   TestSingleResultAdapterDecode/operation_deadline
+=== PAUSE TestSingleResultAdapterDecode/operation_deadline
+=== CONT  TestApplyDefaultsRetryWritesTruePreserved
+--- PASS: TestApplyDefaultsRetryWritesTruePreserved (0.00s)
+=== CONT  TestCursorAdapterStreams
+--- PASS: TestCursorAdapterStreams (0.00s)
+=== CONT  TestCursorAdapterAllRejectsNonSlice
+--- PASS: TestCursorAdapterAllRejectsNonSlice (0.00s)
+=== CONT  TestCursorAdapterAllSuccess
+--- PASS: TestCursorAdapterAllSuccess (0.00s)
+=== CONT  TestCursorAdapterAll
+=== RUN   TestCursorAdapterAll/decode_failure
+=== PAUSE TestCursorAdapterAll/decode_failure
+=== RUN   TestCursorAdapterAll/iteration_failure
+=== PAUSE TestCursorAdapterAll/iteration_failure
+=== RUN   TestCursorAdapterAll/iteration_deadline
+=== PAUSE TestCursorAdapterAll/iteration_deadline
+=== CONT  TestSingleResultAdapterDecode/decode_failure
+=== CONT  TestSingleResultAdapterDecodeSuccess
+--- PASS: TestSingleResultAdapterDecodeSuccess (0.00s)
+=== CONT  TestSingleResultAdapterDecode/operation_failure
+=== CONT  TestSingleResultAdapterDecode/no_documents
+=== CONT  TestTracingCollectionSpanNames
+--- PASS: TestTracingCollectionSpanNames (0.00s)
+=== CONT  TestCursorAdapterAll/decode_failure
+=== CONT  TestSingleResultAdapterDecode/operation_deadline
+--- PASS: TestSingleResultAdapterDecode (0.00s)
+    --- PASS: TestSingleResultAdapterDecode/decode_failure (0.00s)
+    --- PASS: TestSingleResultAdapterDecode/operation_failure (0.00s)
+    --- PASS: TestSingleResultAdapterDecode/no_documents (0.00s)
+    --- PASS: TestSingleResultAdapterDecode/operation_deadline (0.00s)
+=== CONT  TestApplyDefaultsRetryWritesFalsePreserved
+--- PASS: TestApplyDefaultsRetryWritesFalsePreserved (0.00s)
+=== CONT  TestTracingClientPortTracesPingAndClose
+--- PASS: TestTracingClientPortTracesPingAndClose (0.00s)
+=== CONT  TestTracingCursorAllRunsInsideASpan
+--- PASS: TestTracingCursorAllRunsInsideASpan (0.00s)
+=== CONT  TestWrapWithInstrumenterAddsSpanWrapper
+--- PASS: TestWrapWithInstrumenterAddsSpanWrapper (0.00s)
+=== CONT  TestWrapWithInstrumenterNilReturnsInner
+--- PASS: TestWrapWithInstrumenterNilReturnsInner (0.00s)
+=== CONT  TestStartupPingTimeout
+=== RUN   TestStartupPingTimeout/default
+=== PAUSE TestStartupPingTimeout/default
+=== RUN   TestStartupPingTimeout/smaller_selection_timeout_keeps_the_floor
+=== PAUSE TestStartupPingTimeout/smaller_selection_timeout_keeps_the_floor
+=== RUN   TestStartupPingTimeout/larger_Config_selection_timeout
+=== PAUSE TestStartupPingTimeout/larger_Config_selection_timeout
+=== RUN   TestStartupPingTimeout/larger_URI_selection_timeout
+=== PAUSE TestStartupPingTimeout/larger_URI_selection_timeout
+=== CONT  TestStartupPingTimeout/default
+=== CONT  TestCursorAdapterAll/iteration_deadline
+=== CONT  TestCursorAdapterAll/iteration_failure
+--- PASS: TestCursorAdapterAll (0.00s)
+    --- PASS: TestCursorAdapterAll/decode_failure (0.00s)
+    --- PASS: TestCursorAdapterAll/iteration_deadline (0.00s)
+    --- PASS: TestCursorAdapterAll/iteration_failure (0.00s)
+=== CONT  TestClientOptionsPrecedence
+=== RUN   TestClientOptionsPrecedence/SDK_defaults_when_neither_Config_nor_URI_sets_an_option
+=== PAUSE TestClientOptionsPrecedence/SDK_defaults_when_neither_Config_nor_URI_sets_an_option
+=== RUN   TestClientOptionsPrecedence/URI_options_survive
+=== PAUSE TestClientOptionsPrecedence/URI_options_survive
+=== RUN   TestClientOptionsPrecedence/Config_fields_override_the_URI
+=== PAUSE TestClientOptionsPrecedence/Config_fields_override_the_URI
+=== RUN   TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_MaxPoolSize
+=== PAUSE TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_MaxPoolSize
+=== RUN   TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_URI_maxPoolSize
+=== PAUSE TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_URI_maxPoolSize
+=== RUN   TestClientOptionsPrecedence/explicit_RetryWrites_false
+=== PAUSE TestClientOptionsPrecedence/explicit_RetryWrites_false
+=== CONT  TestClientOptionsPrecedence/SDK_defaults_when_neither_Config_nor_URI_sets_an_option
+=== CONT  TestStartupPingTimeout/larger_URI_selection_timeout
+=== CONT  TestStartupPingTimeout/larger_Config_selection_timeout
+=== CONT  TestStartupPingTimeout/smaller_selection_timeout_keeps_the_floor
+--- PASS: TestStartupPingTimeout (0.00s)
+    --- PASS: TestStartupPingTimeout/default (0.00s)
+    --- PASS: TestStartupPingTimeout/larger_URI_selection_timeout (0.00s)
+    --- PASS: TestStartupPingTimeout/larger_Config_selection_timeout (0.00s)
+    --- PASS: TestStartupPingTimeout/smaller_selection_timeout_keeps_the_floor (0.00s)
+=== CONT  TestNormalizeURI
+=== RUN   TestNormalizeURI/preserves_mongodb_scheme
+=== PAUSE TestNormalizeURI/preserves_mongodb_scheme
+=== RUN   TestNormalizeURI/preserves_mongodb_srv_scheme
+=== PAUSE TestNormalizeURI/preserves_mongodb_srv_scheme
+=== RUN   TestNormalizeURI/prepends_mongodb_scheme_when_missing
+=== PAUSE TestNormalizeURI/prepends_mongodb_scheme_when_missing
+=== RUN   TestNormalizeURI/trims_accidental_leading_equals
+=== PAUSE TestNormalizeURI/trims_accidental_leading_equals
+=== CONT  TestNormalizeURI/preserves_mongodb_scheme
+=== CONT  TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_MaxPoolSize
+=== CONT  TestClientOptionsPrecedence/explicit_RetryWrites_false
+=== CONT  TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_URI_maxPoolSize
+=== CONT  TestClientOptionsPrecedence/Config_fields_override_the_URI
+=== CONT  TestNewConfigErrorIsConfigInvalid
+--- PASS: TestNewConfigErrorIsConfigInvalid (0.00s)
+=== CONT  TestWrapOperationErrorMatrix
+=== RUN   TestWrapOperationErrorMatrix/deadline_exceeded
+=== PAUSE TestWrapOperationErrorMatrix/deadline_exceeded
+=== RUN   TestWrapOperationErrorMatrix/network_timeout_label
+=== PAUSE TestWrapOperationErrorMatrix/network_timeout_label
+=== RUN   TestWrapOperationErrorMatrix/net.Error_timeout
+=== PAUSE TestWrapOperationErrorMatrix/net.Error_timeout
+=== RUN   TestWrapOperationErrorMatrix/max_time_expired
+=== PAUSE TestWrapOperationErrorMatrix/max_time_expired
+=== RUN   TestWrapOperationErrorMatrix/canceled
+=== PAUSE TestWrapOperationErrorMatrix/canceled
+=== RUN   TestWrapOperationErrorMatrix/network_error
+=== PAUSE TestWrapOperationErrorMatrix/network_error
+=== RUN   TestWrapOperationErrorMatrix/client_disconnected
+=== PAUSE TestWrapOperationErrorMatrix/client_disconnected
+=== RUN   TestWrapOperationErrorMatrix/nil_document
+=== PAUSE TestWrapOperationErrorMatrix/nil_document
+=== RUN   TestWrapOperationErrorMatrix/not_found
+=== PAUSE TestWrapOperationErrorMatrix/not_found
+=== RUN   TestWrapOperationErrorMatrix/duplicate_key
+=== PAUSE TestWrapOperationErrorMatrix/duplicate_key
+=== RUN   TestWrapOperationErrorMatrix/generic_server_error
+=== PAUSE TestWrapOperationErrorMatrix/generic_server_error
+=== RUN   TestWrapOperationErrorMatrix/unknown
+=== PAUSE TestWrapOperationErrorMatrix/unknown
+=== CONT  TestWrapOperationErrorMatrix/deadline_exceeded
+=== CONT  TestBulkWriteResultAdapterGetters
+--- PASS: TestBulkWriteResultAdapterGetters (0.00s)
+=== CONT  TestCursorAdapterStreamErrors
+=== RUN   TestCursorAdapterStreamErrors/decode_failure
+=== PAUSE TestCursorAdapterStreamErrors/decode_failure
+=== RUN   TestCursorAdapterStreamErrors/iteration_failure
+=== PAUSE TestCursorAdapterStreamErrors/iteration_failure
+=== CONT  TestCursorAdapterStreamErrors/decode_failure
+=== CONT  TestWrapOperationErrorMatrix/unknown
+=== CONT  TestWrapOperationErrorMatrix/generic_server_error
+=== CONT  TestWrapOperationErrorMatrix/duplicate_key
+=== CONT  TestWrapOperationErrorMatrix/not_found
+=== CONT  TestWrapOperationErrorMatrix/nil_document
+=== CONT  TestWrapOperationErrorMatrix/client_disconnected
+=== CONT  TestWrapOperationErrorMatrix/network_error
+=== CONT  TestWrapOperationErrorMatrix/canceled
+=== CONT  TestWrapOperationErrorMatrix/max_time_expired
+=== CONT  TestWrapOperationErrorMatrix/net.Error_timeout
+=== CONT  TestWrapOperationErrorMatrix/network_timeout_label
+--- PASS: TestWrapOperationErrorMatrix (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/deadline_exceeded (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/unknown (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/generic_server_error (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/duplicate_key (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/not_found (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/nil_document (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/client_disconnected (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/network_error (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/canceled (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/max_time_expired (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/net.Error_timeout (0.00s)
+    --- PASS: TestWrapOperationErrorMatrix/network_timeout_label (0.00s)
+=== CONT  TestApplyDefaultsRetryWritesNilEnablesIt
+--- PASS: TestApplyDefaultsRetryWritesNilEnablesIt (0.00s)
+=== CONT  TestClientOptionsPrecedence/URI_options_survive
+--- PASS: TestClientOptionsPrecedence (0.00s)
+    --- PASS: TestClientOptionsPrecedence/SDK_defaults_when_neither_Config_nor_URI_sets_an_option (0.00s)
+    --- PASS: TestClientOptionsPrecedence/explicit_RetryWrites_false (0.00s)
+    --- PASS: TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_MaxPoolSize (0.00s)
+    --- PASS: TestClientOptionsPrecedence/default_MinPoolSize_clamped_to_a_small_URI_maxPoolSize (0.00s)
+    --- PASS: TestClientOptionsPrecedence/Config_fields_override_the_URI (0.00s)
+    --- PASS: TestClientOptionsPrecedence/URI_options_survive (0.00s)
+=== CONT  TestCursorAdapterStreamErrors/iteration_failure
+--- PASS: TestCursorAdapterStreamErrors (0.00s)
+    --- PASS: TestCursorAdapterStreamErrors/decode_failure (0.00s)
+    --- PASS: TestCursorAdapterStreamErrors/iteration_failure (0.00s)
+=== CONT  TestWrapDecodeError
+--- PASS: TestWrapDecodeError (0.00s)
+=== CONT  TestNormalizeURI/trims_accidental_leading_equals
+=== CONT  TestNormalizeURI/prepends_mongodb_scheme_when_missing
+=== CONT  TestNormalizeURI/preserves_mongodb_srv_scheme
+--- PASS: TestNormalizeURI (0.00s)
+    --- PASS: TestNormalizeURI/preserves_mongodb_scheme (0.00s)
+    --- PASS: TestNormalizeURI/trims_accidental_leading_equals (0.00s)
+    --- PASS: TestNormalizeURI/prepends_mongodb_scheme_when_missing (0.00s)
+    --- PASS: TestNormalizeURI/preserves_mongodb_srv_scheme (0.00s)
+=== RUN   ExampleWrapOperationError
+--- PASS: ExampleWrapOperationError (0.00s)
+PASS
+ok  	github.com/trypanic/go-sdk/v2/mongo	0.051s
+=== RUN   TestPublisherPublishAfterCloseFailsWithoutDial
+=== PAUSE TestPublisherPublishAfterCloseFailsWithoutDial
+=== RUN   TestPubSubPublishAfterCloseIsNotRetried
+=== PAUSE TestPubSubPublishAfterCloseIsNotRetried
+=== RUN   TestPublisherCloseTwice
+=== PAUSE TestPublisherCloseTwice
+=== RUN   TestPublisherCloseDuringReconnectDoesNotLeak
+=== PAUSE TestPublisherCloseDuringReconnectDoesNotLeak
+=== RUN   TestPubSubCloseStopsSubscribers
+=== PAUSE TestPubSubCloseStopsSubscribers
+=== RUN   TestPublisherCloseRacingReconnectReturnsNil
+=== PAUSE TestPublisherCloseRacingReconnectReturnsNil
+=== RUN   TestSubscribeRacingCloseFailsClosed
+=== PAUSE TestSubscribeRacingCloseFailsClosed
+=== RUN   TestPublishUsesConfirmModeAndMandatory
+=== PAUSE TestPublishUsesConfirmModeAndMandatory
+=== RUN   TestPublishReturnsErrorOnNack
+=== PAUSE TestPublishReturnsErrorOnNack
+=== RUN   TestPublishReturnsErrorWhenUnroutable
+=== PAUSE TestPublishReturnsErrorWhenUnroutable
+=== RUN   TestPublishIgnoresStaleReturn
+=== PAUSE TestPublishIgnoresStaleReturn
+=== RUN   TestPublishConfirmWaitHonoursDeadline
+=== PAUSE TestPublishConfirmWaitHonoursDeadline
+=== RUN   TestDeclareTopologyDeclaresQueuesAndBindings
+=== PAUSE TestDeclareTopologyDeclaresQueuesAndBindings
+=== RUN   TestNewPubSubDeclaresOnlyExchangesByDefault
+=== PAUSE TestNewPubSubDeclaresOnlyExchangesByDefault
+=== RUN   TestPublishAfterChannelClosingNackReopensLink
+=== PAUSE TestPublishAfterChannelClosingNackReopensLink
+=== RUN   TestConnectionOptionsApplied
+=== PAUSE TestConnectionOptionsApplied
+=== RUN   TestConnectionOptionsDefaults
+=== PAUSE TestConnectionOptionsDefaults
+=== RUN   TestWithDialTimeoutBoundsHandshake
+=== PAUSE TestWithDialTimeoutBoundsHandshake
+=== RUN   TestPubSubConstructorCancelsStalledHandshake
+--- PASS: TestPubSubConstructorCancelsStalledHandshake (0.00s)
+=== RUN   TestConstructionContextDoesNotOwnPubSubLifetime
+--- PASS: TestConstructionContextDoesNotOwnPubSubLifetime (0.00s)
+=== RUN   TestPubSubCancellationInterruptsChannelSetup
+--- PASS: TestPubSubCancellationInterruptsChannelSetup (0.00s)
+=== RUN   TestHandleDeliveryAcksOnSuccess
+=== PAUSE TestHandleDeliveryAcksOnSuccess
+=== RUN   TestHandleDeliveryRequeuesWhenHandlerSeesShutdown
+=== PAUSE TestHandleDeliveryRequeuesWhenHandlerSeesShutdown
+=== RUN   TestHandleDeliveryRequeuesWhenCtxAlreadyCancelled
+=== PAUSE TestHandleDeliveryRequeuesWhenCtxAlreadyCancelled
+=== RUN   TestHandleDeliveryRecoversHandlerPanic
+=== PAUSE TestHandleDeliveryRecoversHandlerPanic
+=== RUN   TestMessagingClassificationSkipsTypedNil
+--- PASS: TestMessagingClassificationSkipsTypedNil (0.00s)
+=== RUN   TestErrorMetadataRegisteredInGlobalRegistry
+--- PASS: TestErrorMetadataRegisteredInGlobalRegistry (0.00s)
+=== RUN   TestRegisterErrorsIdempotent
+--- PASS: TestRegisterErrorsIdempotent (0.00s)
+=== RUN   TestRegisterErrorsIntoIsolatedRegistry
+--- PASS: TestRegisterErrorsIntoIsolatedRegistry (0.00s)
+=== RUN   TestSubscribePreservesConnectionErrorCode
+=== PAUSE TestSubscribePreservesConnectionErrorCode
+=== RUN   TestNewPublisherDoesNotRewrapConnectError
+=== PAUSE TestNewPublisherDoesNotRewrapConnectError
+=== RUN   TestSubscriberReconnectDoesNotRewrapConnectError
+=== PAUSE TestSubscriberReconnectDoesNotRewrapConnectError
+=== RUN   TestPublishPreservesPublisherErrorCode
+=== PAUSE TestPublishPreservesPublisherErrorCode
+=== RUN   TestSubscriberConnectErrorCodes
+=== PAUSE TestSubscriberConnectErrorCodes
+=== RUN   TestSubscriberConsumeErrorCode
+=== PAUSE TestSubscriberConsumeErrorCode
+=== RUN   TestPublisherConnectErrorCodes
+=== PAUSE TestPublisherConnectErrorCodes
+=== RUN   TestTopologyLookupErrorCodes
+=== PAUSE TestTopologyLookupErrorCodes
+=== RUN   TestReconnectWithBackoffStopsOnNonRetriableError
+--- PASS: TestReconnectWithBackoffStopsOnNonRetriableError (0.00s)
+=== RUN   TestNewPubSubDoesNotReadTopologyEnv
+--- PASS: TestNewPubSubDoesNotReadTopologyEnv (0.00s)
+=== RUN   TestNewPubSubFromEnvLoadsTopology
+--- PASS: TestNewPubSubFromEnvLoadsTopology (0.00s)
+=== RUN   TestNewPubSubFromEnvRequiresVariable
+--- PASS: TestNewPubSubFromEnvRequiresVariable (0.00s)
+=== RUN   TestNewPubSubFromEnvExplicitTopologyWins
+--- PASS: TestNewPubSubFromEnvExplicitTopologyWins (0.00s)
+=== RUN   TestInstrumenterOptionRecordsThroughProvider
+--- PASS: TestInstrumenterOptionRecordsThroughProvider (0.00s)
+=== RUN   TestResolveTopologyExplicitWins
+=== PAUSE TestResolveTopologyExplicitWins
+=== RUN   TestResolveTopologyEnvFallbackErrorsWhenUnset
+--- PASS: TestResolveTopologyEnvFallbackErrorsWhenUnset (0.00s)
+=== RUN   TestPubSubDefaultsToGlobalTelemetry
+=== PAUSE TestPubSubDefaultsToGlobalTelemetry
+=== RUN   TestWithTracerOverridesDefault
+=== PAUSE TestWithTracerOverridesDefault
+=== RUN   TestWithPropagatorOverridesDefault
+=== PAUSE TestWithPropagatorOverridesDefault
+=== RUN   TestSubscriberPrefetch
+=== PAUSE TestSubscriberPrefetch
+=== RUN   TestPublishWithCancelledCtxDoesNotDial
+=== PAUSE TestPublishWithCancelledCtxDoesNotDial
+=== RUN   TestPublishHonoursDeadlineWhileAnotherPublishReconnects
+=== PAUSE TestPublishHonoursDeadlineWhileAnotherPublishReconnects
+=== RUN   TestPublisherCloseDoesNotWaitForDial
+=== PAUSE TestPublisherCloseDoesNotWaitForDial
+=== RUN   TestPublishDeadlineBoundsHandshake
+=== PAUSE TestPublishDeadlineBoundsHandshake
+=== RUN   TestPublisherLogsThroughInjectedLogger
+=== PAUSE TestPublisherLogsThroughInjectedLogger
+=== RUN   TestWarnReconnectIsStructured
+=== PAUSE TestWarnReconnectIsStructured
+=== RUN   TestRetryHasExplicitElapsedBudget
+--- PASS: TestRetryHasExplicitElapsedBudget (0.00s)
+=== RUN   TestPublishRetryDoesNotResendCompletedKeys
+=== PAUSE TestPublishRetryDoesNotResendCompletedKeys
+=== RUN   TestPublishRetryPolicyIsTheOnlyRetryLayer
+=== PAUSE TestPublishRetryPolicyIsTheOnlyRetryLayer
+=== RUN   TestPublishWithoutRetryPolicyRetriesOnce
+=== PAUSE TestPublishWithoutRetryPolicyRetriesOnce
+=== RUN   TestPublisherUsesSeam
+=== PAUSE TestPublisherUsesSeam
+=== RUN   TestHandleDeliveryReportsAckFailure
+=== PAUSE TestHandleDeliveryReportsAckFailure
+=== RUN   TestHandleDeliveryReportsNackFailure
+=== PAUSE TestHandleDeliveryReportsNackFailure
+=== RUN   TestHandleDeliveryReportsShutdownNackFailure
+=== PAUSE TestHandleDeliveryReportsShutdownNackFailure
+=== RUN   TestHandleDeliveryLogsHandlerPanic
+=== PAUSE TestHandleDeliveryLogsHandlerPanic
+=== RUN   TestPublishSpanConventions
+=== PAUSE TestPublishSpanConventions
+=== RUN   TestDeliverySpanConventions
+=== PAUSE TestDeliverySpanConventions
+=== RUN   TestSubscribeOutlivesConstructionContext
+--- PASS: TestSubscribeOutlivesConstructionContext (0.00s)
+=== RUN   TestSubscribeReportsTeardownCloseFailure
+=== PAUSE TestSubscribeReportsTeardownCloseFailure
+=== RUN   TestSubscriberCloseAfterConnectionLoss
+=== PAUSE TestSubscriberCloseAfterConnectionLoss
+=== RUN   TestLoadTopologyFromBytesParsesValidJSON
+=== PAUSE TestLoadTopologyFromBytesParsesValidJSON
+=== RUN   TestLoadTopologyFromBytesRejectsInvalidJSON
+=== PAUSE TestLoadTopologyFromBytesRejectsInvalidJSON
+=== RUN   TestLoadTopologyFromFileReadsExistingFile
+=== PAUSE TestLoadTopologyFromFileReadsExistingFile
+=== RUN   TestLoadTopologyFromFileEmptyPathReturnsError
+=== PAUSE TestLoadTopologyFromFileEmptyPathReturnsError
+=== RUN   TestLoadTopologyFromFileMissingFileReturnsError
+=== PAUSE TestLoadTopologyFromFileMissingFileReturnsError
+=== RUN   TestLoadTopologyFromEnvUsesEnvVar
+--- PASS: TestLoadTopologyFromEnvUsesEnvVar (0.00s)
+=== RUN   TestLoadTopologyFromEnvMissingEnvReturnsError
+--- PASS: TestLoadTopologyFromEnvMissingEnvReturnsError (0.00s)
+=== RUN   TestLoadTopologyDoesNotWalkParentDirs
+--- PASS: TestLoadTopologyDoesNotWalkParentDirs (0.00s)
+=== RUN   TestBuildQueueArgs
+=== PAUSE TestBuildQueueArgs
+=== RUN   TestCarrierGet
+=== PAUSE TestCarrierGet
+=== RUN   TestCarrierSetOnNilTable
+=== PAUSE TestCarrierSetOnNilTable
+=== RUN   TestCarrierPropagatesTraceContext
+=== PAUSE TestCarrierPropagatesTraceContext
+=== RUN   TestHandleDeliveryRetriesThenAcks
+=== PAUSE TestHandleDeliveryRetriesThenAcks
+=== RUN   TestHandleDeliveryNacksAfterRetriesExhausted
+=== PAUSE TestHandleDeliveryNacksAfterRetriesExhausted
+=== RUN   TestHandleDeliveryWithoutRetryRunsOnce
+=== PAUSE TestHandleDeliveryWithoutRetryRunsOnce
+=== RUN   TestReconnectWithBackoffSchedule
+--- PASS: TestReconnectWithBackoffSchedule (0.00s)
+=== RUN   TestReconnectWithBackoffCapsDelay
+--- PASS: TestReconnectWithBackoffCapsDelay (0.00s)
+=== RUN   TestReconnectWithBackoffStopsOnCancel
+--- PASS: TestReconnectWithBackoffStopsOnCancel (0.00s)
+=== RUN   TestLoadTopologyAcceptsValidTopology
+=== PAUSE TestLoadTopologyAcceptsValidTopology
+=== RUN   TestLoadTopologyRejectsInvalidTopologies
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies
+=== RUN   TestNewPubSubValidatesInMemoryTopology
+=== PAUSE TestNewPubSubValidatesInMemoryTopology
+=== RUN   TestExecuteWithRetryNegativeMaxAttemptsIsBounded
+=== PAUSE TestExecuteWithRetryNegativeMaxAttemptsIsBounded
+=== RUN   TestRabbitMQIntegration
+    messaging_integration_test.go:24: requires local RabbitMQ container
+--- SKIP: TestRabbitMQIntegration (0.00s)
+=== CONT  TestLoadTopologyFromFileEmptyPathReturnsError
+=== CONT  TestLoadTopologyFromFileReadsExistingFile
+--- PASS: TestLoadTopologyFromFileEmptyPathReturnsError (0.00s)
+=== CONT  TestPublisherPublishAfterCloseFailsWithoutDial
+--- PASS: TestPublisherPublishAfterCloseFailsWithoutDial (0.00s)
+=== CONT  TestExecuteWithRetryNegativeMaxAttemptsIsBounded
+--- PASS: TestExecuteWithRetryNegativeMaxAttemptsIsBounded (0.00s)
+=== CONT  TestNewPubSubValidatesInMemoryTopology
+--- PASS: TestLoadTopologyFromFileReadsExistingFile (0.00s)
+=== CONT  TestLoadTopologyFromBytesRejectsInvalidJSON
+=== CONT  TestLoadTopologyAcceptsValidTopology
+=== CONT  TestCarrierPropagatesTraceContext
+--- PASS: TestNewPubSubValidatesInMemoryTopology (0.00s)
+--- PASS: TestLoadTopologyFromBytesRejectsInvalidJSON (0.00s)
+=== CONT  TestLoadTopologyFromBytesParsesValidJSON
+--- PASS: TestLoadTopologyAcceptsValidTopology (0.00s)
+=== CONT  TestCarrierSetOnNilTable
+--- PASS: TestCarrierSetOnNilTable (0.00s)
+=== CONT  TestPublishPreservesPublisherErrorCode
+=== CONT  TestCarrierGet
+=== CONT  TestBuildQueueArgs
+=== CONT  TestHandleDeliveryRetriesThenAcks
+=== RUN   TestBuildQueueArgs/empty
+=== PAUSE TestBuildQueueArgs/empty
+=== CONT  TestHandleDeliveryNacksAfterRetriesExhausted
+=== CONT  TestNewPublisherDoesNotRewrapConnectError
+=== CONT  TestPublishConfirmWaitHonoursDeadline
+=== CONT  TestSubscribeRacingCloseFailsClosed
+=== CONT  TestPublishIgnoresStaleReturn
+{"level":"warn","time":"2026-11-04T06:13:56.33271396Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestHandleDeliveryAcksOnSuccess
+=== CONT  TestSubscriberConnectErrorCodes
+{"level":"warn","time":"2026-11-04T06:13:56.332726914Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestPublishAfterChannelClosingNackReopensLink
+=== RUN   TestSubscriberConnectErrorCodes/dial_refused
+{"level":"warn","time":"2026-11-04T06:13:56.332771084Z","message":"messaging: publisher connection closed, reconnecting"}
+--- PASS: TestLoadTopologyFromBytesParsesValidJSON (0.00s)
+=== CONT  TestNewPubSubDeclaresOnlyExchangesByDefault
+=== PAUSE TestSubscriberConnectErrorCodes/dial_refused
+--- PASS: TestCarrierGet (0.00s)
+--- PASS: TestCarrierPropagatesTraceContext (0.00s)
+=== RUN   TestSubscriberConnectErrorCodes/bad_credentials
+--- PASS: TestSubscribeRacingCloseFailsClosed (0.00s)
+--- PASS: TestPublishIgnoresStaleReturn (0.00s)
+=== PAUSE TestSubscriberConnectErrorCodes/bad_credentials
+--- PASS: TestHandleDeliveryAcksOnSuccess (0.00s)
+=== CONT  TestWithDialTimeoutBoundsHandshake
+=== RUN   TestBuildQueueArgs/limits_and_mode
+=== PAUSE TestBuildQueueArgs/limits_and_mode
+=== RUN   TestBuildQueueArgs/dlx_with_routing_key
+=== CONT  TestLoadTopologyFromFileMissingFileReturnsError
+=== CONT  TestSubscriberReconnectDoesNotRewrapConnectError
+--- PASS: TestNewPubSubDeclaresOnlyExchangesByDefault (0.00s)
+=== CONT  TestConnectionOptionsDefaults
+=== CONT  TestConnectionOptionsApplied
+=== CONT  TestDeclareTopologyDeclaresQueuesAndBindings
+=== RUN   TestSubscriberConnectErrorCodes/vhost_denied
+{"level":"warn","time":"2026-11-04T06:13:56.333639497Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestLoadTopologyRejectsInvalidTopologies
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/unknown_field_(typo)
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/unknown_field_(typo)
+=== CONT  TestPublisherCloseTwice
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/trailing_data
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/trailing_data
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/negative_maxAttempts
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/negative_maxAttempts
+--- PASS: TestConnectionOptionsDefaults (0.00s)
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/zero_maxAttempts
+--- PASS: TestPublishPreservesPublisherErrorCode (0.00s)
+=== CONT  TestPublisherCloseRacingReconnectReturnsNil
+--- PASS: TestDeclareTopologyDeclaresQueuesAndBindings (0.00s)
+--- PASS: TestPublisherCloseTwice (0.00s)
+=== CONT  TestHandleDeliveryRecoversHandlerPanic
+--- PASS: TestLoadTopologyFromFileMissingFileReturnsError (0.00s)
+{"level":"warn","time":"2026-11-04T06:13:56.333818811Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestSubscribePreservesConnectionErrorCode
+{"level":"warn","time":"2026-11-04T06:13:56.333830242Z","message":"messaging: publisher connection closed, reconnecting"}
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/zero_maxAttempts
+--- PASS: TestPublishAfterChannelClosingNackReopensLink (0.00s)
+=== CONT  TestPubSubPublishAfterCloseIsNotRetried
+--- PASS: TestPublisherCloseRacingReconnectReturnsNil (0.00s)
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/negative_delay
+=== CONT  TestHandleDeliveryRequeuesWhenCtxAlreadyCancelled
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/negative_delay
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/multiplier_below_1
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/multiplier_below_1
+=== CONT  TestHandleDeliveryRequeuesWhenHandlerSeesShutdown
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/negative_prefetch
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/negative_prefetch
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/duplicate_binding_for_a_queue
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/duplicate_binding_for_a_queue
+=== CONT  TestPubSubCloseStopsSubscribers
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_exchange
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_exchange
+=== CONT  TestPublisherCloseDuringReconnectDoesNotLeak
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_queue
+=== CONT  TestPublishReturnsErrorWhenUnroutable
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_queue
+{"level":"warn","time":"2026-11-04T06:13:56.33397567Z","message":"messaging: publisher connection closed, reconnecting"}
+{"level":"warn","time":"2026-11-04T06:13:56.333997985Z","message":"messaging: publisher connection closed, reconnecting"}
+=== PAUSE TestBuildQueueArgs/dlx_with_routing_key
+=== CONT  TestPublishUsesConfirmModeAndMandatory
+{"level":"error","error":"messaging: handler panicked: poison","queue":"q","stack":"goroutine 90 [running]:\nruntime/debug.Stack()\n\t/home/trypanic/.proto/tools/go/1.27.3/src/runtime/debug/stack.go:26 +0x5e\ngithub.com/trypanic/go-sdk/v2/messaging.(*PubSub).handleDelivery.func1.1()\n\t/tmp/go-sdk-audit-DEPS/messaging/messaging.go:500 +0x234\npanic({0xe91d00?, 0x996460?})\n\t/home/trypanic/.proto/tools/go/1.27.3/src/runtime/panic.go:859 +0x125\ngithub.com/trypanic/go-sdk/v2/messaging.TestHandleDeliveryRecoversHandlerPanic.func1.1({0x0?, 0x0?}, {{0x2e99c29b0038, 0x2, 0x2}, 0x0, {0x960c92, 0x6}, {0x964705, 0xd}, ...})\n\t/tmp/go-sdk-audit-DEPS/messaging/delivery_test.go:143 +0x28\ngithub.com/trypanic/go-sdk/v2/messaging.(*PubSub).handleDelivery.func1()\n\t/tmp/go-sdk-audit-DEPS/messaging/messaging.go:506 +0x799\ngithub.com/cenkalti/backoff/v4.Operation.withEmptyData.func1()\n\t/home/trypanic/.go/pkg/mod/github.com/cenkalti/backoff/v4@v4.3.0/retry.go:18 +0x13\ngithub.com/cenkalti/backoff/v4.doRetryNotify[...](0x2e99c274d5b0?, {0x720518db1a00, 0x2e99c2592280}, 0x0, {0x0, 0x0?})\n\t/home/trypanic/.go/pkg/mod/github.com/cenkalti/backoff/v4@v4.3.0/retry.go:88 +0x128\ngithub.com/cenkalti/backoff/v4.RetryNotifyWithTimer(0xf87480?, {0x720518db1a00?, 0x2e99c2592280?}, 0x3?, {0x0?, 0x0?})\n\t/home/trypanic/.go/pkg/mod/github.com/cenkalti/backoff/v4@v4.3.0/retry.go:61 +0x56\ngithub.com/cenkalti/backoff/v4.RetryNotify(...)\n\t/home/trypanic/.go/pkg/mod/github.com/cenkalti/backoff/v4@v4.3.0/retry.go:49\ngithub.com/cenkalti/backoff/v4.Retry(...)\n\t/home/trypanic/.go/pkg/mod/github.com/cenkalti/backoff/v4@v4.3.0/retry.go:38\ngithub.com/trypanic/go-sdk/v2/messaging.executeWithRetry({0xf316b0, 0xfc1a80}, 0x2e99c23e7948, 0x2e99c2636018?)\n\t/tmp/go-sdk-audit-DEPS/messaging/messaging.go:620 +0x212\ngithub.com/trypanic/go-sdk/v2/messaging.(*PubSub).handleDelivery(_, {_, _}, {_, _}, {{0xf30bc8, 0x2e99c243a000}, 0x0, {0x0, 0x0}, ...}, ...)\n\t/tmp/go-sdk-audit-DEPS/messaging/messaging.go:514 +0xcf1\ngithub.com/trypanic/go-sdk/v2/messaging.TestHandleDeliveryRecoversHandlerPanic.func1()\n\t/tmp/go-sdk-audit-DEPS/messaging/delivery_test.go:141 +0x20c\ngithub.com/stretchr/testify/assert.didPanic(0xf89340?)\n\t/home/trypanic/.go/pkg/mod/github.com/stretchr/testify@v1.12.1/assert/assertions.go:1292 +0x70\ngithub.com/stretchr/testify/assert.NotPanics({0xf2cf20, 0x2e99c2444fc8}, 0x2e99c2982090, {0x0, 0x0, 0x0})\n\t/home/trypanic/.go/pkg/mod/github.com/stretchr/testify@v1.12.1/assert/assertions.go:1369 +0x7e\ngithub.com/stretchr/testify/require.NotPanics({0xf2f150, 0x2e99c2444fc8}, 0x2e99c2982090, {0x0, 0x0, 0x0})\n\t/home/trypanic/.go/pkg/mod/github.com/stretchr/testify@v1.12.1/require/require.go:1683 +0xa5\ngithub.com/trypanic/go-sdk/v2/messaging.TestHandleDeliveryRecoversHandlerPanic(0x2e99c2444fc8)\n\t/tmp/go-sdk-audit-DEPS/messaging/delivery_test.go:140 +0x20e\ntesting.tRunner(0x2e99c2444fc8, 0xf35038)\n\t/home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2195 +0xea\ncreated by testing.(*T).Run in goroutine 1\n\t/home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2260 +0x4d4\n","time":"2026-11-04T06:13:56.334013122Z","message":"messaging: handler panicked; message dead-lettered"}
+=== CONT  TestDeliverySpanConventions
+=== CONT  TestPublishSpanConventions
+{"level":"warn","time":"2026-11-04T06:13:56.334094525Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestHandleDeliveryLogsHandlerPanic
+=== CONT  TestHandleDeliveryReportsShutdownNackFailure
+=== CONT  TestHandleDeliveryReportsNackFailure
+--- PASS: TestHandleDeliveryRequeuesWhenCtxAlreadyCancelled (0.00s)
+--- PASS: TestHandleDeliveryRequeuesWhenHandlerSeesShutdown (0.00s)
+--- PASS: TestPubSubPublishAfterCloseIsNotRetried (0.00s)
+--- PASS: TestConnectionOptionsApplied (0.00s)
+=== CONT  TestHandleDeliveryReportsAckFailure
+--- PASS: TestHandleDeliveryReportsShutdownNackFailure (0.00s)
+--- PASS: TestHandleDeliveryReportsNackFailure (0.00s)
+=== CONT  TestPublisherUsesSeam
+=== CONT  TestPublishWithoutRetryPolicyRetriesOnce
+--- PASS: TestPubSubCloseStopsSubscribers (0.00s)
+=== CONT  TestPublishRetryPolicyIsTheOnlyRetryLayer
+--- PASS: TestSubscribePreservesConnectionErrorCode (0.00s)
+--- PASS: TestHandleDeliveryLogsHandlerPanic (0.00s)
+=== CONT  TestPublishRetryDoesNotResendCompletedKeys
+{"level":"warn","time":"2026-11-04T06:13:56.335046328Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestPublisherLogsThroughInjectedLogger
+--- PASS: TestNewPublisherDoesNotRewrapConnectError (0.00s)
+{"level":"warn","error":"channel died","exchange":"events","routing_key":"a","time":"2026-11-04T06:13:56.335054966Z","message":"messaging: publish failed, reconnecting for a single retry"}
+--- PASS: TestHandleDeliveryRecoversHandlerPanic (0.00s)
+--- PASS: TestPublisherCloseDuringReconnectDoesNotLeak (0.00s)
+--- PASS: TestPublishWithoutRetryPolicyRetriesOnce (0.00s)
+--- PASS: TestSubscriberReconnectDoesNotRewrapConnectError (0.00s)
+=== CONT  TestWithPropagatorOverridesDefault
+--- PASS: TestHandleDeliveryRetriesThenAcks (0.00s)
+--- PASS: TestPublishUsesConfirmModeAndMandatory (0.00s)
+=== CONT  TestPublisherCloseDoesNotWaitForDial
+{"level":"warn","time":"2026-11-04T06:13:56.335085307Z","message":"messaging: publisher connection closed, reconnecting"}
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/binding_without_routing_keys
+--- PASS: TestHandleDeliveryReportsAckFailure (0.00s)
+=== CONT  TestSubscribeReportsTeardownCloseFailure
+{"level":"warn","time":"2026-11-04T06:13:56.335103308Z","message":"messaging: publisher connection closed, reconnecting"}
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/binding_without_routing_keys
+{"level":"warn","time":"2026-11-04T06:13:56.335115027Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestPublishHonoursDeadlineWhileAnotherPublishReconnects
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/undeclared_DLX_exchange
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/undeclared_DLX_exchange
+=== CONT  TestPublishDeadlineBoundsHandshake
+--- PASS: TestPublisherCloseDoesNotWaitForDial (0.00s)
+=== CONT  TestPublishWithCancelledCtxDoesNotDial
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/duplicate_queue_name
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/duplicate_queue_name
+{"level":"warn","time":"2026-11-04T06:13:56.335156636Z","message":"messaging: publisher connection closed, reconnecting"}
+=== RUN   TestBuildQueueArgs/dlx_without_routing_key
+--- PASS: TestDeliverySpanConventions (0.00s)
+=== PAUSE TestBuildQueueArgs/dlx_without_routing_key
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/duplicate_exchange_name
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/duplicate_exchange_name
+=== CONT  TestSubscriberCloseAfterConnectionLoss
+=== CONT  TestResolveTopologyExplicitWins
+=== RUN   TestBuildQueueArgs/whole_JSON_numbers_become_int64,_others_are_kept
+=== CONT  TestWithTracerOverridesDefault
+=== CONT  TestPubSubDefaultsToGlobalTelemetry
+--- PASS: TestHandleDeliveryNacksAfterRetriesExhausted (0.00s)
+=== CONT  TestPublisherConnectErrorCodes
+=== CONT  TestSubscriberPrefetch
+=== CONT  TestTopologyLookupErrorCodes
+--- PASS: TestPublisherUsesSeam (0.00s)
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/empty_queue_name
+--- PASS: TestWithPropagatorOverridesDefault (0.00s)
+--- PASS: TestPublisherLogsThroughInjectedLogger (0.00s)
+=== PAUSE TestSubscriberConnectErrorCodes/vhost_denied
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/empty_queue_name
+=== RUN   TestSubscriberConnectErrorCodes/channel_open
+=== PAUSE TestSubscriberConnectErrorCodes/channel_open
+=== RUN   TestSubscriberConnectErrorCodes/exchange_declare
+{"level":"warn","time":"2026-11-04T06:13:56.335269368Z","message":"messaging: publisher connection closed, reconnecting"}
+=== PAUSE TestSubscriberConnectErrorCodes/exchange_declare
+=== CONT  TestHandleDeliveryWithoutRetryRunsOnce
+=== RUN   TestSubscriberConnectErrorCodes/exchange_declare_refused
+=== PAUSE TestSubscriberConnectErrorCodes/exchange_declare_refused
+=== RUN   TestSubscriberPrefetch/omitted_uses_the_default
+=== PAUSE TestSubscriberPrefetch/omitted_uses_the_default
+=== RUN   TestSubscriberConnectErrorCodes/queue_declare
+=== RUN   TestSubscriberPrefetch/explicit_value_is_kept
+=== PAUSE TestSubscriberConnectErrorCodes/queue_declare
+=== PAUSE TestSubscriberPrefetch/explicit_value_is_kept
+=== RUN   TestSubscriberConnectErrorCodes/queue_bind
+=== CONT  TestSubscriberConsumeErrorCode
+=== CONT  TestSubscriberPrefetch/omitted_uses_the_default
+=== PAUSE TestSubscriberConnectErrorCodes/queue_bind
+=== RUN   TestSubscriberConnectErrorCodes/qos
+=== PAUSE TestSubscriberConnectErrorCodes/qos
+=== CONT  TestSubscriberPrefetch/explicit_value_is_kept
+=== CONT  TestSubscriberConnectErrorCodes/dial_refused
+=== CONT  TestPublishReturnsErrorOnNack
+=== CONT  TestSubscriberConnectErrorCodes/exchange_declare_refused
+=== CONT  TestSubscriberConnectErrorCodes/qos
+=== CONT  TestSubscriberConnectErrorCodes/channel_open
+{"level":"warn","time":"2026-11-04T06:13:56.33548189Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestSubscriberConnectErrorCodes/queue_bind
+=== RUN   TestLoadTopologyRejectsInvalidTopologies/exchange_without_type
+=== PAUSE TestLoadTopologyRejectsInvalidTopologies/exchange_without_type
+=== CONT  TestSubscriberConnectErrorCodes/vhost_denied
+=== CONT  TestSubscriberConnectErrorCodes/queue_declare
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/unknown_field_(typo)
+=== CONT  TestSubscriberConnectErrorCodes/exchange_declare
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_queue
+=== CONT  TestWarnReconnectIsStructured
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/duplicate_exchange_name
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/exchange_without_type
+{"level":"warn","time":"2026-11-04T06:13:56.335591356Z","message":"messaging: publisher connection closed, reconnecting"}
+{"level":"warn","time":"2026-11-04T06:13:56.335593788Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/empty_queue_name
+=== PAUSE TestBuildQueueArgs/whole_JSON_numbers_become_int64,_others_are_kept
+--- PASS: TestPublishReturnsErrorWhenUnroutable (0.00s)
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/duplicate_queue_name
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/undeclared_DLX_exchange
+--- PASS: TestPublishWithCancelledCtxDoesNotDial (0.00s)
+--- PASS: TestResolveTopologyExplicitWins (0.00s)
+--- PASS: TestSubscriberCloseAfterConnectionLoss (0.00s)
+--- PASS: TestWithTracerOverridesDefault (0.00s)
+--- PASS: TestPubSubDefaultsToGlobalTelemetry (0.00s)
+=== RUN   TestBuildQueueArgs/custom_arguments_override_the_typed_fields
+--- PASS: TestPublisherConnectErrorCodes (0.00s)
+--- PASS: TestTopologyLookupErrorCodes (0.00s)
+=== PAUSE TestBuildQueueArgs/custom_arguments_override_the_typed_fields
+--- PASS: TestHandleDeliveryWithoutRetryRunsOnce (0.00s)
+--- PASS: TestSubscriberConsumeErrorCode (0.00s)
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/negative_maxAttempts
+--- PASS: TestPublishSpanConventions (0.00s)
+--- PASS: TestSubscriberPrefetch (0.00s)
+    --- PASS: TestSubscriberPrefetch/omitted_uses_the_default (0.00s)
+    --- PASS: TestSubscriberPrefetch/explicit_value_is_kept (0.00s)
+--- PASS: TestWarnReconnectIsStructured (0.00s)
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/trailing_data
+--- PASS: TestPublishReturnsErrorOnNack (0.00s)
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/zero_maxAttempts
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/binding_without_routing_keys
+=== CONT  TestBuildQueueArgs/empty
+=== CONT  TestBuildQueueArgs/dlx_without_routing_key
+=== CONT  TestBuildQueueArgs/custom_arguments_override_the_typed_fields
+=== CONT  TestBuildQueueArgs/whole_JSON_numbers_become_int64,_others_are_kept
+{"level":"warn","time":"2026-11-04T06:13:56.336100632Z","message":"messaging: publisher connection closed, reconnecting"}
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/negative_prefetch
+=== CONT  TestBuildQueueArgs/dlx_with_routing_key
+=== CONT  TestBuildQueueArgs/limits_and_mode
+=== CONT  TestSubscriberConnectErrorCodes/bad_credentials
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/duplicate_binding_for_a_queue
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_exchange
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/negative_delay
+--- PASS: TestPublishRetryDoesNotResendCompletedKeys (0.00s)
+=== CONT  TestLoadTopologyRejectsInvalidTopologies/multiplier_below_1
+--- PASS: TestBuildQueueArgs (0.00s)
+    --- PASS: TestBuildQueueArgs/empty (0.00s)
+    --- PASS: TestBuildQueueArgs/custom_arguments_override_the_typed_fields (0.00s)
+    --- PASS: TestBuildQueueArgs/dlx_without_routing_key (0.00s)
+    --- PASS: TestBuildQueueArgs/dlx_with_routing_key (0.00s)
+    --- PASS: TestBuildQueueArgs/whole_JSON_numbers_become_int64,_others_are_kept (0.00s)
+    --- PASS: TestBuildQueueArgs/limits_and_mode (0.00s)
+--- PASS: TestSubscriberConnectErrorCodes (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/dial_refused (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/qos (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/exchange_declare_refused (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/queue_bind (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/channel_open (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/queue_declare (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/vhost_denied (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/exchange_declare (0.00s)
+    --- PASS: TestSubscriberConnectErrorCodes/bad_credentials (0.00s)
+--- PASS: TestSubscribeReportsTeardownCloseFailure (0.00s)
+--- PASS: TestLoadTopologyRejectsInvalidTopologies (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_queue (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/duplicate_exchange_name (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/unknown_field_(typo) (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/exchange_without_type (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/empty_queue_name (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/duplicate_queue_name (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/undeclared_DLX_exchange (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/trailing_data (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/negative_maxAttempts (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/zero_maxAttempts (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/binding_without_routing_keys (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/negative_prefetch (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/duplicate_binding_for_a_queue (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/binding_to_undeclared_exchange (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/negative_delay (0.00s)
+    --- PASS: TestLoadTopologyRejectsInvalidTopologies/multiplier_below_1 (0.00s)
+{"level":"warn","time":"2026-11-04T06:13:56.337293973Z","message":"messaging: publisher connection closed, reconnecting"}
+--- PASS: TestPublishRetryPolicyIsTheOnlyRetryLayer (0.00s)
+{"level":"warn","time":"2026-11-04T06:13:56.383598418Z","message":"messaging: publisher connection closed, reconnecting"}
+--- PASS: TestPublishConfirmWaitHonoursDeadline (0.05s)
+--- PASS: TestPublishHonoursDeadlineWhileAnotherPublishReconnects (0.05s)
+--- PASS: TestWithDialTimeoutBoundsHandshake (0.10s)
+--- PASS: TestPublishDeadlineBoundsHandshake (0.10s)
+=== RUN   ExampleTopology_Validate
+--- PASS: ExampleTopology_Validate (0.00s)
+PASS
+ok  	github.com/trypanic/go-sdk/v2/messaging	0.171s

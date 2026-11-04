@@ -1,0 +1,40 @@
+$ sh /tmp/DEPS-review1/mandatory.sh
+=== RUN   TestRabbitMQIntegration
+2026/11/04 00:52:09 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: ab696badc2428063639f29997fba590d46e825d97610f7ff373dd313992d780d
+  Test ProcessID: 65d311d5-aae7-4d25-8ad7-213d50673578
+2026/11/04 00:52:09 🐳 Creating container for image rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce
+2026/11/04 00:52:09 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:52:09 ✅ Container created: 4d759c560231
+2026/11/04 00:52:09 🐳 Starting container: 4d759c560231
+2026/11/04 00:52:09 ✅ Container started: 4d759c560231
+2026/11/04 00:52:09 ⏳ Waiting for container id 4d759c560231 image: testcontainers/ryuk:0.14.0. Waiting for: all of: [log message "Started", port 8080/tcp to be listening]
+2026/11/04 00:52:10 Shell not found in container
+2026/11/04 00:52:10 🔔 Container is ready: 4d759c560231
+2026/11/04 00:52:10 ✅ Container created: d9c9b445f4db
+2026/11/04 00:52:10 🐳 Starting container: d9c9b445f4db
+2026/11/04 00:52:10 ✅ Container started: d9c9b445f4db
+2026/11/04 00:52:10 ⏳ Waiting for container id d9c9b445f4db image: rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce. Waiting for: log message "Server startup complete"
+2026/11/04 00:52:12 🔔 Container is ready: d9c9b445f4db
+=== RUN   TestRabbitMQIntegration/mandatory_returns_are_failures
+    messaging_integration_test.go:92:
+                Error Trace:    /tmp/DEPS-review1/mutations/messaging/messaging_integration_test.go:92
+                Error:          Should be true
+                Test:           TestRabbitMQIntegration/mandatory_returns_are_failures
+                Messages:       <nil>
+2026/11/04 00:52:12 🐳 Stopping container: d9c9b445f4db
+2026/11/04 00:52:12 ✅ Container stopped: d9c9b445f4db
+2026/11/04 00:52:12 🐳 Terminating container: d9c9b445f4db
+2026/11/04 00:52:12 🚫 Container terminated: d9c9b445f4db
+--- FAIL: TestRabbitMQIntegration (2.71s)
+    --- FAIL: TestRabbitMQIntegration/mandatory_returns_are_failures (0.01s)
+FAIL
+FAIL    github.com/trypanic/go-sdk/v2/messaging 2.757s
+FAIL

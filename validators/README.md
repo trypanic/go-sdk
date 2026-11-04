@@ -8,7 +8,7 @@ Reusable field-level validation functions compatible with the `go-ozzo/ozzo-vali
 |---|---|---|
 | `IsValidDatePointer` | Function | Validate that a `*string` pointer holds a date in `YYYY-MM-DD` format |
 | `IsAlphanumericWithSpaces` | Function | Validate that a `string` is non-empty and contains only letters, digits, and spaces |
-| `IsWithinRange` | Function | Return a validator that checks an `int` falls within `[min, max]` |
+| `IsWithinRange` | Function | Return a validator that checks an `int` falls within `[lo, hi]` |
 | `ValidateDateRange` | Function | Verify that a `from` date string is not after a `to` date string |
 
 ---
@@ -17,7 +17,7 @@ Reusable field-level validation functions compatible with the `go-ozzo/ozzo-vali
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/validators"
+    "github.com/trypanic/go-sdk/v2/validators"
     validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
@@ -37,6 +37,16 @@ func (f *Form) Validate() error {
     )
 }
 ```
+
+---
+
+## Error-code policy
+
+Every validator uses the same codes: a value of the wrong type is
+`ERR_VALIDATION_INVALID_FORMAT`, an absent value (`nil`, nil pointer, blank
+string) is `ERR_VALIDATION_MISSING_FIELD`, and a well-formed value that
+violates a constraint is `ERR_VALIDATION_INCONSISTENT`. Assert on `.Code()`,
+not on the reason text.
 
 ---
 
@@ -63,14 +73,15 @@ func IsValidDatePointer(value any) error
 Designed for use with `validation.By`. Accepts a `*string` and verifies that the pointed-to value parses as a date in `YYYY-MM-DD` format.
 
 **Behaviour:**
-- Type-asserts `value` to `*string`. Returns an error if the assertion fails or the pointer is `nil`.
+- Returns `ERR_VALIDATION_MISSING_FIELD` for `nil` or a nil `*string`, and `ERR_VALIDATION_INVALID_FORMAT` for any other type.
 - Parses the dereferenced string with `time.Parse(DateLayout, ...)`.
 
 **Error conditions:**
 
 | Condition | errorkit code |
 |---|---|
-| `value` is not a `*string` or is `nil` | `ERR_VALIDATION_MISSING_FIELD` — reason: `"value must be a string"` |
+| `value` is `nil` or a nil `*string` | `ERR_VALIDATION_MISSING_FIELD` — reason: `"value is required"` |
+| `value` is not a `*string` (a plain `string` included) | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"value must be a *string"` |
 | String does not match `YYYY-MM-DD` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"must be in format YYYY-MM-DD"` |
 
 ---
@@ -101,21 +112,23 @@ Designed for use with `validation.By`. Accepts a `string` and verifies it is non
 ### `IsWithinRange`
 
 ```go
-func IsWithinRange(min, max int) func(any) error
+func IsWithinRange(lo, hi int) func(any) error
 ```
 
-Returns a closure suitable for `validation.By`. The closure accepts an `int` value and verifies it falls within the inclusive range `[min, max]`.
+Returns a closure suitable for `validation.By`. The closure accepts an `int` value and verifies it falls within the inclusive range `[lo, hi]`.
 
 **Behaviour:**
-- Type-asserts `value` to `int`. Returns an error if the assertion fails.
-- Checks `num < min || num > max`.
+- If `lo > hi` the bounds are a programming error: the closure always returns `ERR_SYSTEM_CONFIG_INVALID`.
+- Type-asserts `value` to `int` (other integer types such as `int64` or `uint` are rejected). Returns an error if the assertion fails.
+- Checks `num < lo || num > hi`.
 
 **Error conditions:**
 
 | Condition | errorkit code |
 |---|---|
-| `value` is not an `int` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"value must be an integer"` |
-| `value` is outside `[min, max]` | `ERR_VALIDATION_INCONSISTENT` — reason: `"must be within range <min>-<max>"` |
+| `lo > hi` | `ERR_SYSTEM_CONFIG_INVALID` — reason: `"invalid range: lower bound <lo> is greater than upper bound <hi>"` |
+| `value` is not an `int` | `ERR_VALIDATION_INVALID_FORMAT` — reason: `"value must be an int"` |
+| `value` is outside `[lo, hi]` | `ERR_VALIDATION_INCONSISTENT` — reason: `"must be between <lo> and <hi>"` |
 
 ---
 
@@ -140,7 +153,7 @@ Parses both `from` and `to` as `YYYY-MM-DD` date strings and verifies that `from
 | Condition | errorkit code |
 |---|---|
 | `from` or `to` cannot be parsed | `ERR_VALIDATION_INVALID_FORMAT` |
-| `from` is after `to` | `ERR_VALIDATION_INCONSISTENT` — reason: `"filter_from must be before filter_to"` |
+| `from` is after `to` | `ERR_VALIDATION_INCONSISTENT` — reason: `"from date must not be after to date"` |
 
 ---
 
@@ -184,7 +197,7 @@ func (r *RequestBody) validateFilterMode() error {
 
 ## Lifecycle / Concurrency Notes
 
-All functions are pure and stateless. The returned closure from `IsWithinRange` captures only the immutable `min` and `max` values passed at construction time. All functions are safe for concurrent use.
+All functions are pure and stateless. The returned closure from `IsWithinRange` captures only the immutable `lo` and `hi` values passed at construction time. All functions are safe for concurrent use.
 
 ---
 
@@ -194,4 +207,9 @@ All functions are pure and stateless. The returned closure from `IsWithinRange` 
 |---|---|
 | `strings` | Whitespace trimming in `IsAlphanumericWithSpaces` |
 | `time` | Date parsing in `IsValidDatePointer` and `ValidateDateRange` |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error wrapping |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error wrapping |
+
+Validation rejections use `errorkit.NewWithoutStack`: metadata, reasons, causes
+and error IDs remain available, but `Trace` is empty. Invalid validator
+configuration retains a stack. This avoids stack-walking overhead on routine
+input rejection; log correlation still uses the error ID and explicit context.

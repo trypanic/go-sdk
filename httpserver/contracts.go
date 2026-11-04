@@ -1,15 +1,12 @@
-// Package httpserver provides a framework-agnostic HTTP interface for Go.
-// It defines common interfaces that can be implemented by various HTTP frameworks
-// (Gin, Echo, Hertz, etc.), enabling framework-independent handlers and middleware.
 package httpserver
 
 import (
 	"context"
 )
 
-// HTTPContext provides framework-agnostic access to HTTP request/response operations.
+// Context provides framework-agnostic access to HTTP request/response operations.
 // Methods are safe within a single request but not for concurrent use across goroutines.
-type HTTPContext interface {
+type Context interface {
 	// ===== Request Methods =====
 
 	// Param returns the URL path parameter value by name.
@@ -73,23 +70,25 @@ type HTTPContext interface {
 //
 // Example:
 //
-//	func GetUser(ctx context.Context, c interfaces.HTTPContext) {
+//	func GetUser(ctx context.Context, c interfaces.Context) {
 //	    userID := c.Param("id")
 //	    user, err := userRepo.FindByID(ctx, userID)
 //	    if err != nil {
-//	        c.JSON(500, map[string]string{"error": err.Error()})
+//	        // Never send err.Error(): WithError replies with a client-safe
+//	        // code and message.
+//	        c.Reply(500, c.WithError(err))
 //	        return
 //	    }
 //	    c.JSON(200, user)
 //	}
-type HandlerFunc func(ctx context.Context, c HTTPContext)
+type HandlerFunc func(ctx context.Context, c Context)
 
 // MiddlewareFunc is a framework-agnostic middleware function.
 // Middleware executes before/after handlers and must call next() to continue the chain.
 //
 // Example with logging:
 //
-//	func LoggerMiddleware(ctx context.Context, c interfaces.HTTPContext, next interfaces.HandlerFunc) {
+//	func LoggerMiddleware(ctx context.Context, c interfaces.Context, next interfaces.HandlerFunc) {
 //	    start := time.Now()
 //	    next(ctx, c)
 //	    log.Printf("Request completed in %v", time.Since(start))
@@ -97,14 +96,14 @@ type HandlerFunc func(ctx context.Context, c HTTPContext)
 //
 // Example with authentication:
 //
-//	func AuthMiddleware(ctx context.Context, c interfaces.HTTPContext, next interfaces.HandlerFunc) {
+//	func AuthMiddleware(ctx context.Context, c interfaces.Context, next interfaces.HandlerFunc) {
 //	    if c.GetHeader("Authorization") == "" {
 //	        c.JSON(401, map[string]string{"error": "unauthorized"})
 //	        return // Don't call next() to stop the chain
 //	    }
 //	    next(ctx, c)
 //	}
-type MiddlewareFunc func(ctx context.Context, c HTTPContext, next HandlerFunc)
+type MiddlewareFunc func(ctx context.Context, c Context, next HandlerFunc)
 
 // RouterGroup represents a group of routes with a common prefix and middleware.
 //
@@ -130,6 +129,15 @@ type RouterGroup interface {
 	// DELETE registers a handler for HTTP DELETE requests.
 	DELETE(endpoint string, handler HandlerFunc)
 
+	// PATCH registers a handler for partial updates.
+	PATCH(endpoint string, handler HandlerFunc)
+	// HEAD registers a handler for response metadata without a body.
+	HEAD(endpoint string, handler HandlerFunc)
+	// OPTIONS registers a handler for supported-method discovery.
+	OPTIONS(endpoint string, handler HandlerFunc)
+	// Handle registers a handler for an explicit HTTP method.
+	Handle(method, endpoint string, handler HandlerFunc)
+
 	// Group creates a sub-group with the given prefix appended to the current prefix.
 	Group(prefix string) RouterGroup
 
@@ -138,13 +146,13 @@ type RouterGroup interface {
 	Use(middleware ...MiddlewareFunc)
 }
 
-// HTTPServer represents the HTTP server interface (Primary Port).
+// Server represents the HTTP server interface (Primary Port).
 //
 // Benefits:
 // - Framework-agnostic: Switch between Gin/Echo/Hertz with only adapter changes
 // - Clean architecture: Business logic never imports framework packages
 // - Testable: Easy to mock for unit tests
-type HTTPServer interface {
+type Server interface {
 	// GET registers a handler for HTTP GET requests.
 	// Supports path parameters using :param syntax (e.g., "/user/:id").
 	GET(endpoint string, handler HandlerFunc)
@@ -158,6 +166,15 @@ type HTTPServer interface {
 	// DELETE registers a handler for HTTP DELETE requests.
 	DELETE(endpoint string, handler HandlerFunc)
 
+	// PATCH registers a handler for partial updates.
+	PATCH(endpoint string, handler HandlerFunc)
+	// HEAD registers a handler for response metadata without a body.
+	HEAD(endpoint string, handler HandlerFunc)
+	// OPTIONS registers a handler for supported-method discovery.
+	OPTIONS(endpoint string, handler HandlerFunc)
+	// Handle registers a handler for an explicit HTTP method.
+	Handle(method, endpoint string, handler HandlerFunc)
+
 	// Group creates a router group with the given prefix.
 	// Useful for organizing routes and applying middleware to specific route sets.
 	Group(prefix string) RouterGroup
@@ -166,8 +183,10 @@ type HTTPServer interface {
 	// Middleware executes in registration order.
 	Use(middleware ...MiddlewareFunc)
 
-	// Run starts the HTTP server and blocks until stopped.
-	// Returns error if server fails to start.
+	// Run starts the HTTP server and blocks until stopped. It returns nil
+	// after a graceful Shutdown and an error if the server fails to start
+	// (for example when the address is already in use). Run installs no
+	// signal handlers; the caller decides when to call Shutdown.
 	Run() error
 
 	// Shutdown stops the server gracefully. The supplied context bounds

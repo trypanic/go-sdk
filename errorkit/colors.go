@@ -1,36 +1,36 @@
 package errorkit
 
+import "sync/atomic"
+
 // ANSI color codes for terminal out
-var (
-	Reset  = "\033[0m"
-	Red    = "\033[31m"
-	Green  = "\033[32m"
-	Yellow = "\033[33m"
-	Blue   = "\033[34m"
-	Purple = "\033[35m"
-	Cyan   = "\033[36m"
-	Gray   = "\033[90m"
-	Bold   = "\033[1m"
+const (
+	reset  = "\033[0m"
+	red    = "\033[31m"
+	yellow = "\033[33m"
+	blue   = "\033[34m"
+	purple = "\033[35m"
+	cyan   = "\033[36m"
+	bold   = "\033[1m"
 )
 
-// ColorsEnabled controls whether colors are used in out
-// Can be disabled for environments that don't support ANSI codes
-var ColorsEnabled = true
+// colorsDisabled reports whether DisableColors is in effect. The zero value
+// (false) means colors are enabled, which is the default.
+var colorsDisabled atomic.Bool
 
 // colorize wraps text with ANSI color codes if colors are enabled
 func colorize(code, text string) string {
-	if !ColorsEnabled {
+	if colorsDisabled.Load() {
 		return text
 	}
-	return code + text + Reset
+	return code + text + reset
 }
 
-// DisableColors turns off color out globally
+// DisableColors turns off color output globally. Safe for concurrent use.
 func DisableColors() {
-	ColorsEnabled = false
+	colorsDisabled.Store(true)
 }
 
-// EnableColors turns on color out globally
+// EnableColors turns on color output globally. Safe for concurrent use.
 func EnableColors() {
-	ColorsEnabled = true
+	colorsDisabled.Store(false)
 }

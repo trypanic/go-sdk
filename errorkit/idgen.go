@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,8 +16,11 @@ import (
 // - 128-bit identifier
 // - Lexicographically sortable
 // - Encodes timestamp (48 bits) + randomness (80 bits)
-// - Case-insensitive base32 encoding (26 characters)
-// - Monotonically increasing within the same millisecond
+// - Crockford base32 encoding (26 characters); generated IDs are upper
+//   case, ParseULID and ValidateULID accept either case
+// - Monotonically increasing: every ID sorts after the previous one, also
+//   within the same millisecond, under contention and if the clock steps
+//   backwards
 
 const (
 	// Encoding defines the base32 alphabet used by ULID
@@ -30,9 +34,10 @@ const (
 )
 
 var (
-	// GenerateID is the function used to generate error IDs
-	// Can be replaced with custom implementation if needed
-	GenerateID = generateULID
+	// idGenerator holds a custom ID generator installed by SetIDGenerator;
+	// nil means the default ULID generator. Atomic because NewError reads it
+	// concurrently with SetIDGenerator.
+	idGenerator atomic.Pointer[func() string]
 
 	// monotonic state for same-millisecond IDs
 	lastTimestamp  uint64
@@ -40,33 +45,31 @@ var (
 	monotonicMutex sync.Mutex
 )
 
-// generateULID generates a new ULID string
+// generateULID generates a new ULID string. The clock is read under the
+// lock and never moves the stored timestamp backwards, so IDs are strictly
+// increasing in the order they are generated.
 func generateULID() string {
-	// Get current timestamp in milliseconds
-	now := uint64(time.Now().UnixMilli())
-
 	monotonicMutex.Lock()
 	defer monotonicMutex.Unlock()
 
+	now := uint64(time.Now().UnixMilli())
 	var randomness [randomSize]byte
 
-	if now == lastTimestamp {
-		// Same millisecond: increment randomness for monotonicity
+	switch {
+	case now > lastTimestamp:
+		// New millisecond: fresh randomness. crypto/rand.Read never
+		// returns an error (Go 1.24+).
+		_, _ = rand.Read(randomness[:])
+	default:
+		// Same millisecond, or the clock is behind the last ID: keep the
+		// last timestamp and increment its randomness.
+		now = lastTimestamp
 		randomness = lastRandomness
 		if !incrementRandomness(&randomness) {
-			// Overflow: wait for next millisecond
-			time.Sleep(time.Millisecond)
-			now = uint64(time.Now().UnixMilli())
-			if _, err := rand.Read(randomness[:]); err != nil {
-				// Fallback to time-based randomness if crypto/rand fails
-				generateFallbackRandomness(&randomness)
-			}
-		}
-	} else {
-		// New millisecond: generate fresh randomness
-		if _, err := rand.Read(randomness[:]); err != nil {
-			// Fallback to time-based randomness if crypto/rand fails
-			generateFallbackRandomness(&randomness)
+			// 80-bit overflow: move to the next millisecond instead of
+			// sleeping under the lock.
+			now++
+			_, _ = rand.Read(randomness[:])
 		}
 	}
 
@@ -139,38 +142,53 @@ func incrementRandomness(randomness *[randomSize]byte) bool {
 	return false
 }
 
-// generateFallbackRandomness generates pseudo-random bytes when crypto/rand fails
-func generateFallbackRandomness(randomness *[randomSize]byte) {
-	// Use current nanosecond time as seed
-	nano := time.Now().UnixNano()
-
-	for i := 0; i < randomSize; i++ {
-		// Simple LCG (Linear Congruential Generator)
-		nano = nano*1103515245 + 12345
-		randomness[i] = byte((nano >> 16) & 0xFF)
-	}
-}
-
 // ==============================
 // Custom ID Generator Support
 // ==============================
 
-// SetIDGenerator allows replacing the default ULID generator
+// SetIDGenerator allows replacing the default ULID generator. Passing nil
+// restores the default. Safe to call concurrently with NewError.
 // Example: errorkit.SetIDGenerator(func() string { return uuid.New().String() })
 func SetIDGenerator(generator func() string) {
 	if generator == nil {
-		GenerateID = generateULID
+		idGenerator.Store(nil)
 		return
 	}
-	GenerateID = generator
+	idGenerator.Store(&generator)
+}
+
+// generateID returns a new error ID from the configured generator.
+func generateID() string {
+	if generator := idGenerator.Load(); generator != nil {
+		return (*generator)()
+	}
+	return generateULID()
 }
 
 // ==============================
 // ULID Utilities
 // ==============================
 
-// ParseULID extracts timestamp from a ULID string
-// Returns 0 if the ULID is invalid
+// invalidSymbol marks bytes outside the ULID alphabet in decodeTable.
+const invalidSymbol = 0xFF
+
+// decodeTable maps each byte to its 5-bit value in the ULID alphabet, upper
+// or lower case, or to invalidSymbol.
+var decodeTable = func() (table [256]byte) {
+	for i := range table {
+		table[i] = invalidSymbol
+	}
+	for value, c := range []byte(encoding) {
+		table[c] = byte(value)
+		if 'A' <= c && c <= 'Z' {
+			table[c+('a'-'A')] = byte(value)
+		}
+	}
+	return table
+}()
+
+// ParseULID extracts the timestamp from a ULID string (either case).
+// Returns the zero time if the ULID is invalid.
 func ParseULID(ulid string) time.Time {
 	if len(ulid) != encodedSize {
 		return time.Time{}
@@ -178,36 +196,11 @@ func ParseULID(ulid string) time.Time {
 
 	// Decode timestamp from first 10 characters
 	var timestamp uint64
-	for i := 0; i < 10; i++ {
-		c := ulid[i]
-		var value byte
-		switch {
-		case c >= '0' && c <= '9':
-			value = c - '0'
-		case c >= 'A' && c <= 'Z':
-			// Skip I, L, O, U in base32 alphabet
-			if c == 'I' || c == 'L' || c == 'O' || c == 'U' {
-				return time.Time{}
-			}
-			// Map A-Z to 10-31 (skipping invalid chars)
-			switch c {
-			case 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H':
-				value = c - 'A' + 10
-			case 'J', 'K':
-				value = c - 'J' + 18
-			case 'M', 'N':
-				value = c - 'M' + 20
-			case 'P', 'Q', 'R', 'S', 'T':
-				value = c - 'P' + 22
-			case 'V', 'W', 'X', 'Y', 'Z':
-				value = c - 'V' + 27
-			default:
-				return time.Time{}
-			}
-		default:
+	for i := range 10 {
+		value := decodeTable[ulid[i]]
+		if value == invalidSymbol {
 			return time.Time{}
 		}
-
 		timestamp = (timestamp << 5) | uint64(value)
 	}
 
@@ -215,23 +208,14 @@ func ParseULID(ulid string) time.Time {
 	return time.UnixMilli(int64(timestamp))
 }
 
-// ValidateULID checks if a string is a valid ULID
+// ValidateULID checks if a string is a valid ULID (either case).
 func ValidateULID(ulid string) bool {
 	if len(ulid) != encodedSize {
 		return false
 	}
 
-	for i := 0; i < encodedSize; i++ {
-		c := ulid[i]
-		// Check if character is in encoding alphabet
-		valid := false
-		for j := 0; j < len(encoding); j++ {
-			if c == encoding[j] {
-				valid = true
-				break
-			}
-		}
-		if !valid {
+	for i := range encodedSize {
+		if decodeTable[ulid[i]] == invalidSymbol {
 			return false
 		}
 	}

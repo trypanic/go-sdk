@@ -1,10 +1,10 @@
-package database
+package postgres
 
 import (
 	"context"
 	"testing"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
@@ -19,7 +19,7 @@ func TestWrapWithInstrumenterUsesExplicitInstrumenter(t *testing.T) {
 
 	storedProcedure := WrapWithInstrumenter[int](&fakeStoredProcedurer[int]{result: 1}, instrumenter)
 
-	result, err := storedProcedure.QueryRow(context.Background(), "SELECT * FROM amz_test_proc($1)", 1)
+	result, err := storedProcedure.QueryRow(t.Context(), "SELECT * FROM amz_test_proc($1)", 1)
 	if err != nil {
 		t.Fatalf("QueryRow returned error: %v", err)
 	}
@@ -31,8 +31,8 @@ func TestWrapWithInstrumenterUsesExplicitInstrumenter(t *testing.T) {
 	if len(spans) != 1 {
 		t.Fatalf("exported spans = %d, want 1", len(spans))
 	}
-	if spans[0].Name != "postgres.amz_test_proc" {
-		t.Fatalf("span name = %q, want postgres.amz_test_proc", spans[0].Name)
+	if spans[0].Name != "postgres.amz_test_proc.query" {
+		t.Fatalf("span name = %q, want postgres.amz_test_proc.query", spans[0].Name)
 	}
 	if spans[0].InstrumentationScope.Name != "database-test" {
 		t.Fatalf("scope name = %q, want database-test", spans[0].InstrumentationScope.Name)
@@ -57,4 +57,18 @@ func (f *fakeStoredProcedurer[T]) QueryRowJSON(context.Context, string, any, ...
 
 func (f *fakeStoredProcedurer[T]) QueryJSON(context.Context, string, any, ...any) ([]T, error) {
 	return []T{f.result}, nil
+}
+
+// TestWrapWithInstrumenterNilReturnsInner is the regression test for C4-005:
+// the README promises that a nil instrumenter disables tracing.
+func TestWrapWithInstrumenterNilReturnsInner(t *testing.T) {
+	t.Parallel()
+
+	inner := &fakeStoredProcedurer[int]{result: 1}
+
+	got := WrapWithInstrumenter[int](inner, nil)
+
+	if got != StoredProcedurer[int](inner) {
+		t.Fatalf("WrapWithInstrumenter(inner, nil) = %T, want the inner StoredProcedurer", got)
+	}
 }

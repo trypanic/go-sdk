@@ -1,14 +1,13 @@
-package mongodb
+package mongo
 
 import "testing"
 
 func TestApplyDefaultsRetryWritesNilEnablesIt(t *testing.T) {
 	t.Parallel()
 
-	cfg := Config{}
-	applyDefaults(&cfg)
-	if cfg.RetryWrites == nil || *cfg.RetryWrites != true {
-		t.Fatalf("nil RetryWrites should default to true, got %v", cfg.RetryWrites)
+	opts := clientOptions(Config{URI: "mongodb://localhost:27017"})
+	if opts.RetryWrites == nil || *opts.RetryWrites != true {
+		t.Fatalf("nil RetryWrites should default to true, got %v", opts.RetryWrites)
 	}
 }
 
@@ -16,10 +15,9 @@ func TestApplyDefaultsRetryWritesFalsePreserved(t *testing.T) {
 	t.Parallel()
 
 	f := false
-	cfg := Config{RetryWrites: &f}
-	applyDefaults(&cfg)
-	if cfg.RetryWrites == nil || *cfg.RetryWrites != false {
-		t.Fatalf("explicit RetryWrites=false must be preserved, got %v", cfg.RetryWrites)
+	opts := clientOptions(Config{URI: "mongodb://localhost:27017/?retryWrites=true", RetryWrites: &f})
+	if opts.RetryWrites == nil || *opts.RetryWrites != false {
+		t.Fatalf("explicit RetryWrites=false must be preserved, got %v", opts.RetryWrites)
 	}
 }
 
@@ -27,10 +25,9 @@ func TestApplyDefaultsRetryWritesTruePreserved(t *testing.T) {
 	t.Parallel()
 
 	tr := true
-	cfg := Config{RetryWrites: &tr}
-	applyDefaults(&cfg)
-	if cfg.RetryWrites == nil || *cfg.RetryWrites != true {
-		t.Fatalf("explicit RetryWrites=true must be preserved, got %v", cfg.RetryWrites)
+	opts := clientOptions(Config{URI: "mongodb://localhost:27017/?retryWrites=false", RetryWrites: &tr})
+	if opts.RetryWrites == nil || *opts.RetryWrites != true {
+		t.Fatalf("explicit RetryWrites=true must be preserved, got %v", opts.RetryWrites)
 	}
 }
 
@@ -65,7 +62,6 @@ func TestNormalizeURI(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

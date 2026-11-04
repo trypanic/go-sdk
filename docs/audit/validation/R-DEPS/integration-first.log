@@ -1,0 +1,69 @@
+task: [test:integration] go test -race -tags integration -run Integration -count=1 -timeout=5m ./postgres ./mongo ./messaging
+ok      github.com/trypanic/go-sdk/postgres     3.019s
+2026/11/04 00:35:50 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: c20f9de03c16242f14f36d4e2f736a56c612b7e45c0d5d5ed596686790d3226c
+  Test ProcessID: b58f4adc-b4da-447c-8cab-2c1ea94597ff
+2026/11/04 00:35:50 🐳 Creating container for image mongo:9.0.4-resolute@sha256:714cc3db1e396e5a464b8443ccde50e53283368809401f53f1997b684ddb5be0
+2026/11/04 00:35:51 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:35:51 ⏳ Waiting for Reaper "cd826b25" to be ready
+2026/11/04 00:35:51 🔥 Reaper obtained from Docker for this test session cd826b25
+2026/11/04 00:35:51 ✅ Container created: 24c4c5be552c
+2026/11/04 00:35:51 🐳 Starting container: 24c4c5be552c
+2026/11/04 00:35:51 ✅ Container started: 24c4c5be552c
+2026/11/04 00:35:51 ⏳ Waiting for container id 24c4c5be552c image: mongo:9.0.4-resolute@sha256:714cc3db1e396e5a464b8443ccde50e53283368809401f53f1997b684ddb5be0. Waiting for: log message "Waiting for connections"
+2026/11/04 00:35:51 🔔 Container is ready: 24c4c5be552c
+2026/11/04 00:35:51 🐳 Stopping container: 24c4c5be552c
+2026/11/04 00:35:51 ✅ Container stopped: 24c4c5be552c
+2026/11/04 00:35:51 🐳 Terminating container: 24c4c5be552c
+2026/11/04 00:35:51 🚫 Container terminated: 24c4c5be552c
+--- FAIL: TestMongoIntegration (1.12s)
+    mongo_integration_test.go:45:
+                Error Trace:    /tmp/go-sdk-audit-DEPS/mongo/mongo_integration_test.go:45
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1462
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1822
+                                                        /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2189
+                Error:          Received unexpected error:
+                                [ERR_SYSTEM_UNEXPECTED] mongo disconnect used a disconnected client
+                Test:           TestMongoIntegration
+FAIL
+FAIL    github.com/trypanic/go-sdk/mongo        1.179s
+2026/11/04 00:35:50 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: c20f9de03c16242f14f36d4e2f736a56c612b7e45c0d5d5ed596686790d3226c
+  Test ProcessID: 6d694945-4cf8-497a-b152-8e5755b78530
+2026/11/04 00:35:50 🐳 Creating container for image rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce
+2026/11/04 00:35:51 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:35:51 ⏳ Waiting for Reaper "cd826b25" to be ready
+2026/11/04 00:35:51 🔥 Reaper obtained from Docker for this test session cd826b25
+2026/11/04 00:35:51 ✅ Container created: 39a9a37159bf
+2026/11/04 00:35:51 🐳 Starting container: 39a9a37159bf
+2026/11/04 00:35:51 ✅ Container started: 39a9a37159bf
+2026/11/04 00:35:51 ⏳ Waiting for container id 39a9a37159bf image: rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce. Waiting for: log message "Server startup complete"
+2026/11/04 00:35:53 🔔 Container is ready: 39a9a37159bf
+2026/11/04 00:35:53 🐳 Stopping container: 39a9a37159bf
+2026/11/04 00:35:53 ✅ Container stopped: 39a9a37159bf
+2026/11/04 00:35:53 🐳 Terminating container: 39a9a37159bf
+2026/11/04 00:35:53 🚫 Container terminated: 39a9a37159bf
+--- FAIL: TestRabbitMQIntegration (3.15s)
+    messaging_integration_test.go:46:
+                Error Trace:    /tmp/go-sdk-audit-DEPS/messaging/messaging_integration_test.go:46
+                Error:          Received unexpected error:
+                                [ERR_MQ_QUEUE_ERROR] failed to declare queue
+                Test:           TestRabbitMQIntegration
+FAIL
+FAIL    github.com/trypanic/go-sdk/messaging    3.215s
+FAIL
+task: Failed to run task "test:integration": exit status 1

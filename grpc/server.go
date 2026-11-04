@@ -7,12 +7,13 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Server wraps a *grpc.Server pre-wired with the SDK's tracing, panic
 // recovery, keepalive, and lifecycle conventions. Construct one with New,
-// register your generated services on Registrar(), then Serve a listener.
+// register your generated services on Registrar(), then call ListenAndServe
+// (or Serve with your own listener).
 type Server struct {
 	srv *grpc.Server
 	cfg ServerConfig
@@ -20,7 +21,11 @@ type Server struct {
 
 // New builds a gRPC server from cfg and opts. By default tracing and panic
 // recovery are enabled; see the With* options to adjust. It does not bind a
-// port — pass a listener to Serve.
+// port: ListenAndServe listens on cfg.Address, Serve takes a listener.
+//
+// Transport security comes from cfg.Creds. A nil cfg.Creds is an
+// ERR_SYSTEM_CONFIG_INVALID error unless WithServerInsecure states that the
+// server accepts plaintext connections on purpose.
 func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	if cfg.Address == "" {
 		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
@@ -32,8 +37,21 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	for _, o := range opts {
 		o(b)
 	}
+	switch {
+	case cfg.Creds != nil && b.insecure:
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("grpc: server Creds and WithServerInsecure are mutually exclusive"),
+		)
+	case cfg.Creds == nil && !b.insecure:
+		return nil, errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).With(
+			errorkit.WithReason("grpc: server Creds is nil; set it, or pass WithServerInsecure to accept plaintext"),
+		)
+	}
 
 	var so []grpc.ServerOption
+	if cfg.Creds != nil {
+		so = append(so, grpc.Creds(cfg.Creds))
+	}
 
 	if cfg.Keepalive.hasParams() {
 		so = append(so, grpc.KeepaliveParams(cfg.Keepalive.serverParameters()))
@@ -47,14 +65,19 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 	if cfg.MaxSendMsgSize > 0 {
 		so = append(so, grpc.MaxSendMsgSize(cfg.MaxSendMsgSize))
 	}
+	if cfg.MaxConcurrentStreams > 0 {
+		so = append(so, grpc.MaxConcurrentStreams(cfg.MaxConcurrentStreams))
+	}
 
-	// Interceptor chains: recovery runs outermost (so it also catches panics
-	// from user interceptors), then the user-supplied interceptors in order.
+	// Interceptor chains: recovery runs first (so it also catches panics
+	// from the WithUnary/StreamInterceptors interceptors), then those in
+	// order. A raw grpc.UnaryInterceptor/StreamInterceptor passed through
+	// WithRawServerOptions is prepended by grpc-go and runs outside recovery.
 	var unary []grpc.UnaryServerInterceptor
 	var stream []grpc.StreamServerInterceptor
 	if b.recovery {
-		unary = append(unary, recoveryUnaryInterceptor(b.log))
-		stream = append(stream, recoveryStreamInterceptor(b.log))
+		unary = append(unary, recoveryUnaryInterceptor(b.log, b.errorDomain))
+		stream = append(stream, recoveryStreamInterceptor(b.log, b.errorDomain))
 	}
 	unary = append(unary, b.unary...)
 	stream = append(stream, b.stream...)
@@ -75,6 +98,10 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 		if b.propagator != nil {
 			hopts = append(hopts, otelgrpc.WithPropagators(b.propagator))
 		}
+		if b.publicEndpoint {
+			hopts = append(hopts, otelgrpc.WithPublicEndpoint())
+		}
+		hopts = append(hopts, b.otelOptions...)
 		so = append(so, grpc.StatsHandler(otelgrpc.NewServerHandler(hopts...)))
 	}
 
@@ -89,8 +116,27 @@ func New(cfg ServerConfig, opts ...ServerOption) (*Server, error) {
 //	pb.RegisterEchoServer(srv.Registrar(), impl)
 func (s *Server) Registrar() grpc.ServiceRegistrar { return s.srv }
 
+// ListenAndServe listens on TCP at ServerConfig.Address and serves on that
+// listener, blocking until the server stops (it returns nil after Shutdown or
+// Stop). A listen failure, such as a port already in use, is returned at once
+// as an ERR_SYSTEM_UNEXPECTED error that wraps the net error.
+//
+// Use Serve instead to serve on a listener you build yourself (a bufconn in
+// tests, a socket inherited from systemd, a non-TCP network).
+func (s *Server) ListenAndServe() error {
+	lis, err := net.Listen("tcp", s.cfg.Address)
+	if err != nil {
+		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(
+			errorkit.WithReason("grpc: listen on %q: %v", s.cfg.Address, err),
+			errorkit.WithWrapped(err),
+		)
+	}
+	return s.Serve(lis)
+}
+
 // Serve starts serving on lis and blocks until the server stops. The caller
-// owns the listener (e.g. net.Listen("tcp", cfg.Address) or a bufconn).
+// owns the listener (e.g. a bufconn in tests); ServerConfig.Address is not
+// used. ListenAndServe listens on ServerConfig.Address for you.
 func (s *Server) Serve(lis net.Listener) error {
 	if err := s.srv.Serve(lis); err != nil {
 		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).With(

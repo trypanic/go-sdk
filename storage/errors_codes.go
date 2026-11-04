@@ -1,6 +1,6 @@
 package storage
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // Storage Error Codes
@@ -21,6 +21,10 @@ const (
 
 	// ERR_STORAGE_ERROR indicates a general storage error
 	ERR_STORAGE_ERROR errorkit.ErrorCode = "ERR_STORAGE_ERROR"
+
+	// ERR_STORAGE_CORRUPTED indicates stored data that cannot be decoded
+	// (invalid content or a zero-length file). Retrying cannot fix it.
+	ERR_STORAGE_CORRUPTED errorkit.ErrorCode = "ERR_STORAGE_CORRUPTED"
 )
 
 // ErrorMetadata is the canonical metadata for all storage-owned error codes.
@@ -69,6 +73,15 @@ var ErrorMetadata = []errorkit.Metadata{
 		Description: "Storage error",
 		HTTPStatus:  503,
 		Retriable:   true,
+	},
+	{
+		Code:        ERR_STORAGE_CORRUPTED,
+		Type:        errorkit.ErrorTypeInternal,
+		Group:       errorkit.GroupStorage,
+		Category:    "storage",
+		Description: "Stored data is corrupted",
+		HTTPStatus:  500,
+		Retriable:   false,
 	},
 }
 

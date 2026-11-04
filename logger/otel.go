@@ -6,7 +6,8 @@ import (
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/logctx"
 )
 
 // WithTrace enriches a zerolog.Event with trace_id and span_id from
@@ -16,14 +17,7 @@ import (
 //
 //	logger.WithTrace(ctx, logger.Info()).Msg("message")
 func WithTrace(ctx context.Context, event *zerolog.Event) *zerolog.Event {
-	sc := trace.SpanFromContext(ctx).SpanContext()
-	if sc.HasTraceID() {
-		event = event.Str("trace_id", sc.TraceID().String())
-	}
-	if sc.HasSpanID() {
-		event = event.Str("span_id", sc.SpanID().String())
-	}
-	return event
+	return logctx.WithTrace(ctx, event)
 }
 
 // LogInfoWithTrace logs an Info message enriched with OTel trace context.
@@ -45,9 +39,6 @@ func LogInfoWithTrace(ctx context.Context, msg string) {
 //
 //	logger.LogErrorWithTrace(ctx, appErr, "Payment failed")
 func LogErrorWithTrace(ctx context.Context, appErr *errorkit.AppError, msg string) {
-	// FIX: Previously called WithErrorKit after WithTrace, which let
-	// appErr.TraceID overwrite the trace_id field already set by WithTrace.
-	// WithErrorKit no longer emits trace_id; the field is owned by WithTrace.
 	event := WithTrace(ctx, CtxOrGlobal(ctx).Error())
 	WithErrorKit(event, appErr).Msg(msg)
 }

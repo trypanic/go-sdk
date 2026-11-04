@@ -14,7 +14,7 @@ convenience wrappers for `os.Stdout` and named files.
 | Symbol | Purpose |
 |---|---|
 | `WriteJSON(w io.Writer, v any) error` | Encode `v` to `w` with HTML escaping disabled. |
-| `SaveJSON(filename string, v any) error` | Truncating file write via `WriteJSON`. |
+| `SaveJSON(filename string, v any) error` | Encode via `WriteJSON` into memory, then write the file (new files `0600`). |
 | `PrintJSON(v any)` | Dump `v` to `os.Stdout` between two banner lines. Errors are silently dropped. |
 | `SaveProductsToJSON(filename, v any) error` | Deprecated alias for `SaveJSON`. |
 
@@ -41,8 +41,11 @@ if err := ioutils.SaveJSON("dump.json", payload); err != nil {
 }
 ```
 
-Creates (or truncates) the file, encodes via `WriteJSON`, and closes.
-A close failure is reported only when no encode error preceded it.
+Encodes `v` via `WriteJSON` into memory first, so an encode error leaves an
+existing file untouched. Then creates the file with mode `0600` (dumps may
+contain request bodies or credentials) or truncates an existing one (keeping
+its permissions), writes, and closes. A close failure is reported only when
+no write error preceded it. `filename` is used as given, without validation.
 
 ## PrintJSON
 

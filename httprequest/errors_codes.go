@@ -1,6 +1,6 @@
 package httprequest
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // Network Error Codes
@@ -16,6 +16,12 @@ const (
 	// Context: Connection timeout, read timeout, write timeout,
 	// idle timeout, dial timeout, context deadline exceeded during network call
 	ERR_NETWORK_TIMEOUT errorkit.ErrorCode = "ERR_NETWORK_TIMEOUT"
+
+	// ERR_REQUEST_CANCELED indicates the caller canceled the request
+	// Context: the request context was canceled before or during the call
+	// (for example the inbound client disconnected). Not a server error;
+	// errors.Is(err, context.Canceled) also holds.
+	ERR_REQUEST_CANCELED errorkit.ErrorCode = "ERR_REQUEST_CANCELED"
 )
 
 // ==============================
@@ -72,6 +78,15 @@ var ErrorMetadata = []errorkit.Metadata{
 		Description: "Network timeout",
 		HTTPStatus:  504,
 		Retriable:   true,
+	},
+	{
+		Code:        ERR_REQUEST_CANCELED,
+		Type:        errorkit.ErrorTypeInternal,
+		Group:       errorkit.GroupClient,
+		Category:    "network",
+		Description: "Request canceled by the caller",
+		HTTPStatus:  499,
+		Retriable:   false,
 	},
 	{
 		Code:        ERR_AUTH_UNAUTHENTICATED,

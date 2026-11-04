@@ -1,0 +1,33 @@
+=== RUN   TestRabbitMQIntegration
+2026/11/04 00:55:55 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: 9e0871f4490ac6403c174d41f9e79ae831e3abed673ea8e5a94f9f2780ff7e39
+  Test ProcessID: 8e756f7c-323b-423c-832e-9a78e8142713
+2026/11/04 00:55:55 🐳 Creating container for image rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce
+2026/11/04 00:55:55 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 00:55:55 ✅ Container created: 500f8bb67a99
+2026/11/04 00:55:55 🐳 Starting container: 500f8bb67a99
+2026/11/04 00:55:56 ✅ Container started: 500f8bb67a99
+2026/11/04 00:55:56 ⏳ Waiting for container id 500f8bb67a99 image: testcontainers/ryuk:0.14.0. Waiting for: all of: [log message "Started", port 8080/tcp to be listening]
+2026/11/04 00:55:56 Shell not found in container
+2026/11/04 00:55:56 🔔 Container is ready: 500f8bb67a99
+2026/11/04 00:55:56 ✅ Container created: d0108d40f213
+2026/11/04 00:55:56 🐳 Starting container: d0108d40f213
+2026/11/04 00:55:56 ✅ Container started: d0108d40f213
+2026/11/04 00:55:56 ⏳ Waiting for container id d0108d40f213 image: rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce. Waiting for: log message "Server startup complete"
+2026/11/04 00:55:58 🔔 Container is ready: d0108d40f213
+=== RUN   TestRabbitMQIntegration/mandatory_returns_are_failures
+2026/11/04 00:55:58 🐳 Stopping container: d0108d40f213
+2026/11/04 00:55:58 ✅ Container stopped: d0108d40f213
+2026/11/04 00:55:58 🐳 Terminating container: d0108d40f213
+2026/11/04 00:55:58 🚫 Container terminated: d0108d40f213
+--- PASS: TestRabbitMQIntegration (2.70s)
+    --- PASS: TestRabbitMQIntegration/mandatory_returns_are_failures (0.00s)
+PASS
+ok      github.com/trypanic/go-sdk/v2/messaging 2.729s

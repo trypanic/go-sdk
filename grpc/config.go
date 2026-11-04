@@ -44,7 +44,9 @@ type ServerKeepalive struct {
 
 // ServerConfig holds the settings for a gRPC server.
 type ServerConfig struct {
-	// Address is the listen address in host:port form. Required.
+	// Address is the TCP listen address in host:port form that
+	// (*Server).ListenAndServe binds. Required. (*Server).Serve takes its own
+	// listener and does not read it.
 	Address string
 	// Keepalive configures server-side keepalive and its enforcement policy.
 	Keepalive ServerKeepalive
@@ -54,6 +56,18 @@ type ServerConfig struct {
 	// MaxSendMsgSize overrides the max sent message size in bytes.
 	// 0 = gRPC default (math.MaxInt32).
 	MaxSendMsgSize int
+	// MaxConcurrentStreams caps the concurrent streams (RPCs) a single client
+	// connection may have open; further streams wait for a free slot. Each
+	// open stream holds a handler goroutine and flow-control state, so set it
+	// on any server reachable by untrusted clients (100–1000 is a common
+	// range). 0 = gRPC default (unlimited, math.MaxUint32).
+	MaxConcurrentStreams uint32
+	// Creds is the server transport security, e.g.
+	// credentials.NewServerTLSFromCert or credentials.NewTLS with a
+	// tls.Config that requires client certificates (mTLS). Required unless
+	// WithServerInsecure is passed: plaintext is only acceptable behind a
+	// mesh or sidecar that terminates mTLS, or in tests.
+	Creds credentials.TransportCredentials
 }
 
 // ClientKeepalive configures client-side keepalive pings.
@@ -75,8 +89,10 @@ type ClientConfig struct {
 	Target string
 	// Keepalive configures client-side keepalive.
 	Keepalive ClientKeepalive
-	// Creds is the transport security. When nil, an insecure credential is
-	// used. This is the seam for wiring TLS.
+	// Creds is the client transport security, e.g.
+	// credentials.NewClientTLSFromCert or credentials.NewTLS. Required unless
+	// WithClientInsecure is passed: plaintext is only acceptable behind a
+	// mesh or sidecar that terminates mTLS, or in tests.
 	Creds credentials.TransportCredentials
 	// MaxRecvMsgSize overrides the max received message size in bytes (per call).
 	MaxRecvMsgSize int

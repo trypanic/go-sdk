@@ -1,0 +1,15 @@
+{"name": "versions", "command": "go version; task --version; git rev-parse HEAD; git status --porcelain", "exit": 0, "seconds": 0.05}
+{"name": "format", "command": "gofmt -l .", "exit": 0, "seconds": 0.04}
+{"name": "unit", "command": "task test", "exit": 0, "seconds": 1.14}
+{"name": "coverage", "command": "go test -count=1 -short -coverprofile=/tmp/P5-final/coverage.out ./... && go tool cover -func=/tmp/P5-final/coverage.out", "exit": 0, "seconds": 3.11}
+{"name": "check", "command": "task check", "exit": 0, "seconds": 22.4}
+{"name": "lint", "command": "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download GOSUMDB=off task lint", "exit": 0, "seconds": 0.8}
+{"name": "tagged-vuln", "command": "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -tags=integration -test ./...", "exit": 0, "seconds": 4.6}
+{"name": "integration", "command": "task test:integration", "exit": 0, "seconds": 5.3}
+{"name": "tagged-no-docker", "command": "DOCKER_HOST=unix:///tmp/P5-no-docker.sock go test -count=1 -tags integration -short ./...", "exit": 0, "seconds": 1.93}
+{"name": "tagged-vet", "command": "go vet -tags integration ./...", "exit": 0, "seconds": 0.51}
+{"name": "hooks", "command": "task precommit:run", "exit": 0, "seconds": 5.36}
+{"name": "release-default", "command": "task release:check", "exit": 201, "seconds": 8.19}
+{"name": "release-comparison", "command": "task release:check RELEASE_VERSION=v2.0.0", "exit": 0, "seconds": 3.93}
+{"name": "release-initial", "command": "task release:check BASE=none RELEASE_VERSION=v2.0.0", "exit": 0, "seconds": 2.42}
+{"name": "clean", "command": "git status --porcelain; docker ps -a --filter label=org.testcontainers=true --format \"{{.ID}} {{.Names}}\"", "exit": 0, "seconds": 0.02}

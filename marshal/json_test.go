@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestNoEscape_UnsupportedType_ReturnsAppError(t *testing.T) {
@@ -13,8 +13,8 @@ func TestNoEscape_UnsupportedType_ReturnsAppError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 	if appErr.Code() != errorkit.ERR_INTERNAL {

@@ -1,9 +1,9 @@
-package database
+package postgres
 
 import (
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func TestErrorMetadataRegisteredInGlobalRegistry(t *testing.T) {

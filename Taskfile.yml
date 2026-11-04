@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://taskfile.dev/schema.json
 #
 # Task runner for go-sdk (https://taskfile.dev).
-# Toolchain versions (go, python, task, staticcheck, skillshare, sentrux) are
+# Toolchain versions (go, python, task, staticcheck, skillshare) are
 # pinned in .prototools and installed by proto (third-party plugins live in
 # github.com/trypanic/proto-plugins); this file only orchestrates.
 #
@@ -12,10 +12,21 @@
 version: "3"
 
 vars:
-  STATICANALYSIS_SCRIPT: .skillshare/skills/go-code-quality-check/scripts/staticanalysis.sh
+  STATICANALYSIS_SCRIPT: scripts/staticanalysis.sh
+  # Pinned gate tools (reproducible results; bump deliberately). Go tools run
+  # with `go run …@version`, never as `tool` directives, so consumers' go.mod
+  # stays clean. Proto-managed tools are pinned in .prototools.
+  GOIMPORTS_VERSION: v0.52.0
+  GORELEASE_VERSION: v0.0.0-20261014143641-f0251eb4aa3e
+  PRECOMMIT_VERSION: 4.7.0
+  SEMGREP_VERSION: 1.95.0
+  GITCLIFF_VERSION: 2.14.2
+  # Same versions as .github/workflows/ci.yml (keep in sync).
+  GOVULNCHECK_VERSION: v1.9.0
+  GOLANGCI_LINT_VERSION: v2.15.0
   # Top-level SDK packages (first path segment of every package in the module).
   ALL_PACKAGES:
-    sh: go list -f '{{"{{"}}.ImportPath{{"}}"}}' ./... | sed -E 's|^github.com/trypanic/go-sdk/?||; s|/.*||' | sort -u | tr '\n' ' '
+    sh: go list -f '{{"{{"}}.ImportPath{{"}}"}} {{"{{"}}.Module.Path{{"}}"}}' ./... | awk '{path=substr($1,length($2)+2); split(path,parts,"/"); if(parts[1] != "") print parts[1]}' | sort -u | tr '\n' ' '
   # Packages selected on the command line (`task <name> -- a b`), or all of them.
   PACKAGES: '{{if .CLI_ARGS}}{{.CLI_ARGS}}{{else}}{{.ALL_PACKAGES}}{{end}}'
   # Upgrade policy passed to `go get`: "-u" (minor + patch) or "-u=patch".
@@ -30,19 +41,40 @@ tasks:
   # ---------------------------------------------------------------- tooling
 
   tools:install:
-    desc: Install the toolchain pinned in .prototools, plus goimports, pre-commit and semgrep
+    desc: Install the toolchain pinned in .prototools, plus pinned goimports, pre-commit, semgrep and git-cliff
     preconditions:
       - sh: command -v proto
         msg: "proto is not installed: https://moonrepo.dev/docs/proto/install"
     cmds:
       - proto install
-      - go install golang.org/x/tools/cmd/goimports@latest
+      - go install golang.org/x/tools/cmd/goimports@{{.GOIMPORTS_VERSION}}
       # Python CLIs go into the proto-managed Python pinned in .prototools;
       # its bin/ directory must be on PATH (see README "Common issues").
-      - python -m pip install --upgrade pre-commit semgrep==1.95.0 git-cliff==2.14.2
+      # Keep SEMGREP_VERSION in sync with scripts/staticanalysis.sh.
+      - python -m pip install pre-commit=={{.PRECOMMIT_VERSION}} semgrep=={{.SEMGREP_VERSION}} git-cliff=={{.GITCLIFF_VERSION}}
+
+  tools:check:
+    desc: Check that the active Go is the .prototools pin and a supported, patched toolchain (>= 1.26.10)
+    silent: true
+    cmds:
+      - |
+        active=$(go env GOVERSION | sed 's/^go//')
+        pinned=$(sed -nE 's/^go *= *"([^"]+)".*/\1/p' .prototools)
+        min=1.26.10
+        status=0
+        if [ "$active" != "$pinned" ]; then
+          echo "go $active is active but .prototools pins $pinned (proto install; check PATH)" >&2
+          status=1
+        fi
+        if [ "$(printf '%s\n%s\n' "$min" "$active" | sort -V | head -n1)" != "$min" ]; then
+          echo "go $active is below $min, the oldest supported patched toolchain (README Compatibility)" >&2
+          status=1
+        fi
+        [ "$status" -eq 0 ] && echo "go $active: matches .prototools and is supported"
+        exit "$status"
 
   skills:install:
-    desc: Install agent skills and sync them across agents (was moon install-skills)
+    desc: Install agent skills and sync them across agents
     preconditions:
       - sh: command -v skillshare
         msg: "skillshare is not installed; run `task tools:install`"
@@ -53,7 +85,7 @@ tasks:
   # ------------------------------------------------------------ quality gates
 
   precommit:install:
-    desc: Install pre-commit hooks into .git/hooks (was moon precommit-install)
+    desc: Install pre-commit hooks into .git/hooks
     preconditions:
       - sh: command -v pre-commit
         msg: "pre-commit is not installed; run `task tools:install`"
@@ -61,18 +93,22 @@ tasks:
       - pre-commit install --install-hooks
 
   precommit:run:
-    desc: Run every pre-commit hook against all tracked files (was moon precommit-run)
+    desc: Run every pre-commit hook against all tracked files, including the full static-analysis scan (manual-stage hook)
     preconditions:
       - sh: command -v pre-commit
         msg: "pre-commit is not installed; run `task tools:install`"
+    env:
+      # Hook ids to skip (pre-commit's SKIP); `check` uses it to avoid
+      # running tests and the full scan twice. A SKIP set by the caller wins.
+      SKIP: '{{.PRECOMMIT_SKIP | default (env "SKIP")}}'
     cmds:
       - pre-commit run --all-files
+      # With nothing staged the commit-time staticanalysis hook skips; the
+      # manual-stage hook scans the whole repo (QG_FULL=1).
+      - pre-commit run --all-files --hook-stage manual staticanalysis-full
 
   staticanalysis:
-    desc: Run vet + staticcheck + semgrep on the whole repo (was moon staticanalysis)
-    preconditions:
-      - sh: test -f {{.STATICANALYSIS_SCRIPT}}
-        msg: "{{.STATICANALYSIS_SCRIPT}} not found; run `task skills:install`"
+    desc: Run vet + staticcheck + semgrep on the whole repo
     env:
       QG_FULL: "1"
     cmds:
@@ -91,12 +127,55 @@ tasks:
     cmds:
       - go test -short ./{{.PACKAGE}}/...
 
-  check:
-    desc: Run the full local gate (unit tests, static analysis, pre-commit hooks)
+  test:integration:pull:
+    desc: Download the pinned local integration images before running tests
     cmds:
-      - task: test
+      - docker pull postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+      - docker pull mongo:9.0.4-resolute@sha256:714cc3db1e396e5a464b8443ccde50e53283368809401f53f1997b684ddb5be0
+      - docker pull rabbitmq:4.4.0-alpine@sha256:21577d148f4f7563a87d761862fa353f59348a094833ca8b1b1a46a8102dffce
+      - docker pull testcontainers/ryuk:0.14.0@sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0
+      - docker tag testcontainers/ryuk@sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0 testcontainers/ryuk:0.14.0
+
+  test:integration:
+    desc: Run real SDK adapter tests against disposable local Docker containers (pull images first)
+    cmds:
+      - go test -race -tags integration -run Integration -count=1 -timeout=5m ./postgres ./mongo ./messaging
+
+  test:race:
+    desc: Build, vet and run the race-enabled, shuffled unit tests on the whole module (CI job "test")
+    cmds:
+      - go build ./...
+      - go vet ./...
+      - go test -race -shuffle=on -short ./...
+
+  vuln:
+    desc: Scan reachable vulnerabilities with the pinned govulncheck (CI job "vuln"; covers the active toolchain only)
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+
+  tidy:check:
+    desc: Fail if go.mod/go.sum are not tidy or the module cache does not match go.sum (CI job "tidy"; read-only)
+    cmds:
+      - go mod tidy -diff
+      - go mod verify
+
+  lint:
+    desc: Run golangci-lint with its default linters (informational; not part of check or CI, no config committed)
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run ./...
+
+  check:
+    desc: Run the full local gate, the same commands as CI (build, vet, race tests, static analysis, govulncheck, tidy, pre-commit hooks)
+    cmds:
+      # test:race already runs every unit test (-short), so neither `task test`
+      # nor the go-test hook runs again; staticanalysis already did the full
+      # scan, so the staticanalysis-full hook is skipped too.
+      - task: test:race
       - task: staticanalysis
+      - task: vuln
+      - task: tidy:check
       - task: precommit:run
+        vars: { PRECOMMIT_SKIP: go-test,staticanalysis-full }
 
   # ----------------------------------------------------------------- release
 
@@ -111,13 +190,23 @@ tasks:
   release:check:
     desc: Diff the public API against the last tag and suggest the next semver version (gorelease)
     vars:
-      BASE:
-        sh: git describe --tags --abbrev=0 --match 'v[0-9]*'
-    preconditions:
-      - sh: test -z "$(git status --porcelain)"
-        msg: "gorelease needs a clean working tree; commit or stash your changes first"
+      DEFAULT_RELEASE_BASE:
+        sh: |
+          tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          module=$(git show "$tag:go.mod" | awk '$1 == "module" {print $2}')
+          printf '%s@%s\n' "$module" "$tag"
+      RELEASE_VERSION: '{{.RELEASE_VERSION | default ""}}'
     cmds:
-      - go run golang.org/x/exp/cmd/gorelease@latest -base={{.BASE}}
+      # gorelease refuses a dirty tree. Task hides precondition output, so the
+      # check is a command: it prints the offending paths (e.g. a stray .moon/).
+      - |
+        dirty=$(git status --porcelain)
+        if [ -n "$dirty" ]; then
+          echo "gorelease needs a clean working tree; commit, stash or remove these paths first (git status --porcelain):" >&2
+          printf '%s\n' "$dirty" >&2
+          exit 1
+        fi
+      - go run golang.org/x/exp/cmd/gorelease@{{.GORELEASE_VERSION}} -base={{.BASE | default .DEFAULT_RELEASE_BASE}}{{if .RELEASE_VERSION}} -version={{.RELEASE_VERSION}}{{end}}
 
   # ------------------------------------------------------------ dependencies
 
@@ -129,11 +218,14 @@ tasks:
         cmd: echo {{.ITEM}}
 
   deps:outdated:
-    desc: Report available dependency updates, in parallel, for one, several or all packages (read-only)
+    desc: Report available dependency updates (build + test closure) per package, in parallel; without arguments also every module of go.mod and the module graph (read-only)
     deps:
       - for: { var: PACKAGES }
         task: deps:outdated:package
         vars: { PACKAGE: "{{.ITEM}}" }
+    cmds:
+      - task: deps:outdated:module
+        vars: { SCOPED: "{{.CLI_ARGS}}" }
 
   deps:outdated:package:
     internal: true
@@ -141,10 +233,36 @@ tasks:
     silent: true
     cmds:
       - |
-        modules=$(go list -deps -f '{{"{{"}}with .Module{{"}}"}}{{"{{"}}if not .Main{{"}}"}}{{"{{"}}.Path{{"}}"}}{{"{{"}}end{{"}}"}}{{"{{"}}end{{"}}"}}' ./{{.PACKAGE}}/... | sort -u)
+        # -test: test-only requirements (testify, yaml) are updates too.
+        modules=$(go list -deps -test -f '{{"{{"}}with .Module{{"}}"}}{{"{{"}}if not .Main{{"}}"}}{{"{{"}}.Path{{"}}"}}{{"{{"}}end{{"}}"}}{{"{{"}}end{{"}}"}}' ./{{.PACKAGE}}/... | sort -u)
         if [ -z "$modules" ]; then echo "[{{.PACKAGE}}] no external modules"; exit 0; fi
         updates=$(go list -m -u -f '{{"{{"}}if .Update{{"}}"}}{{"{{"}}.Path{{"}}"}} {{"{{"}}.Version{{"}}"}} -> {{"{{"}}.Update.Version{{"}}"}}{{"{{"}}end{{"}}"}}' $modules | sed '/^$/d')
         if [ -z "$updates" ]; then echo "[{{.PACKAGE}}] up to date"; else echo "$updates" | sed 's|^|[{{.PACKAGE}}] |'; fi
+
+  # Whole-module pass: `go list -m -u -retracted all` sees requirements that no
+  # package links (go.mod entries kept for dependencies' tests, graph-only
+  # modules), plus deprecated and retracted versions. Labels:
+  #   linked     - in the build or test closure of an SDK package
+  #   go.mod     - required in go.mod but not linked (consumers inherit it as
+  #                an MVS floor)
+  #   graph-only - only in the module graph; never built into a binary
+  deps:outdated:module:
+    internal: true
+    label: "outdated:module"
+    silent: true
+    cmds:
+      - |
+        [ -n "{{.SCOPED}}" ] && exit 0
+        linked=$(go list -deps -test -f '{{"{{"}}with .Module}}{{"{{"}}if not .Main}}{{"{{"}}.Path}}{{"{{"}}end}}{{"{{"}}end}}' ./... | sort -u)
+        required=$(awk '/^require \(/{r=1;next} r&&/^\)/{r=0} r&&NF{print $1} /^require [^(]/{print $2}' go.mod | sort -u)
+        report=$(go list -m -u -retracted -f '{{"{{"}}if not .Main}}{{"{{"}}if or .Update .Deprecated .Retracted}}{{"{{"}}.Path}} {{"{{"}}.Version}}{{"{{"}}with .Update}} -> {{"{{"}}.Version}}{{"{{"}}end}}{{"{{"}}if .Deprecated}} (deprecated){{"{{"}}end}}{{"{{"}}if .Retracted}} (retracted){{"{{"}}end}}{{"{{"}}end}}{{"{{"}}end}}' all | sed '/^$/d')
+        if [ -z "$report" ]; then echo "[module] every module in the graph is up to date"; exit 0; fi
+        echo "$report" | while read -r path rest; do
+          if printf '%s\n' "$linked" | grep -qxF "$path"; then rank=1; label=linked
+          elif printf '%s\n' "$required" | grep -qxF "$path"; then rank=2; label=go.mod
+          else rank=3; label=graph-only; fi
+          echo "$rank [module:$label] $path $rest"
+        done | sort -s -k1,1n | cut -d' ' -f2-
 
   deps:update:
     desc: Update the deps of one, several or all packages, then verify each package in parallel (task deps:update -- postgres mongo; UPGRADE=-u=patch for patch-only)

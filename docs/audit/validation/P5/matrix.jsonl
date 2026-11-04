@@ -1,0 +1,12 @@
+{"name": "matrix-1.26.x-test-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "exit": 0, "seconds": 0.01}
+{"name": "matrix-1.26.x-test-3", "command": "go build ./...", "exit": 0, "seconds": 0.52}
+{"name": "matrix-1.26.x-test-4", "command": "go vet ./...", "exit": 0, "seconds": 1.1}
+{"name": "matrix-1.26.x-test-5", "command": "go test -race -shuffle=on -short ./...", "exit": 0, "seconds": 5.49}
+{"name": "matrix-1.26.x-vuln-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "exit": 0, "seconds": 0.01}
+{"name": "matrix-1.26.x-vuln-3", "command": "go run \"golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}\" ./...", "exit": 0, "seconds": 4.03}
+{"name": "matrix-1.27.x-test-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "exit": 0, "seconds": 0.0}
+{"name": "matrix-1.27.x-test-3", "command": "go build ./...", "exit": 0, "seconds": 0.14}
+{"name": "matrix-1.27.x-test-4", "command": "go vet ./...", "exit": 0, "seconds": 0.21}
+{"name": "matrix-1.27.x-test-5", "command": "go test -race -shuffle=on -short ./...", "exit": 0, "seconds": 3.64}
+{"name": "matrix-1.27.x-vuln-2", "command": "version=$(go env GOVERSION)\necho \"Selected toolchain: ${version}\"\ncase \"$version\" in\n  \"go${EXPECTED_GO_VERSION%.x}.\"*) ;;\n  *) echo \"Expected Go ${EXPECTED_GO_VERSION}, got ${version}\" >&2; exit 1 ;;\nesac\n", "exit": 0, "seconds": 0.01}
+{"name": "matrix-1.27.x-vuln-3", "command": "go run \"golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}\" ./...", "exit": 0, "seconds": 4.96}

@@ -1,6 +1,6 @@
-package mongodb
+package mongo
 
-import "github.com/trypanic/go-sdk/errorkit"
+import "github.com/trypanic/go-sdk/v2/errorkit"
 
 // ==============================
 // MongoDB Error Codes
@@ -34,6 +34,11 @@ const (
 	// ERR_DB_MONGO_DECODE_FAILED indicates MongoDB document decode failed
 	// Context: Document not found in collection, query returned no results, missing document
 	ERR_DB_MONGO_DECODE_FAILED errorkit.ErrorCode = "ERR_DB_MONGO_DECODE_FAILED"
+
+	// ERR_DB_MONGO_CANCELED indicates that the caller cancelled the operation
+	// (context.Canceled). Retrying on the caller's behalf is pointless; HTTP
+	// 499 is the de-facto "client closed request" status.
+	ERR_DB_MONGO_CANCELED errorkit.ErrorCode = "ERR_DB_MONGO_CANCELED"
 )
 
 // ErrorMetadata is the canonical metadata for all mongo-owned error codes.
@@ -90,6 +95,15 @@ var ErrorMetadata = []errorkit.Metadata{
 		Category:    "database",
 		Description: "MongoDB document decode failed",
 		HTTPStatus:  500,
+		Retriable:   false,
+	},
+	{
+		Code:        ERR_DB_MONGO_CANCELED,
+		Type:        errorkit.ErrorTypeInternal,
+		Group:       errorkit.GroupDatabase,
+		Category:    "database",
+		Description: "MongoDB operation cancelled by the caller",
+		HTTPStatus:  499,
 		Retriable:   false,
 	},
 }

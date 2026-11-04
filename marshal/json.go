@@ -4,32 +4,28 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
+// NoEscape encodes v as JSON with HTML escaping disabled and returns it as a
+// string ending with a newline (the json.Encoder.Encode format). An encode
+// error (for example a channel or func value) is returned as an
+// *errorkit.AppError with code ERR_INTERNAL.
 func NoEscape(v any) (string, error) {
-	var buf bytes.Buffer
-	encoder := json.NewEncoder(&buf)
-	encoder.SetEscapeHTML(false)
-
-	err := encoder.Encode(v)
+	b, err := NoEscapeBytes(v)
 	if err != nil {
-		return "", errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to marshal JSON without escaping"),
-			errorkit.WithWrapped(err),
-		)
+		return "", err
 	}
-
-	return buf.String(), nil
+	return string(b), nil
 }
 
+// NoEscapeBytes is NoEscape returning a []byte; it returns nil on error.
 func NoEscapeBytes(v any) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
 	encoder.SetEscapeHTML(false)
 
-	err := encoder.Encode(v)
-	if err != nil {
+	if err := encoder.Encode(v); err != nil {
 		return nil, errorkit.NewError(errorkit.ERR_INTERNAL).With(
 			errorkit.WithReason("failed to marshal JSON without escaping"),
 			errorkit.WithWrapped(err),

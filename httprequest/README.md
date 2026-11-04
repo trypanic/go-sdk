@@ -1,6 +1,6 @@
 # httprequest — Retrying HTTP Client with Structured Error Mapping
 
-Package `httprequest` wraps `net/http` with automatic exponential-backoff retries, OpenTelemetry span events per attempt, and structured `errorkit` errors mapped from every HTTP status code and network condition.
+Package `httprequest` wraps `net/http` with automatic retries (exponential backoff with full jitter, `Retry-After` honored), OpenTelemetry span events per attempt, and structured `errorkit` errors mapped from every HTTP status code and network condition.
 
 ---
 
@@ -8,16 +8,15 @@ Package `httprequest` wraps `net/http` with automatic exponential-backoff retrie
 
 | Symbol                    | Kind      | Purpose                                                |
 | ------------------------- | --------- | ------------------------------------------------------ |
-| `HTTPRequester`           | Interface | Single-method contract for executing HTTP requests     |
-| `HTTPRequest`             | Struct    | Concrete implementation of `HTTPRequester`             |
+| `Requester`           | Interface | Single-method contract for executing HTTP requests     |
+| `Request`             | Struct    | Concrete implementation of `Requester`             |
 | `RequestConfig`           | Struct    | All parameters needed to build one `http.Request`      |
 | `RetryConfig`             | Struct    | Controls max retries, initial delay, and delay ceiling |
-| `New`                     | Function  | Creates an `HTTPRequest` with default retry settings (auto-traced via global tracer) |
-| `NewHTTPRequestWithRetry` | Function  | Creates an `HTTPRequest` with custom `RetryConfig` (auto-traced) |
-| `NewWithoutTracing`       | Function  | Creates a plain `HTTPRequester` with no tracing wrapper |
-| `NewWithInstrumenter`     | Function  | Creates an `HTTPRequester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
-| `NewWithOptions`          | Function  | Builds an `HTTPRequester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`); no tracing wrapper |
-| `WrapWithInstrumenter`    | Function  | Wraps an existing `HTTPRequester` with an explicit instrumenter |
+| `New`                     | Function  | Creates a `Request` with default retry settings (auto-traced via global tracer) |
+| `NewWithoutTracing`       | Function  | Creates a plain `Requester` with no tracing wrapper |
+| `NewWithInstrumenter`     | Function  | Creates a `Requester` wrapped with an explicit `*telemetry.Instrumenter` (nil disables tracing) |
+| `NewWithOptions`          | Function  | Builds a `Requester` from explicit options (`WithRetryConfig`, `WithAuditLog`, `WithBodyCapture`, `WithBodyRedactor`, `WithRawBodies`, `WithMaxResponseBytes`); no tracing wrapper |
+| `WrapWithInstrumenter`    | Function  | Wraps an existing `Requester` with an explicit instrumenter |
 | `BodyRedactor`            | Type      | `func([]byte) []byte` — policy applied to bodies in error payloads and audit logs |
 | `DefaultBodyRedactor`     | Function  | Replaces any non-empty body with the literal `[REDACTED]` |
 | `WithRetryConfig`         | Option    | Override the retry configuration |
@@ -25,6 +24,8 @@ Package `httprequest` wraps `net/http` with automatic exponential-backoff retrie
 | `WithBodyCapture`         | Option    | Include redacted bodies in error payloads (off by default) |
 | `WithBodyRedactor`        | Option    | Install a custom `BodyRedactor` |
 | `WithRawBodies`           | Option    | Disable redaction (development only) |
+| `WithMaxResponseBytes`    | Option    | Cap a successful response body (after decompression); non-positive restores the default |
+| `DefaultMaxResponseBytes` | Constant  | `32 MiB`                                               |
 | `DefaultMaxRetries`       | Constant  | `5`                                                    |
 | `DefaultInitialDelay`     | Constant  | `100ms`                                                |
 | `DefaultMaxDelay`         | Constant  | `5s`                                                   |
@@ -36,13 +37,15 @@ Package `httprequest` wraps `net/http` with automatic exponential-backoff retrie
 ```go
 import (
     "context"
-    "net/http"
 
-    "github.com/trypanic/go-sdk/httprequest"
+    "github.com/trypanic/go-sdk/v2/httpclient"
+    "github.com/trypanic/go-sdk/v2/httprequest"
 )
 
-// 1. Build a requester with default retry settings (5 retries, 100 ms → 5 s backoff)
-requester := httprequest.New(http.DefaultClient)
+// 1. Build one requester per process with default retry settings (5 attempts,
+//    jittered backoff capped at 100 ms → 5 s). httpclient.NewDefaultClient has
+//    a 60 s per-attempt timeout; http.DefaultClient has none.
+requester := httprequest.New(httpclient.NewDefaultClient())
 
 // 2. Describe the request
 cfg := httprequest.RequestConfig{
@@ -86,28 +89,34 @@ type RequestConfig struct {
 type RetryConfig struct {
     MaxRetries   int           // Total number of attempts (not retries after first)
     InitialDelay time.Duration // Delay before the second attempt
-    MaxDelay     time.Duration // Ceiling for exponential backoff
+    MaxDelay     time.Duration // Ceiling for the jittered backoff and for Retry-After
+    MaxElapsed   time.Duration // Bound on the whole Do call (all attempts and waits); 0 = only ctx
+    // Also retry non-idempotent requests that may have reached the server.
+    RetryNonIdempotent bool
 }
 ```
 
-| Field          | Default (via `New`) | Zero-value fallback (via `NewHTTPRequestWithRetry`) |
-| -------------- | ------------------- | --------------------------------------------------- |
-| `MaxRetries`   | `5`                 | `1` (single attempt)                                |
-| `InitialDelay` | `100ms`             | `100ms`                                             |
-| `MaxDelay`     | `5s`                | `5s`                                                |
+| Field          | Default (via `New`) | Zero value in a `RetryConfig` you pass | Negative value |
+| -------------- | ------------------- | -------------------------------------- | -------------- |
+| `MaxRetries`   | `5`                 | `5` (`DefaultMaxRetries`)              | `1` (single attempt) |
+| `InitialDelay` | `100ms`             | `100ms`                                | used as given  |
+| `MaxDelay`     | `5s`                | `5s`                                   | used as given  |
+| `MaxElapsed`   | none                | none (only `ctx` bounds `Do`)          | none           |
 
-When `MaxRetries` is zero in a `RetryConfig` passed to `NewHTTPRequestWithRetry`, the client performs exactly one attempt.
+**Total time.** Every attempt and every wait spends the same budget: the `ctx` deadline and, when set, `MaxElapsed`. Without either, one `Do` can take up to `MaxRetries` × the client's per-attempt timeout (`http.Client.Timeout`, 60 s by default) plus the waits, so give `ctx` a deadline or set `MaxElapsed`. A wait that would outlast the budget ends the retries early (see `Do`).
 
-There are no environment variables read by this package directly. The surrounding `internal/platform` builder selects which constructor to call.
+`MaxRetries` is the total number of attempts. Zero means the default (5), not "no retries"; for a single attempt set `MaxRetries: 1`. `Do` always sends at least one request.
+
+This package reads no environment variables.
 
 ---
 
 ## API Reference
 
-### `HTTPRequester`
+### `Requester`
 
 ```go
-type HTTPRequester interface {
+type Requester interface {
     Do(ctx context.Context, config RequestConfig, out any) error
 }
 ```
@@ -119,27 +128,25 @@ The single-method interface used throughout the codebase. Accept this interface 
 ### `New`
 
 ```go
-func New(client *http.Client) HTTPRequester
+func New(client *http.Client) *Request
 ```
 
-Returns an `*HTTPRequest` with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`. Used by `internal/platform` when wiring the default HTTP client for service-to-service calls.
+Returns a concrete `*Request` with tracing through the global OTel tracer with `MaxRetries = 5`, `InitialDelay = 100ms`, `MaxDelay = 5s`.
 
 ---
 
-### `NewHTTPRequestWithRetry`
+### Retry and tracing options
 
-```go
-func NewHTTPRequestWithRetry(client *http.Client, retryConfig RetryConfig) *HTTPRequest
-```
-
-Returns `*HTTPRequest` (concrete type, not the interface) so callers that need to inspect or swap retry settings can do so. Used by `internal/platform` when building the LLM client with `MaxRetries: 1`.
+Use `NewWithOptions(client, WithRetryConfig(rc), WithInstrumenter(instr))` to
+combine custom retries and tracing. Nil instrumenters disable spans. Retry zero
+fields take defaults; a negative `MaxRetries` becomes one attempt.
 
 ---
 
 ### `Do`
 
 ```go
-func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) error
+func (h *Request) Do(ctx context.Context, config RequestConfig, out any) error
 ```
 
 **Execution sequence per attempt:**
@@ -148,9 +155,10 @@ func (h *HTTPRequest) Do(ctx context.Context, config RequestConfig, out any) err
 2. Records an `http.attempt` OpenTelemetry span event (attributes: `retry.attempt`, `retry.max`, `http.url`) when a valid span exists in `ctx`.
 3. Calls `executeRequest`, which builds the `http.Request`, sends it, checks the status, and decodes the body.
 4. On success (2xx), returns `nil`.
-5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable`. Non-retryable errors are returned immediately.
-6. Waits for the current delay using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
-7. Doubles the delay for the next attempt, capped at `MaxDelay`.
+5. On error, checks `isRetryable` via `errorkit.AppError.Metadata.Retriable` and whether resending is safe (see **Retryability** below). Errors that are not retriable, or not safe to resend, are returned immediately.
+6. Picks the wait before the next attempt. When the response carried a `Retry-After` header (delay-seconds or HTTP-date, typically on 429 and 503), the wait is exactly that value; if it exceeds `MaxDelay`, the error is returned without retrying, because an earlier retry would fail by design. Otherwise the wait is a random duration in `[0, backoff)` ("full jitter"), so clients that failed together do not retry in lockstep. If the wait would outlast the `ctx` deadline, the last error is returned at once instead of sleeping into a timeout.
+7. Waits using a `select` over `ctx.Done()` and `time.After`. Context cancellation during a wait returns a network error.
+8. Doubles the backoff ceiling for the next attempt (`InitialDelay`, `2×`, `4×`, …), capped at `MaxDelay`.
 
 **`out` decoding rules** (driven by the reflected type of `out`):
 
@@ -168,15 +176,21 @@ Passing a non-pointer as `out` returns `ERR_SYSTEM_UNEXPECTED`. Passing `nil` sk
 
 An empty body when JSON decoding is expected (`io.EOF`) is silently treated as success.
 
+**Response size limits.** A successful body is read through a cap of `DefaultMaxResponseBytes` (32 MiB), measured after transparent gzip decompression; change it with `WithMaxResponseBytes(n)`. A larger body fails with a non-retriable `ERR_EXTERNAL_INVALID_RESPONSE` whose payload carries `url` and `max_response_bytes`. Only the first 64 KiB of a non-2xx body are read (enough for the provider error and for `response_body`). Before the body is closed, at most 256 KiB of any unread remainder are discarded so the connection can be reused.
+
 **Error conditions and errorkit codes:**
 
 | Condition                            | errorkit code                      |
 | ------------------------------------ | ---------------------------------- |
+| Invalid URL (unparseable, scheme not `http`/`https`, no host) — checked once, before any attempt | `ERR_SYSTEM_CONFIG_INVALID` |
 | `http.NewRequestWithContext` failure | `ERR_SYSTEM_UNEXPECTED`            |
 | `out` is not a pointer               | `ERR_SYSTEM_UNEXPECTED`            |
 | Body read or parse failure           | `ERR_SYSTEM_UNEXPECTED`            |
+| Success body over the size limit     | `ERR_EXTERNAL_INVALID_RESPONSE`    |
 | `context.DeadlineExceeded`           | `ERR_NETWORK_TIMEOUT`              |
-| `context.Canceled`                   | `ERR_SYSTEM_UNEXPECTED`            |
+| `context.Canceled`                   | `ERR_REQUEST_CANCELED` (HTTP 499, not retriable; `errors.Is(err, context.Canceled)` holds) |
+| `*errorkit.AppError` raised inside the client (e.g. the `httpclient` redirect limit) | returned unchanged |
+| TLS certificate verification failure | `ERR_EXTERNAL_INVALID_RESPONSE` (not retriable) |
 | `net.Error` with `Timeout() == true` | `ERR_NETWORK_TIMEOUT`              |
 | Any other transport error            | `ERR_NETWORK_ERROR`                |
 | HTTP 400                             | `ERR_CLIENT_BAD_REQUEST`           |
@@ -190,44 +204,58 @@ An empty body when JSON decoding is expected (`io.EOF`) is silently treated as s
 | HTTP 5xx (other)                     | `ERR_EXTERNAL_SERVICE_ERROR`       |
 | Any other status code                | `ERR_SYSTEM_UNEXPECTED`            |
 
-Network error payloads always include `url` and `original_error`. HTTP error payloads always include `url`, `status_code`, and `response_body`.
+Network error payloads always include `url` and `original_error`. HTTP error payloads always include `url` and `status_code`, plus `provider_error_code` and `provider_error_type` when the body carries an OpenAI-style `{"error":{...}}` object. `response_body`, `request_body` and `provider_error_message` (which providers often use to echo input or partial keys) are added only with `WithBodyCapture()`, after the configured `BodyRedactor`.
 
-**Retryability** is determined entirely by `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.
+**Logging.** `Do` never logs the errors it returns: the caller handles each error once (log it with `logger.ErrorCtx(ctx, err, …)`, retry, or translate it). For one log line per attempt, opt in with `WithAuditLog()`, which writes through `logger.CtxOrGlobal(ctx)` with trace correlation.
+
+**URL sanitization.** Every URL placed in an error payload, a wrapped `*url.Error`, the audit log or a span event is sanitized first: userinfo (`user:pass@`) and the fragment are dropped, and each query value is replaced by `REDACTED` while the keys are kept (`?key=SECRET` → `?key=REDACTED`). Wrapped URL-error diagnostic text is replaced by `[REDACTED]`, because even parse failures can echo credentials from a redirect Location. The original cause remains available through `errors.Is` and `errors.As`; timeout classification is preserved.
+
+**Retryability** starts from `errorkit.AppError.Metadata.Retriable`. The following codes are retriable by default: `ERR_NETWORK_TIMEOUT`, `ERR_NETWORK_ERROR`, `ERR_CLIENT_RATE_LIMIT`, `ERR_EXTERNAL_SERVICE_UNAVAILABLE`, `ERR_EXTERNAL_SERVICE_TIMEOUT`, `ERR_EXTERNAL_SERVICE_ERROR`.
+
+A retriable error is retried only when sending the request again cannot duplicate a side effect:
+
+- the method is idempotent: `GET` (or empty), `HEAD`, `OPTIONS`, `TRACE`, `PUT`, `DELETE`; or
+- the request carries a non-empty `Idempotency-Key` or `X-Idempotency-Key` header; or
+- the initial connection was never made (a dial error such as "connection refused"), and no request in the attempt was sent. A dial failure after a redirect does not make the original request safe to repeat.
+
+A `POST` or `PATCH` that gets a 5xx, a 429 or a timeout is therefore sent once and its error returned. Set `RetryConfig.RetryNonIdempotent` to retry every retriable error regardless, only when the upstream deduplicates requests or a duplicate is harmless.
 
 ---
 
 ## Real-World Usage
 
-### Platform Builder (internal/platform)
+### Service bootstrap
 
-The `internal/platform` builder constructs and exposes `HTTPRequester` in the shared `Container`. Two variants appear in practice:
+Build the requesters once at startup and share them. Two variants appear in practice:
 
 ```go
-// Default client for service-to-service HTTP calls (5 retries)
-httpClient := httpclient.NewDefaultClient()
-httpRequest := httprequest.New(httpClient)
-container.HTTPRequest = httpRequest
+// Default client for service-to-service HTTP calls (up to 5 attempts).
+httpRequest := httprequest.New(httpclient.NewDefaultClient())
 
-// LLM client — single attempt with a tuned http.Client
-httpClient := httpclient.NewClient(httpclient.SetupForLLM())
-httpRequest := httprequest.NewHTTPRequestWithRetry(httpClient, httprequest.RetryConfig{
-    MaxRetries: 1,
-})
-llm := llmclient.New(httpRequest, llmclient.ClientConfig{ ... })
-container.LLM = llm
+// LLM client: a single attempt over a client tuned for slow first bytes.
+llmRequest := httprequest.NewWithOptions(
+    httpclient.NewClient(httpclient.SetupForLLM()),
+    httprequest.WithRetryConfig(httprequest.RetryConfig{MaxRetries: 1}),
+    httprequest.WithInstrumenter(telemetry.NewInstrumenter(telemetry.InstrumenterConfig{})),
+)
+cfg, err := llmclient.ConfigFromEnv() // LLM_API_KEY, LLM_ENDPOINT
+if err != nil {
+    return err
+}
+llm := llmclient.New(llmRequest, cfg)
 ```
 
 ### Constructor injection
 
-Inject `HTTPRequester` via constructor so the dependency is explicit and replaceable in tests:
+Inject `Requester` via constructor so the dependency is explicit and replaceable in tests:
 
 ```go
 type AuthClient struct {
-    httpRequest httprequest.HTTPRequester
+    httpRequest httprequest.Requester
     endpoint    string
 }
 
-func NewAuthClient(r httprequest.HTTPRequester, endpoint string) *AuthClient {
+func NewAuthClient(r httprequest.Requester, endpoint string) *AuthClient {
     return &AuthClient{httpRequest: r, endpoint: endpoint}
 }
 
@@ -248,7 +276,7 @@ func (a *AuthClient) Login(ctx context.Context, body []byte) (*Response, error) 
 
 ### Body redaction and audit log (opt-in)
 
-By default `HTTPRequest` does not place request or response bodies into structured error payloads. When body context is required for debugging, opt in with `WithBodyCapture()`. Captured bodies pass through a `BodyRedactor` (default replaces non-empty bodies with `[REDACTED]`):
+By default `Request` does not place request or response bodies into structured error payloads. When body context is required for debugging, opt in with `WithBodyCapture()`. Captured bodies pass through a `BodyRedactor` (default replaces non-empty bodies with `[REDACTED]`):
 
 ```go
 requester := httprequest.NewWithOptions(client,
@@ -261,6 +289,8 @@ requester := httprequest.NewWithOptions(client,
 ```
 
 `WithRawBodies()` disables redaction entirely — use only in development environments where the bodies are guaranteed not to contain credentials or PII.
+
+`Referer`, `Location` and `Content-Location` header values use the same URL sanitization; malformed values become `[invalid URL]` and opaque URLs are masked in full. `Link` and `Refresh` are masked in full because they contain compound URL syntax. Each header value is sanitized before multiple values are joined; unrelated diagnostic headers are preserved.
 
 The audit log (one structured entry per outbound request) is opt-in via `WithAuditLog()`. Bodies in audit log entries always pass through the configured redactor, even when `WithRawBodies` is not set.
 
@@ -284,9 +314,9 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 
 ## Lifecycle / Concurrency Notes
 
-- `HTTPRequest` is fully immutable after construction. Retry defaults are normalized once in the constructor; `Do` works on a local copy of `retryConfig` and never mutates the receiver. The instance is safe for concurrent use across goroutines.
+- `Request` is fully immutable after construction. Retry defaults are normalized once in the constructor; `Do` works on a local copy of `retryConfig` and never mutates the receiver. The instance is safe for concurrent use across goroutines.
 - There is no `Close` method. Lifecycle management of the underlying `*http.Client` and its transport is the caller's responsibility.
-- One instance should be created per process (or per distinct `http.Client`) and reused across requests; do not create a new `HTTPRequest` per request.
+- One instance should be created per process (or per distinct `http.Client`) and reused across requests; do not create a new `Request` per request.
 
 ---
 
@@ -298,4 +328,38 @@ if err := requester.Do(ctx, cfg, &result); err != nil {
 | `encoding/json`                                                    | JSON decoding of structured responses                   |
 | `go.opentelemetry.io/otel/trace`                                   | Span event recording per retry attempt                  |
 | `go.opentelemetry.io/otel/attribute`                               | OTEL attribute types for span events                    |
-| `github.com/trypanic/go-sdk/errorkit` | Structured error construction and retryability metadata |
+| `go.opentelemetry.io/otel/propagation`                             | W3C trace-context injection into outbound headers (needs a global propagator set by the service) |
+| `github.com/trypanic/go-sdk/v2/errorkit`                              | Structured error construction and retryability metadata |
+| `github.com/trypanic/go-sdk/v2/telemetry`                             | Tracing wrapper (`New`, `NewWithInstrumenter`)          |
+
+### Concrete adapters and escape hatches (v2)
+
+Constructors return concrete adapters; consumers should accept the narrow
+interfaces they need. HTTP and LLM clients retain the constructor's instrumenter
+inside the concrete adapter, producing one span per call. `WrapWithInstrumenter`
+still preserves its input when the instrumenter is nil; an explicit non-nil wrapper
+exposes `Unwrap()` to recover the enclosed interface. Wrapping an already traced
+client intentionally creates another span, so wrap a tracing-disabled client.
+
+Transport backoff growth and full jitter are shared with messaging through
+`internal/backoff`; growth saturates before duration overflow. Public retry
+configuration units, idempotency rules and `Retry-After` precedence are unchanged.
+
+### Failure spans
+
+Tracing adapters emit client-kind spans and finalize failures through
+`telemetry.End(span, err)`: status Error, one exception event and, for classified
+errors, `error.code` and `error.retriable`. Exception text uses the registered
+metadata description (or "operation failed"), excluding private reasons, wrapped
+errors, payloads and stacks. Successful spans retain their existing status.
+
+### Stable operation names
+
+Client spans use `external.http.<host>.<METHOD>`, for example
+`external.http.api.example.com.GET`. The hostname excludes credentials and
+ports and preserves IPv6 addresses. Standard methods are normalized to uppercase;
+custom methods use `OTHER`. Missing or invalid hosts use `unknown`.
+`server.address`, `http.request.method`, and `url.path` carry request details;
+query values and userinfo are excluded from these attributes. Paths and resource
+IDs do not affect span names. Update dashboards that selected the previous
+host/path-based names.

@@ -16,9 +16,11 @@ A structured, type-safe error handling library for Go. Every error carries a uni
     - [Basic](#basic)
     - [With Options](#with-options)
     - [Wrapping Standard Errors](#wrapping-standard-errors)
+    - [Inspecting Error Chains](#inspecting-error-chains)
   - [Functional Options](#functional-options)
   - [Formatting \& Output](#formatting--output)
     - [Example JSON output](#example-json-output)
+    - [Client-safe responses](#client-safe-responses)
     - [Color control](#color-control)
   - [Registry API](#registry-api)
   - [Factory API](#factory-api)
@@ -26,6 +28,7 @@ A structured, type-safe error handling library for Go. Every error carries a uni
     - [Stack depth](#stack-depth)
     - [Custom ID generator](#custom-id-generator)
     - [ULID utilities](#ulid-utilities)
+  - [Concurrency](#concurrency)
   - [Registering New Error Codes](#registering-new-error-codes)
     - [Step 1 — Declare the constant in `codes.go`](#step-1--declare-the-constant-in-codesgo)
     - [Step 2 — Register metadata in `registry.go`](#step-2--register-metadata-in-registrygo)
@@ -42,7 +45,7 @@ A structured, type-safe error handling library for Go. Every error carries a uni
 ## Installation
 
 ```bash
-go get github.com/trypanic/go-sdk/errorkit
+go get github.com/trypanic/go-sdk/v2/errorkit
 ```
 
 ---
@@ -54,7 +57,7 @@ package main
 
 import (
     "fmt"
-    "github.com/trypanic/go-sdk/errorkit"
+    "github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 func main() {
@@ -71,8 +74,11 @@ func main() {
     // Pretty-print for debugging (auto-detects TTY colors)
     fmt.Println(err.Pretty())
 
-    // JSON output for HTTP responses / structured logging
+    // Full JSON (stack, payload, wrapped error) for logs only
     fmt.Println(err.PrettyJSON())
+
+    // Client-safe JSON for HTTP responses
+    fmt.Println(err.PublicJSON())
 }
 ```
 
@@ -142,7 +148,7 @@ err := errorkit.NewError(errorkit.ERR_CLIENT_NOT_FOUND)
 
 This automatically:
 - Looks up metadata from the registry
-- Captures the current stack trace
+- Captures the current stack trace, starting at the caller of `NewError` (errorkit's own frames and `runtime` frames are skipped and do not count against the stack depth); file paths are reported as import paths (`github.com/acme/app/handler/users.go`), never as absolute build paths
 - Generates a unique ULID as the error ID
 - Records an ISO 8601 timestamp
 
@@ -173,6 +179,34 @@ if dbErr != nil {
 
 The wrapped error is accessible via `errors.Unwrap(err)` and is included in JSON output.
 
+### Inspecting Error Chains
+
+Use `errorkit.As` and `errorkit.HasCode` instead of a direct type assertion.
+`err.(*errorkit.AppError)` fails as soon as any layer adds context with
+`fmt.Errorf("...: %w", err)`; the helpers walk the whole chain.
+
+```go
+// Preserve an AppError found anywhere in the chain; wrap anything else once.
+if appErr, ok := errorkit.As(err); ok {
+    return appErr
+}
+return errorkit.NewError(errorkit.ERR_INTERNAL).With(errorkit.WithWrapped(err))
+```
+
+```go
+// Branch on a code, also when it is nested inside another AppError.
+if errorkit.HasCode(err, errorkit.ERR_CLIENT_NOT_FOUND) {
+    // ...
+}
+```
+
+`As` returns the first non-nil `*AppError` in the chain. `HasCode` walks the
+whole error tree like `errors.Is` (`%w` wrappers, `errors.Join` branches and
+the wrapped error of every `*AppError`) and reports whether any `*AppError` in
+it has the code. `AppError`
+has no `Is` method, so two errors with the same code are not `errors.Is`-equal;
+compare codes with `HasCode` or `.Code()`.
+
 ---
 
 ## Functional Options
@@ -202,10 +236,13 @@ output := errorkit.NewStackFormatter().FormatPlain(err)
 // Always colored ANSI output
 output := errorkit.NewStackFormatter().FormatColored(err)
 
-// Structured JSON — ideal for HTTP responses and log aggregation
+// Structured JSON with stack, payload and wrapped error — logs only
 output := err.PrettyJSON()
 
-// Write directly to any io.Writer
+// Client-safe JSON — use this for HTTP/RPC response bodies
+output := err.PublicJSON()
+
+// Write directly to any io.Writer (colored only when the writer itself is a terminal)
 err.WriteTo(os.Stderr)
 err.WriteTo(logFile)
 ```
@@ -228,7 +265,7 @@ err.WriteTo(logFile)
   },
   "stack_trace": [
     {
-      "file": "/app/handler/users.go",
+      "file": "github.com/acme/app/handler/users.go",
       "line": 42,
       "package": "handler",
       "function": "CreateUser"
@@ -240,6 +277,34 @@ err.WriteTo(logFile)
 
 `reason`, `payload`, `trace_id`, and `wrapped` are omitted when empty. `Timestamp` lives on the `AppError` struct but is not serialized by `PrettyJSON`.
 
+`PrettyJSON` exposes the stack trace (package, function and file names), the
+payload and the wrapped error text. Never send it to a client.
+
+### Client-safe responses
+
+`PublicJSON()` (or `Public()`, which returns the `PublicError` struct for
+embedding in your own envelope) emits only the code, a message, the error ID
+and the trace ID:
+
+```json
+{"code":"ERR_VALIDATION_MISSING_FIELD","message":"field 'email' is required","id":"01HV8F3KJ2XQDT8JQMZR4Y5WN"}
+```
+
+The message is the `Reason` only for client-error classes
+(`Metadata.HTTPStatus` 4xx), where the reason describes the caller's own
+input. For every other class it is `Metadata.Description` (or the standard
+HTTP status text when the description is empty), so internal reasons such as
+driver errors or hostnames never reach the client. The stack trace, payload
+and wrapped error are never included.
+
+```go
+func writeError(w http.ResponseWriter, appErr *errorkit.AppError) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(appErr.Metadata.HTTPStatus)
+    _, _ = w.Write([]byte(appErr.PublicJSON()))
+}
+```
+
 ### Color control
 
 Global compatibility helpers:
@@ -248,6 +313,8 @@ Global compatibility helpers:
 errorkit.DisableColors() // disable ANSI globally
 errorkit.EnableColors()  // re-enable ANSI globally
 ```
+
+The global color setting is unexported; these helpers are the only way to change it and are safe for concurrent use.
 
 SDK-safe formatter config:
 
@@ -263,7 +330,7 @@ output := formatter.Format(err)
 
 ## Registry API
 
-The package exposes global registry helpers. They are safe for concurrent use, but they mutate process-global state.
+The package exposes global registry helpers. They are safe for concurrent use, but they mutate process-global state. The global registry map itself is unexported: read and write it only through these helpers.
 
 ```go
 // Look up metadata for a code
@@ -292,7 +359,11 @@ dataCodes := errorkit.GetCodesByGroup(errorkit.GroupData)
 externalCodes := errorkit.GetCodesByType(errorkit.ErrorTypeExternal)
 ```
 
-`RegisterMany` and `MustRegister` validate required fields (`Code`, `Type`, `Group`, `Category`, `Description`, `HTTPStatus` in [100, 599]) and reject duplicate codes whose metadata differs from what is already registered. Identical duplicate metadata is a no-op.
+`RegisterMany` and `MustRegister` validate required fields (`Code`, `Type`, `Group`, `Category`, `Description`, `HTTPStatus` in [100, 599]) and reject duplicate codes whose metadata differs from what is already registered (or from an earlier entry of the same batch). Identical duplicate metadata is a no-op. A batch is all-or-nothing: when any entry is rejected, none is registered.
+
+`GetAllCodes`, `GetCodesByGroup` and `GetCodesByType` return codes sorted in ascending order.
+
+`OverrideMetadata` returns `false` (and leaves the entry unchanged) when the code is not registered, when the updated metadata fails the same validation, or when the updater changes `Code`. The updater runs on a copy without holding the registry lock, so it may call errorkit (for example `GetMetadata`); if the entry changes concurrently, the updater runs again on the new value.
 
 SDK consumers that need isolation should use an explicit registry:
 
@@ -313,7 +384,7 @@ if err := registry.RegisterMany(errorkit.Metadata{
 err := registry.NewError("ERR_SDK_CUSTOM")
 ```
 
-`NewRegistry(...)` creates an empty isolated registry seeded only with the metadata you pass. `NewDefaultRegistry()` creates an isolated copy of the built-in registry. `Registry.Merge(other)` copies metadata from another registry with the same conflict semantics. `Registry` exposes `GetMetadata`, `GetAllCodes`, `GetCodesByGroup`, `GetCodesByType`, `RegisterMany`, `MustRegister`, `OverrideMetadata`, `Merge`, and `NewError` — mirroring the global API but scoped to the instance.
+`NewRegistry(...)` creates an empty isolated registry seeded only with the metadata you pass; the seed is stored as given, without validation or conflict checks (call `NewRegistry()` and then `RegisterMany` to validate it). `NewDefaultRegistry()` creates an isolated copy of the built-in registry. `Registry.Merge(other)` copies metadata from another registry with the same all-or-nothing conflict semantics. `Registry` exposes `GetMetadata`, `GetAllCodes`, `GetCodesByGroup`, `GetCodesByType`, `RegisterMany`, `MustRegister`, `OverrideMetadata`, `Merge`, and `NewError` — mirroring the global API but scoped to the instance.
 
 ---
 
@@ -339,7 +410,7 @@ err := factory.NewError(errorkit.ERR_INTERNAL)
 | `MaxStackDepth`  | Stack depth for this factory only. Clamped to [1, 100].                                              |
 | `StrictMetadata` | When true, errors created from unregistered codes get `Reason = StrictMetadataReason` automatically. |
 
-The factory does not mutate `ErrorRegistry`, `MaxStackDepth`, or color globals.
+The factory does not mutate the global registry, the global stack depth, or the global color setting.
 
 ---
 
@@ -360,7 +431,7 @@ errorkit.SetMaxStackDepth(16)
 errorkit.InitFromEnv()
 ```
 
-For per-instance control without globals, use `Factory` (see above).
+`SetMaxStackDepth` and `SetIDGenerator` are safe to call concurrently with `NewError`; the underlying settings are unexported. For per-instance control without globals, use `Factory` (see above).
 
 ### Custom ID generator
 
@@ -388,7 +459,20 @@ minID := errorkit.MinULID(startTime)
 maxID := errorkit.MaxULID(endTime)
 ```
 
-`ValidateULID` rejects timestamps before 2000 and more than 1 year in the future.
+`ParseULID` and `ValidateULID` accept upper- and lower-case IDs; generated IDs are upper case. `ValidateULID` rejects timestamps before 2000 and more than 1 year in the future.
+
+Generated ULIDs are strictly increasing in generation order, also within one millisecond, under concurrent use and when the system clock steps backwards (the last timestamp is kept and the random part incremented).
+
+---
+
+## Concurrency
+
+- `NewError`, the registries (global and `Registry`), `Factory` and the
+  configuration setters (`SetMaxStackDepth`, `InitFromEnv`, `SetIDGenerator`,
+  `DisableColors`, `EnableColors`) are safe for concurrent use.
+- An `*AppError` is not: `With` modifies it in place. Build it in one
+  goroutine and share it only once it is complete; never keep a
+  package-level `*AppError` as a sentinel and call `With` on it.
 
 ---
 
@@ -420,10 +504,10 @@ const (
 
 ### Step 2 — Register metadata in `registry.go`
 
-Add entries to the `ErrorRegistry` map inside the `var` block. Match the group to an existing `ErrorGroup` constant (or define a new one — see next section).
+Add entries to the unexported `errorRegistry` map inside the `var` block. Match the group to an existing `ErrorGroup` constant (or define a new one — see next section).
 
 ```go
-// registry.go — inside ErrorRegistry = map[ErrorCode]Metadata{ ... }
+// registry.go — inside errorRegistry = map[ErrorCode]Metadata{ ... }
 
 ERR_PAYMENT_DECLINED: {
     Code:        ERR_PAYMENT_DECLINED,
@@ -562,3 +646,26 @@ The package ships with a small core registry. Domain-specific codes (auth, datab
 | `ERR_SYSTEM_CONFIG_INVALID`     | system  | 500 | ✗         | Invalid system configuration           |
 | `ERR_SYSTEM_TIMEOUT_INTERNAL`   | system  | 500 | ✓         | Internal operation timeout             |
 | `ERR_SYSTEM_CONCURRENCY`        | system  | 409 | ✓         | Concurrency conflict detected          |
+
+### Expected failures without stack capture
+
+`NewWithoutStack(code)` preserves the normal metadata, ID, timestamp and error
+chain while leaving `Trace` empty. Use it for frequent expected validation
+failures. `NewError`, registry and factory constructors retain their existing
+stack behavior; global stack-depth configuration does not affect this explicit
+constructor. The `validators` package uses it for invalid user input, while
+configuration errors (such as reversed numeric bounds) retain a stack.
+
+### Additional adapter codes
+
+These codes are registered by importing their owning package:
+
+| Code | Owner | HTTP status | Retriable | Meaning |
+| --- | --- | --- | --- | --- |
+| ERR_REQUEST_CANCELED | httprequest | 499 | no | Caller canceled the HTTP request |
+| ERR_DB_MONGO_CANCELED | mongo | 499 | no | Caller canceled the MongoDB operation |
+| ERR_MQ_CLOSED | messaging | 503 | no | Messaging client is closed |
+| ERR_DB_POSTGRES_ENCODE_FAILED | postgres | 500 | no | JSON argument cannot be encoded before the query |
+
+The four `ERR_EXTERNAL_*` codes are registered by `errorkit` itself; importing
+`httpclient` is unnecessary to construct or classify them.

@@ -1,0 +1,6 @@
+$ go test -race -short -count=1 -run TestSubscribeOutlivesConstructionContext ./messaging
+--- FAIL: TestSubscribeOutlivesConstructionContext (0.00s)
+    subscription_context_test.go:27: subscription inherited construction cancellation: [ERR_MQ_CLOSED] pubsub is closed
+FAIL
+FAIL    github.com/trypanic/go-sdk/v2/messaging 0.011s
+FAIL

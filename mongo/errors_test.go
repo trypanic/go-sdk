@@ -1,12 +1,12 @@
-package mongodb
+package mongo
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func TestParseObjectID_InvalidFormat_ReturnsAppError(t *testing.T) {
@@ -15,8 +15,8 @@ func TestParseObjectID_InvalidFormat_ReturnsAppError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	var appErr *errorkit.AppError
-	if !errors.As(err, &appErr) {
+	appErr, ok := errors.AsType[*errorkit.AppError](err)
+	if !ok {
 		t.Fatalf("expected *errorkit.AppError, got %T", err)
 	}
 	if appErr.Code() != errorkit.ERR_VALIDATION_INVALID_FORMAT {
@@ -37,7 +37,7 @@ func TestWrapOperationError_Mappings(t *testing.T) {
 		},
 		{
 			name:     "not found",
-			err:      mongo.ErrNoDocuments,
+			err:      mongodriver.ErrNoDocuments,
 			wantCode: ERR_DB_MONGO_NOT_FOUND,
 		},
 	}
@@ -46,8 +46,8 @@ func TestWrapOperationError_Mappings(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := WrapOperationError(tt.err, "find")
 
-			var appErr *errorkit.AppError
-			if !errors.As(err, &appErr) {
+			appErr, ok := errors.AsType[*errorkit.AppError](err)
+			if !ok {
 				t.Fatalf("expected *errorkit.AppError, got %T", err)
 			}
 			if appErr.Code() != tt.wantCode {

@@ -1,8 +1,10 @@
 package errorkit
 
 import (
-	"fmt"
 	"os"
+	"strconv"
+	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -10,44 +12,63 @@ import (
 // Configuration Variables
 // ==============================
 
-// MaxStackDepth controls the maximum number of stack frames to capture
-// Can be modified at runtime: errorkit.MaxStackDepth = 50
-var MaxStackDepth = 32
+// defaultMaxStackDepth is the stack depth used until SetMaxStackDepth is
+// called.
+const defaultMaxStackDepth = 32
+
+// maxStackDepth is the maximum number of stack frames NewError captures.
+// It is read on every NewError and written by SetMaxStackDepth, so it is
+// atomic.
+var maxStackDepth atomic.Int32
+
+func init() {
+	maxStackDepth.Store(defaultMaxStackDepth)
+}
 
 // ==============================
 // Configuration Functions
 // ==============================
 
-// SetMaxStackDepth configures the maximum stack depth to capture
-// Default is 32 frames
+// SetMaxStackDepth configures the maximum stack depth to capture, clamped to
+// [1, 100]. Default is 32 frames. It is safe to call concurrently with
+// NewError.
 func SetMaxStackDepth(depth int) {
-	MaxStackDepth = clampStackDepth(depth)
+	if depth < 1 {
+		maxStackDepth.Store(1)
+		return
+	}
+	if depth > 100 {
+		maxStackDepth.Store(100)
+		return
+	}
+	maxStackDepth.Store(int32(depth))
+}
+
+// currentMaxStackDepth returns the configured global stack depth.
+func currentMaxStackDepth() int {
+	return int(maxStackDepth.Load())
 }
 
 func clampStackDepth(depth int) int {
-	if depth < 1 {
-		depth = 1
-	}
-	if depth > 100 {
-		depth = 100
-	}
-	return depth
+	return min(max(depth, 1), 100)
 }
 
 // ==============================
 // Environment Detection
 // ==============================
 
-// InitFromEnv initializes configuration from environment variables
+// InitFromEnv initializes configuration from environment variables.
 // Supported variables:
-// - ERROR_KIT_MAX_STACK: integer for max stack depth
+//   - ERROR_KIT_MAX_STACK: integer for max stack depth (clamped like
+//     SetMaxStackDepth). A value that is not an integer, including one with
+//     trailing characters such as "12abc", is ignored.
 func InitFromEnv() {
-	// Check max stack depth
-	if maxStackEnv := os.Getenv("ERROR_KIT_MAX_STACK"); maxStackEnv != "" {
-		var depth int
-		if _, err := fmt.Sscanf(maxStackEnv, "%d", &depth); err == nil {
-			SetMaxStackDepth(depth)
-		}
+	maxStackEnv := strings.TrimSpace(os.Getenv("ERROR_KIT_MAX_STACK"))
+	if maxStackEnv == "" {
+		return
+	}
+	if depth, err := strconv.Atoi(maxStackEnv); err == nil {
+		SetMaxStackDepth(depth)
 	}
 }
 

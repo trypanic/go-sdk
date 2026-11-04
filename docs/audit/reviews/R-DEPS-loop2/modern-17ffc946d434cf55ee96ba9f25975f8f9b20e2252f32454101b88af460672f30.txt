@@ -1,0 +1,48 @@
+new_expression: Use new(value) for pointer fields or arguments instead of generic/type-specific pointer helper functions or temporary variables used only for &value.
+errors_as_type: Use errors.AsType[T](err) when checking whether an error matches a specific type.
+sync_waitgroup_go: Use wg.Go when spawning goroutines tracked by a sync.WaitGroup.
+testing_t_context: Use t.Context() when a test function needs a context tied to the test lifetime.
+json_omitzero: Use omitzero on JSON-tagged bool, numeric, struct, and time fields whose zero value should be omitted; keep omitempty for empty strings, slices, and maps.
+testing_b_loop: Use b.Loop() for the main loop in benchmark functions.
+strings_split_seq: Use strings or bytes SplitSeq and FieldsSeq helpers when iterating over split results.
+maps_keys_values_iter: Use maps.Keys or maps.Values directly as iterators instead of manually looping over a map.
+slices_collect: Use slices.Collect to build a slice from an iterator.
+slices_sorted: Use slices.Sorted to collect and sort iterator values in one step.
+time_tick_gc: Use time.Tick when it fits; Go 1.23 can recover unreferenced tickers without requiring Stop for GC.
+range_over_int: Use for i := range n when iterating from 0 to n-1.
+loopvar_capture: Do not add redundant loop-variable copies before closures or taking addresses; Go 1.22 gives each iteration its own variables.
+cmp_or: Use cmp.Or to pick the first non-zero value from a fallback chain.
+reflect_type_for: Use reflect.TypeFor[T]() instead of reflect.TypeOf((*T)(nil)).Elem().
+http_servemux_patterns: Use method-aware ServeMux patterns and r.PathValue for path parameters.
+min_max: Use built-in min and max instead of handwritten comparisons.
+clear: Use clear(m) to delete all map entries or clear(s) to zero slice elements.
+slices_contains: Use slices.Contains instead of a manual search loop.
+slices_index: Use slices.Index to find the index of an element, returning -1 when absent.
+slices_index_func: Use slices.IndexFunc to find an element by predicate.
+slices_sort_func: Use slices.SortFunc with cmp.Compare instead of sort.Slice for typed comparisons.
+slices_sort: Use slices.Sort for slices of ordered values.
+slices_max_min: Use slices.Max and slices.Min instead of manual loops over ordered values.
+slices_reverse: Use slices.Reverse instead of a manual swap loop.
+slices_compact: Use slices.Compact to remove consecutive duplicates in place.
+slices_clip: Use slices.Clip to remove unused capacity.
+slices_clone: Use slices.Clone to copy a slice.
+maps_clone: Use maps.Clone instead of manual map iteration.
+maps_copy: Use maps.Copy to copy entries from one map into another.
+maps_delete_func: Use maps.DeleteFunc to delete map entries that match a predicate.
+sync_once_func: Use sync.OnceFunc instead of sync.Once plus a wrapper closure.
+sync_once_value: Use sync.OnceValue to memoize a computed value.
+context_after_func: Use context.AfterFunc to run cleanup when a context is canceled.
+context_timeout_deadline_cause: Use timeout and deadline contexts with causes when callers need to inspect the cancellation reason.
+strings_clone: Use strings.Clone to copy a string without retaining shared backing memory.
+bytes_clone: Use bytes.Clone to copy a byte slice.
+strings_cut_prefix_suffix: Use strings.CutPrefix or strings.CutSuffix when you need both the trimmed result and whether it matched.
+errors_join: Use errors.Join to combine multiple errors while preserving error matching.
+context_cancel_cause: Use context.WithCancelCause and context.Cause when cancellation needs to carry an error cause.
+fmt_appendf: Use fmt.Appendf when appending formatted text to a byte slice and an intermediate fmt.Sprintf string is unnecessary.
+atomic_types: Use typed atomics such as atomic.Bool, atomic.Int64, and atomic.Pointer[T] instead of untyped atomic functions.
+any: Use any instead of interface{}.
+bytes_cut: Use bytes.Cut instead of bytes.Index plus manual slicing.
+strings_cut: Use strings.Cut instead of strings.Index plus manual slicing.
+errors_is: Use errors.Is(err, target) instead of err == target so wrapped errors are handled correctly.
+time_until: Use time.Until(deadline) instead of deadline.Sub(time.Now()).
+time_since: Use time.Since(start) instead of time.Now().Sub(start).

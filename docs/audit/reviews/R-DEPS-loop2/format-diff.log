@@ -1,0 +1,23 @@
+$ git diff --check 5e57bba..HEAD
+docs/audit/validation/R-DEPS/integration-first.log:28: space before tab in indent.
++           Error Trace:    /tmp/go-sdk-audit-DEPS/mongo/mongo_integration_test.go:45
+docs/audit/validation/R-DEPS/integration-first.log:29: space before tab in indent.
++                                       /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1462
+docs/audit/validation/R-DEPS/integration-first.log:30: space before tab in indent.
++                                       /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:1822
+docs/audit/validation/R-DEPS/integration-first.log:31: space before tab in indent.
++                                       /home/trypanic/.proto/tools/go/1.27.3/src/testing/testing.go:2189
+docs/audit/validation/R-DEPS/integration-first.log:32: space before tab in indent.
++           Error:          Received unexpected error:
+docs/audit/validation/R-DEPS/integration-first.log:33: space before tab in indent.
++                           [ERR_SYSTEM_UNEXPECTED] mongo disconnect used a disconnected client
+docs/audit/validation/R-DEPS/integration-first.log:34: space before tab in indent.
++           Test:           TestMongoIntegration
+docs/audit/validation/R-DEPS/integration-first.log:62: space before tab in indent.
++           Error Trace:    /tmp/go-sdk-audit-DEPS/messaging/messaging_integration_test.go:46
+docs/audit/validation/R-DEPS/integration-first.log:63: space before tab in indent.
++           Error:          Received unexpected error:
+docs/audit/validation/R-DEPS/integration-first.log:64: space before tab in indent.
++                           [ERR_MQ_QUEUE_ERROR] failed to declare queue
+docs/audit/validation/R-DEPS/integration-first.log:65: space before tab in indent.
++           Test:           TestRabbitMQIntegration

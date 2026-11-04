@@ -1,26 +1,26 @@
-// Package ioutils provides developer-only JSON dump helpers. None of these
-// functions are intended for production data paths; reach for `storage` or
-// `marshal` directly when persistence or wire encoding matters.
 package ioutils
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/marshal"
 )
 
-// WriteJSON encodes v as JSON to w with HTML escaping disabled. The encoder
-// writes a trailing newline, matching the standard library's
-// json.Encoder.Encode behavior.
+// WriteJSON encodes v as JSON to w with HTML escaping disabled, using the
+// same encoding as marshal.NoEscapeBytes. The output ends with a newline,
+// matching the standard library's json.Encoder.Encode behavior. v is encoded
+// in full before anything is written, so an encode error writes nothing.
 func WriteJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
+	b, err := marshal.NoEscapeBytes(v)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(b); err != nil {
 		return errorkit.NewError(errorkit.ERR_INTERNAL).With(
-			errorkit.WithReason("failed to encode JSON"),
+			errorkit.WithReason("failed to write JSON"),
 			errorkit.WithWrapped(err),
 		)
 	}

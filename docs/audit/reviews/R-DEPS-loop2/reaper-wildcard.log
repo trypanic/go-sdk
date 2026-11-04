@@ -1,0 +1,41 @@
+$ go test -v -race -tags integration -run TestPostgresIntegration -count=1 -timeout=3m ./postgres
+=== RUN   TestPostgresIntegration
+2026/11/04 01:22:33 github.com/testcontainers/testcontainers-go - Connected to docker:
+  Server Version: 29.9.2
+  API Version: 1.55
+  Operating System: Ubuntu 26.10
+  Total Memory: 31151 MB
+  Testcontainers for Go Version: v0.44.0
+  Resolved Docker Host: unix:///var/run/docker.sock
+  Resolved Docker Socket Path: /var/run/docker.sock
+  Test SessionID: 091a60dfd8c2e946146bbbb8e97c77c8f25a0369ed1ee083c7554dc12aae2a4a
+  Test ProcessID: a03aadeb-4ea1-4bce-a608-6c7258d9498a
+2026/11/04 01:22:34 🐳 Creating container for image testcontainers/ryuk:0.14.0
+2026/11/04 01:22:34 ✅ Container created: d6d0e3e5eb6e
+2026/11/04 01:22:34 🐳 Starting container: d6d0e3e5eb6e
+2026/11/04 01:22:34 ✅ Container started: d6d0e3e5eb6e
+2026/11/04 01:22:34 ⏳ Waiting for container id d6d0e3e5eb6e image: testcontainers/ryuk:0.14.0. Waiting for: all of: [log message "Started", port 8080/tcp to be listening]
+2026/11/04 01:22:34 Shell not found in container
+2026/11/04 01:22:34 🔔 Container is ready: d6d0e3e5eb6e
+2026/11/04 01:22:34 🐳 Creating container for image postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5
+2026/11/04 01:22:34 ✅ Container created: b3a79583cdc2
+2026/11/04 01:22:34 🐳 Starting container: b3a79583cdc2
+2026/11/04 01:22:34 ✅ Container started: b3a79583cdc2
+2026/11/04 01:22:34 ⏳ Waiting for container id b3a79583cdc2 image: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5. Waiting for: log message "database system is ready to accept connections" (occurrence: 2)
+2026/11/04 01:22:35 🔔 Container is ready: b3a79583cdc2
+    postgres_integration_test.go:28: local publication: postgres:18.6-alpine3.24@sha256:10a5c69a83035ab5239f5620d708520e8b28f5aa1f2b20143e6024532edadfb5 5432/tcp -> 127.0.0.1:32790
+    postgres_integration_test.go:28:
+            Error Trace:    /tmp/DEPS-review2/reaper-wildcard/internal/integrationtest/container.go:115
+                                        /tmp/DEPS-review2/reaper-wildcard/internal/integrationtest/container.go:64
+                                        /tmp/DEPS-review2/reaper-wildcard/postgres/postgres_integration_test.go:28
+            Error:          Should be true
+            Test:           TestPostgresIntegration
+            Messages:       container testcontainers/ryuk:0.14.0 publishes 8080/tcp on 0.0.0.0:32819
+2026/11/04 01:22:35 🐳 Stopping container: b3a79583cdc2
+2026/11/04 01:22:35 ✅ Container stopped: b3a79583cdc2
+2026/11/04 01:22:35 🐳 Terminating container: b3a79583cdc2
+2026/11/04 01:22:35 🚫 Container terminated: b3a79583cdc2
+--- FAIL: TestPostgresIntegration (1.88s)
+FAIL
+FAIL    github.com/trypanic/go-sdk/v2/postgres  1.938s
+FAIL

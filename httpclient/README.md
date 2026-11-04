@@ -61,7 +61,7 @@ Package `httpclient` constructs production-tuned `*http.Client` values with a sh
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/httpclient"
+    "github.com/trypanic/go-sdk/v2/httpclient"
 )
 
 // Production-ready client with all defaults applied.
@@ -112,7 +112,7 @@ These are returned by `DefaultConfig()` and used by `NewDefaultClient()`.
 | Field | Default | Constant |
 |---|---|---|
 | `Timeout` | `60s` | `DefaultTimeout` |
-| `DialTimeout` | `60s` | `DefaultTimeout` |
+| `DialTimeout` | `10s` | `DefaultDialTimeout` |
 | `KeepAlive` | `60s` | `DefaultKeepAlive` |
 | `TLSHandshakeTimeout` | `10s` | `DefaultTLSHandshakeTimeout` |
 | `ResponseHeaderTimeout` | `10s` | `DefaultResponseHeaderTimeout` |
@@ -189,7 +189,7 @@ Constructs an `*http.Client` from the given config.
    - `ForceAttemptHTTP2` is `true`.
 5. If `config.TransportWrapper` is non-nil, the base `*http.Transport` is passed through it before being installed on the client. This is the seam for tracing/metrics middleware. The default is no wrapper.
 6. A `CheckRedirect` policy is installed:
-   - `MaxRedirects > 0`: follows up to `MaxRedirects` redirects; exceeding the limit returns `errorkit.ERR_EXTERNAL_SERVICE_ERROR` with a reason string `"stopped after N redirects"`.
+   - `MaxRedirects > 0`: follows up to `MaxRedirects` redirects; exceeding the limit returns `ERR_EXTERNAL_SERVICE_ERROR` with a reason string `"stopped after N redirects"`, marked non-retriable (`Metadata.Retriable == false`) because a retry follows the same chain. `httprequest` returns this error unchanged.
    - `MaxRedirects == 0`: returns `http.ErrUseLastResponse` on the first redirect attempt, causing the caller to receive the redirect response directly.
    - `MaxRedirects < 0`: no `CheckRedirect` is set; Go's default behavior (up to 10 redirects) applies.
 
@@ -257,8 +257,8 @@ All options follow the signature `func(c *ClientConfig)` and are applied by `New
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/httpclient"
-    "github.com/trypanic/go-sdk/httprequest"
+    "github.com/trypanic/go-sdk/v2/httpclient"
+    "github.com/trypanic/go-sdk/v2/httprequest"
 )
 
 httpClient := httpclient.NewDefaultClient()
@@ -303,6 +303,6 @@ The package itself does not import `otelhttp` — callers add the dependency onl
 
 | Package | Role |
 |---|---|
-| `github.com/trypanic/go-sdk/errorkit` | Structured error (`ERR_EXTERNAL_SERVICE_ERROR`) returned when the redirect limit is exceeded |
+| `github.com/trypanic/go-sdk/v2/errorkit` | Structured error (`ERR_EXTERNAL_SERVICE_ERROR`) returned when the redirect limit is exceeded |
 
 The package has no telemetry dependency. Callers wishing to add tracing supply a `TransportWrapper` (e.g. `otelhttp.NewTransport`) themselves.

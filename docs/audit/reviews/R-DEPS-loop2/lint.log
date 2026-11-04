@@ -1,0 +1,3 @@
+$ GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download GOSUMDB=off task lint
+task: [lint] go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run ./...
+0 issues.

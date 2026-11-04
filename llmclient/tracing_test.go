@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/trypanic/go-sdk/telemetry"
+	"github.com/trypanic/go-sdk/v2/telemetry"
 )
 
 func TestWrapWithInstrumenterNilReturnsInner(t *testing.T) {
@@ -29,11 +29,11 @@ func TestNewWithoutTracingReturnsPlainClient(t *testing.T) {
 	t.Parallel()
 
 	provider := NewWithoutTracing(nil, Config{})
-	if _, ok := provider.(*tracingLLMProvider); ok {
+	if provider.instrumenter != nil {
 		t.Fatalf("NewWithoutTracing must not wrap with tracing")
 	}
 }
 
 type stubProvider struct{}
 
-func (s *stubProvider) Execute(context.Context, LLMRequestConfig) (string, error) { return "", nil }
+func (s *stubProvider) Execute(context.Context, RequestConfig) (string, error) { return "", nil }

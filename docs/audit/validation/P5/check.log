@@ -1,0 +1,87 @@
+task: [test:race] go build ./...
+task: [test:race] go vet ./...
+task: [test:race] go test -race -shuffle=on -short ./...
+ok      github.com/trypanic/go-sdk/v2/algorithms    1.019s
+ok      github.com/trypanic/go-sdk/v2/batch 1.013s
+ok      github.com/trypanic/go-sdk/v2/envs  1.021s
+ok      github.com/trypanic/go-sdk/v2/errorkit  1.051s
+ok      github.com/trypanic/go-sdk/v2/grpc  1.400s
+?       github.com/trypanic/go-sdk/v2/grpc/internal/testsvc [no test files]
+ok      github.com/trypanic/go-sdk/v2/httpclient    1.022s
+ok      github.com/trypanic/go-sdk/v2/httprequest   1.736s
+ok      github.com/trypanic/go-sdk/v2/httpserver    1.018s
+ok      github.com/trypanic/go-sdk/v2/httpserver/hertz  1.398s
+ok      github.com/trypanic/go-sdk/v2/httpserver/httpservertest 1.014s
+ok      github.com/trypanic/go-sdk/v2/internal/apicontract  1.020s
+ok      github.com/trypanic/go-sdk/v2/internal/backoff  1.018s
+?       github.com/trypanic/go-sdk/v2/internal/integrationtest  [no test files]
+?       github.com/trypanic/go-sdk/v2/internal/logctx   [no test files]
+ok      github.com/trypanic/go-sdk/v2/internal/redact   1.020s
+ok      github.com/trypanic/go-sdk/v2/ioutils   1.026s
+ok      github.com/trypanic/go-sdk/v2/llmclient 1.019s
+ok      github.com/trypanic/go-sdk/v2/logger    1.158s
+ok      github.com/trypanic/go-sdk/v2/logger/otlp   1.555s
+ok      github.com/trypanic/go-sdk/v2/marshal   1.016s
+ok      github.com/trypanic/go-sdk/v2/messaging 1.133s
+ok      github.com/trypanic/go-sdk/v2/messaging/messagingtest   1.012s
+ok      github.com/trypanic/go-sdk/v2/mongo 1.023s
+ok      github.com/trypanic/go-sdk/v2/mongo/mongotest   1.019s
+ok      github.com/trypanic/go-sdk/v2/postgres  1.031s
+ok      github.com/trypanic/go-sdk/v2/storage   1.066s
+ok      github.com/trypanic/go-sdk/v2/stringutils   1.020s
+ok      github.com/trypanic/go-sdk/v2/telemetry 1.024s
+ok      github.com/trypanic/go-sdk/v2/urlkit    1.015s
+ok      github.com/trypanic/go-sdk/v2/validators    1.021s
+task: [staticanalysis] bash scripts/staticanalysis.sh
+staticanalysis: mode=full pkgs=1 files=1 → .staticanalysis
+[1/3] go-vet       running
+[1/3] go-vet ✓ (0 findings, 0 errors, rc=0)
+[2/3] staticcheck  running
+[2/3] staticcheck ✓ (0 findings, 0 errors, rc=0)
+[3/3] semgrep      running
+[3/3] semgrep ✓ (12 findings, 0 errors, rc=0) via docker semgrep/semgrep:1.95.0@sha256:30e6afa99ebd8e7b4115d4904898108eb4bf77025819e9263f09cf14e6f6e549 (.semgrep.yml p/golang p/gosec p/secrets)
+
+staticanalysis: 12 findings, 0 errors. OK.
+task: [vuln] go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+=== Symbol Results ===
+
+No vulnerabilities found.
+
+Your code is affected by 0 vulnerabilities.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+task: [tidy:check] go mod tidy -diff
+task: [tidy:check] go mod verify
+all modules verified
+task: [precommit:run] pre-commit run --all-files
+trim trailing whitespace.........................................................Passed
+fix end of files.................................................................Passed
+check yaml.......................................................................Passed
+check for merge conflicts........................................................Passed
+check for added large files......................................................Passed
+detect private key...............................................................Passed
+gofmt............................................................................Passed
+goimports........................................................................Passed
+go test (short).................................................................Skipped
+staticanalysis (vet + staticcheck + semgrep, staged files).......................Passed
+- hook id: staticanalysis
+- duration: 0.02s
+
+staticanalysis: no staged .go files, skipping.
+
+task: [precommit:run] pre-commit run --all-files --hook-stage manual staticanalysis-full
+staticanalysis (vet + staticcheck + semgrep, whole repo).......................Passed
+- hook id: staticanalysis-full
+- duration: 3.75s
+
+staticanalysis: mode=full pkgs=1 files=1 → .staticanalysis
+[1/3] go-vet       running
+[1/3] go-vet ✓ (0 findings, 0 errors, rc=0)
+[2/3] staticcheck  running
+[2/3] staticcheck ✓ (0 findings, 0 errors, rc=0)
+[3/3] semgrep      running
+[3/3] semgrep ✓ (12 findings, 0 errors, rc=0) via docker semgrep/semgrep:1.95.0@sha256:30e6afa99ebd8e7b4115d4904898108eb4bf77025819e9263f09cf14e6f6e549 (.semgrep.yml p/golang p/gosec p/secrets)
+
+staticanalysis: 12 findings, 0 errors. OK.

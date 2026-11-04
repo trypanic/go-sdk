@@ -8,16 +8,20 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // processResponse decodes the response based on the type of 'out'.
-func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
+func (h *Request) processResponse(body io.Reader, out any) error {
 	// Get the type of out
 	outValue := reflect.ValueOf(out)
-	if outValue.Kind() != reflect.Ptr {
+	if outValue.Kind() != reflect.Pointer {
 		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 			With(errorkit.WithReason("'out' parameter must be a pointer"))
+	}
+	if outValue.IsNil() {
+		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+			With(errorkit.WithReason("'out' parameter must be a non-nil pointer"))
 	}
 
 	outType := outValue.Elem().Type()
@@ -36,7 +40,7 @@ func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
 		return h.decodeBool(body, out)
 	case reflect.Slice:
 		// Check if it's []byte
-		if outType == reflect.TypeOf([]byte{}) {
+		if outType == reflect.TypeFor[[]byte]() {
 			return h.decodeBytes(body, out)
 		}
 		// Otherwise decode as JSON
@@ -49,17 +53,19 @@ func (h *HTTPRequest) processResponse(body io.Reader, out any) error {
 }
 
 // decodeString reads the response body as a string.
-func (h *HTTPRequest) decodeString(body io.Reader, out any) error {
+func (h *Request) decodeString(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
 	}
-	*(out.(*string)) = string(data)
+	// SetString accepts named string types; a type assertion to *string
+	// would panic on them.
+	reflect.ValueOf(out).Elem().SetString(string(data))
 	return nil
 }
 
 // decodeInt reads the response body and parses it as an integer.
-func (h *HTTPRequest) decodeInt(body io.Reader, out any) error {
+func (h *Request) decodeInt(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
@@ -76,7 +82,7 @@ func (h *HTTPRequest) decodeInt(body io.Reader, out any) error {
 }
 
 // decodeUint reads the response body and parses it as an unsigned integer.
-func (h *HTTPRequest) decodeUint(body io.Reader, out any) error {
+func (h *Request) decodeUint(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
@@ -93,7 +99,7 @@ func (h *HTTPRequest) decodeUint(body io.Reader, out any) error {
 }
 
 // decodeFloat reads the response body and parses it as a float.
-func (h *HTTPRequest) decodeFloat(body io.Reader, out any) error {
+func (h *Request) decodeFloat(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
@@ -110,7 +116,7 @@ func (h *HTTPRequest) decodeFloat(body io.Reader, out any) error {
 }
 
 // decodeBool reads the response body and parses it as a boolean.
-func (h *HTTPRequest) decodeBool(body io.Reader, out any) error {
+func (h *Request) decodeBool(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
@@ -121,22 +127,22 @@ func (h *HTTPRequest) decodeBool(body io.Reader, out any) error {
 		return h.buildDecodeError(err)
 	}
 
-	*(out.(*bool)) = val
+	reflect.ValueOf(out).Elem().SetBool(val)
 	return nil
 }
 
 // decodeBytes reads the response body as raw bytes.
-func (h *HTTPRequest) decodeBytes(body io.Reader, out any) error {
+func (h *Request) decodeBytes(body io.Reader, out any) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return h.buildDecodeError(err)
 	}
-	*(out.(*[]byte)) = data
+	reflect.ValueOf(out).Elem().SetBytes(data)
 	return nil
 }
 
 // decodeJSON decodes the response body as JSON.
-func (h *HTTPRequest) decodeJSON(body io.Reader, out any) error {
+func (h *Request) decodeJSON(body io.Reader, out any) error {
 	if err := json.NewDecoder(body).Decode(out); err != nil {
 		if errors.Is(err, io.EOF) {
 			// Empty body is acceptable for some responses (e.g., 204 No Content)
@@ -148,7 +154,7 @@ func (h *HTTPRequest) decodeJSON(body io.Reader, out any) error {
 }
 
 // buildDecodeError creates a standardized decode error.
-func (h *HTTPRequest) buildDecodeError(err error) error {
+func (h *Request) buildDecodeError(err error) error {
 	return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
 		With(
 			errorkit.WithReason("Failed to decode response body"),

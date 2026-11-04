@@ -1,60 +1,36 @@
 package telemetry
 
 import (
+	"cmp"
 	"context"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
-
-// Package telemetry centralizes span creation for the service.
-//
-// Why this exists:
-// - Avoid repeating otel.Tracer(...) everywhere
-// - Enforce consistent span naming conventions
-// - Keep service identity (name/version) separate from span names
-// - Reduce instrumentation mistakes
-//
-// IMPORTANT DESIGN DECISION:
-// - Service name and version belong in OpenTelemetry Resource attributes
-// - Span names describe operations, not service identity
-//
-// Level 1: Business Operations
-// job.import
-// batch.process
-// content.enrich
-//
-// Level 2: External Operations
-// external.taobao.importProductDetail
-// external.warehouse.updateProduct
-//
-// Level 3: Messaging Operations
-// messaging.publish.channel-a
-// messaging.consume.channel-b
-//
-// What you'll see in signoz
-// Service: taobao-ingestion (v1)
-//
-// job.import
-//
-//	└── batch.process
-//	     ├── external.taobao.importProductsOverview
-//	     ├── external.taobao.importProductDetail
-//	     ├── external.taobao.importPurchaseOrderRender
-//	     └── messaging.publish.channel-a
 
 // Span is a type alias for trace.Span.
 //
-// Callers that import go-pkgs/telemetry do not need to import
+// Callers that import telemetry do not need to import
 // go.opentelemetry.io/otel/trace directly — use telemetry.Span wherever
 // you would otherwise write trace.Span.
 type Span = trace.Span
 
-var tracer trace.Tracer = otel.Tracer("app") // safe fallback default
+// compat is the instrumenter behind the package-level compatibility helpers
+// (Start, Job, Batch, External, Messaging, DB) and the nil-Instrumenter
+// fallback. InitTracer replaces it atomically, so it may race with span
+// creation safely.
+var compat atomic.Pointer[Instrumenter]
+
+func init() {
+	compat.Store(&Instrumenter{tracer: otel.Tracer("app")}) // safe fallback default
+}
 
 // Instrumenter creates spans from an explicit tracer.
 type Instrumenter struct {
-	tracer trace.Tracer
+	tracer   trace.Tracer
+	provider trace.TracerProvider
 }
 
 // InstrumenterConfig controls explicit telemetry construction.
@@ -66,18 +42,14 @@ type InstrumenterConfig struct {
 // NewInstrumenter creates an explicit span factory. If no provider is supplied,
 // it uses the currently configured global OpenTelemetry provider.
 func NewInstrumenter(config InstrumenterConfig) *Instrumenter {
-	scopeName := config.ScopeName
-	if scopeName == "" {
-		scopeName = "app"
-	}
-
 	provider := config.TracerProvider
 	if provider == nil {
 		provider = otel.GetTracerProvider()
 	}
 
 	return &Instrumenter{
-		tracer: provider.Tracer(scopeName),
+		provider: provider,
+		tracer:   provider.Tracer(cmp.Or(config.ScopeName, "app")),
 	}
 }
 
@@ -87,7 +59,7 @@ func NewInstrumenter(config InstrumenterConfig) *Instrumenter {
 // dependencies centralized in this package.
 //
 // The typical use case is enriching a span created by a higher-level
-// abstraction (e.g. Hertz OTel middleware, go-pkgs/messaging) with
+// abstraction (e.g. an HTTP server middleware or the SDK messaging package) with
 // business attributes — without creating a new child span.
 //
 // Example:
@@ -101,10 +73,11 @@ func SpanFromContext(ctx context.Context) Span {
 
 // InitTracer initializes the global tracer for this service.
 //
-// This MUST be called once during service startup (typically in main.go)
-// after the OpenTelemetry provider has been configured.
+// Call it once during service startup, after the OpenTelemetry provider
+// has been configured. It only affects the package-level compatibility
+// helpers; prefer NewInstrumenter in new code.
 //
-// Example (in main.go):
+// Example (in main):
 //
 //	telemetry.InitTracer(serviceName)
 //
@@ -113,7 +86,7 @@ func SpanFromContext(ctx context.Context) Span {
 // - The actual service identity is defined via OpenTelemetry Resource attributes.
 // - This tracer name is just the instrumentation scope.
 func InitTracer(serviceName string) {
-	tracer = otel.Tracer(serviceName)
+	compat.Store(&Instrumenter{tracer: otel.Tracer(serviceName)})
 }
 
 // Start creates a new span with the given name.
@@ -210,18 +183,18 @@ func (i *Instrumenter) Batch(ctx context.Context, op string, opts ...trace.SpanS
 //	external.<system>.<operation>
 //
 // Use this for:
-// - Third-party APIs (Taobao, LLM, Warehouse)
+// - Third-party APIs (payment providers, LLMs, partner services)
 // - External HTTP calls
 // - External service integrations
 //
 // Example:
 //
-//	ctx, span := telemetry.External(ctx, "taobao", "importProductDetail")
+//	ctx, span := telemetry.External(ctx, "payments", "charge")
 //	defer span.End()
 //
 // Resulting span name:
 //
-//	"external.taobao.importProductDetail"
+//	"external.payments.charge"
 //
 // This makes filtering external dependencies very easy in observability tools.
 func External(ctx context.Context, system string, op string, opts ...trace.SpanStartOption) (context.Context, Span) {
@@ -281,12 +254,12 @@ func (i *Instrumenter) Messaging(ctx context.Context, op string, opts ...trace.S
 //
 // Example (MongoDB):
 //
-//	ctx, span := telemetry.DB(ctx, "mongo", "taobao_listings_raw", "insert")
+//	ctx, span := telemetry.DB(ctx, "mongo", "listings", "insert")
 //	defer span.End()
 //
 // Resulting span name:
 //
-//	"mongo.taobao_listings_raw.insert"
+//	"mongo.listings.insert"
 //
 // Example (PostgreSQL):
 //
@@ -306,5 +279,14 @@ func (i *Instrumenter) DB(ctx context.Context, driver string, resource string, o
 }
 
 func compatibilityInstrumenter() *Instrumenter {
-	return &Instrumenter{tracer: tracer}
+	return compat.Load()
+}
+
+// TracerProvider returns the provider captured at construction. A nil or
+// zero-value instrumenter returns a no-op provider for dependency injection.
+func (i *Instrumenter) TracerProvider() trace.TracerProvider {
+	if i == nil || i.provider == nil {
+		return noop.NewTracerProvider()
+	}
+	return i.provider
 }

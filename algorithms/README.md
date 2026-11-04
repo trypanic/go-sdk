@@ -13,7 +13,7 @@ backoff policies on top of `github.com/cenkalti/backoff/v4`.
   - [DefaultExponentialBackoffConfig](#defaultexponentialbackoffconfig)
   - [NewExponentialBackoff](#newexponentialbackoff)
 - [Real-World Usage](#real-world-usage)
-  - [Messaging package — custom retry policy](#messaging-package--custom-retry-policy)
+  - [Custom retry policy](#custom-retry-policy)
 - [Lifecycle / Concurrency Notes](#lifecycle--concurrency-notes)
 - [Dependencies](#dependencies)
 
@@ -23,9 +23,10 @@ backoff policies on top of `github.com/cenkalti/backoff/v4`.
 
 | Symbol | Purpose |
 |---|---|
-| `ExponentialBackoffConfig` | Holds the four tuning parameters for an exponential backoff policy |
+| `ExponentialBackoffConfig` | Holds the tuning parameters for an exponential backoff policy |
+| `MaxRetriesLimit` | Upper bound (1000) applied to `MaxRetries` |
 | `DefaultExponentialBackoffConfig` | Returns a ready-to-use default configuration (1 s → 30 s, ×2, 5 total attempts) |
-| `NewExponentialBackoff` | Constructs a `backoff.BackOff` value ready to pass to `backoff.Retry` |
+| `NewExponentialBackoff` | Constructs a `algorithms.Backoff` value ready to pass to `backoff.Retry` |
 
 ---
 
@@ -33,7 +34,7 @@ backoff policies on top of `github.com/cenkalti/backoff/v4`.
 
 ```go
 import (
-    "github.com/trypanic/go-sdk/algorithms"
+    "github.com/trypanic/go-sdk/v2/algorithms"
     "github.com/cenkalti/backoff/v4"
 )
 
@@ -56,6 +57,7 @@ type ExponentialBackoffConfig struct {
     MaxInterval     time.Duration // cap on inter-retry delay
     Multiplier      float64       // factor applied to the interval after each attempt
     MaxRetries      uint64        // total number of attempts (initial call + retries)
+    MaxElapsedTime  time.Duration // optional overall time budget; 0 = no limit
 }
 ```
 
@@ -65,11 +67,31 @@ type ExponentialBackoffConfig struct {
 | `MaxInterval` | `time.Duration` | `30s` | Upper bound on the inter-retry delay |
 | `Multiplier` | `float64` | `2.0` | Multiplicative growth factor between attempts |
 | `MaxRetries` | `uint64` | `5` | Total number of attempts, including the initial call |
+| `MaxElapsedTime` | `time.Duration` | `0` (no limit) | Stops the schedule once elapsed time plus the next delay exceeds it |
+
+**Invalid values are replaced, never passed through** (so a zero or partial config can
+not turn into a retry loop without waiting):
+
+| Field | Invalid value | Replaced by |
+|---|---|---|
+| `InitialInterval` | `<= 0` | `1s` |
+| `MaxInterval` | `<= 0` | `30s`, or `InitialInterval` when that is larger |
+| `Multiplier` | `< 1` or NaN | `2.0` (`1` is valid: constant delay) |
+| `MaxRetries` | `0` | `1` (one attempt, no retry) |
+| `MaxRetries` | `> MaxRetriesLimit` (1000) | `MaxRetriesLimit` (e.g. an `int` `-1` converted to `uint64`) |
+| `MaxElapsedTime` | `< 0` | `0` (no limit) |
 
 > **`MaxRetries` semantics.** The value is passed to `backoff.WithMaxRetries` as
 > `MaxRetries - 1` so that the policy executes exactly `MaxRetries` attempts in total
 > (1 initial attempt + `MaxRetries - 1` retries). With the default of `5`, five attempts
-> are made before the backoff returns `backoff.ErrMaxRetriesExceeded`.
+> are made before `backoff.Retry` gives up and returns the last error.
+>
+> **`MaxElapsedTime` decision.** `cenkalti/backoff` defaults to a 15-minute
+> `MaxElapsedTime`, which used to stop long schedules (large `MaxRetries`, long
+> intervals) before `MaxRetries` attempts. The factory now sets it from the config, and
+> the zero value means **no elapsed-time limit**, so `MaxRetries` alone bounds the
+> schedule (at most `MaxRetriesLimit` attempts, each delay at most
+> `MaxInterval × 1.5`). Set `MaxElapsedTime` to restore an overall time budget.
 
 ---
 
@@ -83,11 +105,13 @@ type ExponentialBackoffConfig struct {
     MaxInterval     time.Duration
     Multiplier      float64
     MaxRetries      uint64
+    MaxElapsedTime  time.Duration
 }
 ```
 
-Value type. A zero-initialized struct is not meaningful; use `DefaultExponentialBackoffConfig`
-or supply all four fields explicitly.
+Value type. A zero-initialized struct is valid: every field gets the defaults from the
+table above (one attempt, no retry). Prefer `DefaultExponentialBackoffConfig` and override
+individual fields.
 
 ---
 
@@ -115,66 +139,51 @@ Use this as a starting point when the caller does not need to override individua
 ### NewExponentialBackoff
 
 ```go
-func NewExponentialBackoff(config ExponentialBackoffConfig) backoff.BackOff
+func NewExponentialBackoff(config ExponentialBackoffConfig) Backoff
 ```
 
-Constructs a `backoff.BackOff` by:
+Constructs a `algorithms.Backoff` by:
 
-1. Creating a `*backoff.ExponentialBackOff` with `InitialInterval`, `MaxInterval`, and
-   `Multiplier` applied from the config.
-2. Wrapping it with `backoff.WithMaxRetries(expBackoff, config.MaxRetries-1)` to bound
+1. Replacing invalid config values (see [Configuration](#configuration)) and creating a
+   `*backoff.ExponentialBackOff` with `InitialInterval`, `MaxInterval`, `Multiplier` and
+   `MaxElapsedTime` applied from the config.
+2. Calling `Reset()` so the first `NextBackOff()` already uses the configured
+   `InitialInterval` (relevant for custom loops that call `NextBackOff()` directly;
+   `backoff.Retry` resets on its own).
+3. Wrapping it with `backoff.WithMaxRetries(expBackoff, config.MaxRetries-1)` to bound
    the total number of attempts.
 
-The returned value satisfies the `backoff.BackOff` interface and is intended to be passed
+The returned value satisfies the `algorithms.Backoff` interface and is intended to be passed
 directly to `backoff.Retry`.
 
-**Edge case.** If `MaxRetries` is `0`, the subtraction wraps around to the maximum `uint64`
-value, producing an effectively unbounded retry loop. Always set `MaxRetries` to at least `1`.
-Setting it to `1` means the initial call is the only attempt — no retries occur.
+**Edge cases.** `MaxRetries` of `0` is treated as `1`: the initial call is the only
+attempt and no retry occurs (there is no `uint64` underflow). Values above
+`MaxRetriesLimit` are capped.
 
-**Error conditions.** The function never returns an error. Degenerate configurations
-(such as `InitialInterval > MaxInterval`) are silently handled by the upstream
-`cenkalti/backoff` library through internal clamping.
+**Error conditions.** The function never returns an error. Invalid values are replaced as
+documented above; an explicit `InitialInterval > MaxInterval` is clamped to `MaxInterval`
+by the upstream `cenkalti/backoff` library.
 
 ---
 
 ## Real-World Usage
 
-### Messaging package — custom retry policy
+### Custom retry policy
 
-`go-sdk/messaging` translates topology-level `RetryConfig` fields into an `ExponentialBackoffConfig` for each Publish and Subscribe operation. The `executeWithRetry`
-helper is called for both outbound message publishing and inbound handler invocations.
-
-```go
-// go-sdk/messaging/messaging.go
-
-func executeWithRetry(fn func() error, retry *RetryConfig) error {
-    if retry == nil {
-        return fn() // no retry configured — call once
-    }
-    bo := algorithms.NewExponentialBackoff(algorithms.ExponentialBackoffConfig{
-        InitialInterval: time.Duration(retry.InitialDelay) * time.Millisecond,
-        MaxInterval:     time.Duration(retry.MaxDelay) * time.Millisecond,
-        Multiplier:      retry.BackoffMult,
-        MaxRetries:      uint64(retry.MaxAttempts),
-    })
-    return backoff.Retry(fn, bo)
-}
-```
-
-When `retry` is `nil`, the function body executes exactly once with no backoff overhead.
-A new `backoff.BackOff` is allocated per call, so concurrent publish and subscribe
-goroutines do not share state.
+Use `NewExponentialBackoff` in a caller-owned loop and compare each delay with
+`algorithms.Stop`. Its historical half-to-one-and-a-half jitter distribution
+remains unchanged. SDK transports use their separate shared full-jitter schedule
+in `internal/backoff`, with their own attempt and context budgets.
 
 ---
 
 ## Lifecycle / Concurrency Notes
 
 - `NewExponentialBackoff` allocates a new `*backoff.ExponentialBackOff` on every call.
-  The returned `backoff.BackOff` is **not safe for concurrent use**; the cenkalti/backoff
+  The returned `algorithms.Backoff` is **not safe for concurrent use**; the cenkalti/backoff
   library maintains mutable internal state (current interval, attempt count) that is
   updated on each call to `NextBackOff`.
-- Create a new `backoff.BackOff` for each independent retry sequence. Do not share an
+- Create a new `algorithms.Backoff` for each independent retry sequence. Do not share an
   instance across goroutines or reuse one after a retry loop completes.
 - The package itself has no global state and requires no shutdown procedure.
 
@@ -185,3 +194,8 @@ goroutines do not share state.
 | Package | Role |
 |---|---|
 | `github.com/cenkalti/backoff/v4` | Provides `ExponentialBackOff`, `WithMaxRetries`, and the `BackOff` interface consumed by `backoff.Retry` |
+
+The public schedule contract is SDK-owned: `Backoff` exposes `NextBackOff` and
+`Reset`; compare the returned duration with `algorithms.Stop` to detect exhaustion.
+The upstream implementation is an internal detail; structural compatibility still
+allows passing the result to retry loops expecting those two methods.

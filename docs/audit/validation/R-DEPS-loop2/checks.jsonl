@@ -1,0 +1,18 @@
+{"name": "integration-loopback", "command": ["go", "test", "-race", "-tags", "integration", "-run", "Integration", "-count=1", "-v", "-timeout=5m", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 4.93}
+{"name": "crash-probe", "command": ["/tmp/DEPS-loop2/crash-probe.test", "-test.run", "TestAuditCrashCleanup", "-test.v"], "exit": 23, "seconds": 0.73}
+{"name": "crash-cleanup-inspect", "command": ["docker", "ps", "-a", "--filter", "label=org.testcontainers.sessionId=927854d61ab31d75f310542207599b23c08798ec03fa2c15b679856c502d9cf6", "--format", "{{.ID}} {{.Image}}"], "exit": 0, "seconds": 0.01}
+{"name": "integration-repeat", "command": ["go", "test", "-race", "-tags", "integration", "-run", "Integration|TestBindLoopback", "-count=2", "-shuffle=on", "-v", "-timeout=10m", "./internal/integrationtest", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 7.28}
+{"name": "finding1-tagged-staticcheck", "command": ["staticcheck", "-tags", "integration", "./internal/integrationtest/...", "./postgres/...", "./mongo/...", "./messaging/..."], "exit": 0, "seconds": 0.55}
+{"name": "finding1-check", "command": ["task", "check"], "exit": 0, "seconds": 19.36}
+{"name": "wildcard-regression", "command": ["go", "test", "-race", "-tags", "integration", "-run", "Integration", "-count=1", "-v", "-timeout=3m", "./postgres"], "exit": 1, "seconds": 3.28}
+{"name": "finding1-lint", "command": ["env", "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download", "GOSUMDB=off", "task", "lint"], "exit": 0, "seconds": 3.56}
+{"name": "ryuk-wildcard-regression", "command": ["go", "test", "-race", "-tags", "integration", "-run", "Integration", "-count=1", "-v", "-timeout=3m", "./postgres"], "exit": 1, "seconds": 2.66}
+{"name": "tagged-vuln", "command": ["go", "run", "golang.org/x/vuln/cmd/govulncheck@v1.9.0", "-tags=integration", "-test", "./postgres/...", "./mongo/...", "./messaging/..."], "exit": 0, "seconds": 7.22}
+{"name": "final-check", "command": ["task", "check"], "exit": 0, "seconds": 26.85}
+{"name": "tagged-short-no-docker", "command": ["env", "DOCKER_HOST=unix:///tmp/rdeps-no-docker.sock", "go", "test", "-tags", "integration", "-short", "-count=1", "-v", "./internal/integrationtest", "./postgres", "./mongo", "./messaging"], "exit": 0, "seconds": 1.5}
+{"name": "ci-matrix", "command": ["python3", "/tmp/DEPS-loop2/ci-matrix.py"], "exit": 0, "seconds": 48.36}
+{"name": "final-lint", "command": ["env", "GOPROXY=file:///home/trypanic/.go/pkg/mod/cache/download", "GOSUMDB=off", "task", "lint"], "exit": 0, "seconds": 0.74}
+{"name": "release-default", "command": ["task", "release:check"], "exit": 201, "seconds": 13.56}
+{"name": "release-v2-comparison", "command": ["task", "release:check", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 5.11}
+{"name": "release-v2-initial", "command": ["task", "release:check", "BASE=none", "RELEASE_VERSION=v2.0.0"], "exit": 0, "seconds": 2.15}
+{"name": "tagged-vet", "command": ["go", "vet", "-tags", "integration", "./..."], "exit": 0, "seconds": 0.28}

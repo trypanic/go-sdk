@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 )
 
 // ==============================
@@ -57,21 +56,20 @@ func (f *StackFormatter) FormatColored(e *AppError) string {
 		return ""
 	}
 
-	builder := getBuilder()
-	defer putBuilder(builder)
+	builder := &strings.Builder{}
 
 	// Header
 	builder.WriteString("\n")
 	fmt.Fprintf(builder, "%s %s %s\n",
-		f.colorize(Bold+Red, "✘ ERROR"),
-		f.colorize(Cyan, string(e.ErrCode)),
-		f.colorize(Yellow, e.Metadata.Description),
+		f.colorize(bold+red, "✘ ERROR"),
+		f.colorize(cyan, string(e.ErrCode)),
+		f.colorize(yellow, e.Metadata.Description),
 	)
 
 	// Reason
 	if e.Reason != "" {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "Reason:"),
+			f.colorize(purple, "Reason:"),
 			e.Reason,
 		)
 	}
@@ -79,44 +77,44 @@ func (f *StackFormatter) FormatColored(e *AppError) string {
 	// Wrapped
 	if e.Wrapped != nil {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "Wrapped:"),
+			f.colorize(purple, "Wrapped:"),
 			e.Unwrap(),
 		)
 	}
 
 	if e.Payload != nil {
 		fmt.Fprintf(builder, "  %s %v\n",
-			f.colorize(Cyan, "Payload:"),
+			f.colorize(cyan, "Payload:"),
 			e.Payload,
 		)
 	}
 
 	// Error ID
 	fmt.Fprintf(builder, "  %s %s\n",
-		f.colorize(Purple, "ErrorID:"),
+		f.colorize(purple, "ErrorID:"),
 		e.ID,
 	)
 
 	// Trace ID (only if present)
 	if e.TraceID != "" {
 		fmt.Fprintf(builder, "  %s %s\n",
-			f.colorize(Purple, "TraceID:"),
+			f.colorize(purple, "TraceID:"),
 			e.TraceID,
 		)
 	}
 
 	// Stack Trace
 	builder.WriteString("\n")
-	builder.WriteString(f.colorize(Bold+Blue, "Stack Trace:"))
+	builder.WriteString(f.colorize(bold+blue, "Stack Trace:"))
 	builder.WriteString("\n")
 
 	for i, frame := range e.Trace {
 		fmt.Fprintf(builder,
 			"%d:%s:%s:%s:%d\n",
 			i,
-			f.colorize(Red, frame.Package),
-			f.colorize(Yellow, frame.Function),
-			f.colorize(Cyan, frame.File),
+			f.colorize(red, frame.Package),
+			f.colorize(yellow, frame.Function),
+			f.colorize(cyan, frame.File),
 			frame.Line,
 		)
 	}
@@ -140,8 +138,7 @@ func (f *StackFormatter) FormatPlain(e *AppError) string {
 		return ""
 	}
 
-	builder := getBuilder()
-	defer putBuilder(builder)
+	builder := &strings.Builder{}
 
 	// Header
 	builder.WriteString("\n")
@@ -237,30 +234,30 @@ func (f *JSONFormatter) Format(e *AppError) string {
 
 	b, err := json.MarshalIndent(model, "", "  ")
 	if err != nil {
-		// Return basic fallback JSON (no console output)
-		return fmt.Sprintf(`{"error":"marshal_failed","id":"%s","code":"%s"}`, e.ID, e.ErrCode)
+		return marshalFailedJSON(e, err)
 	}
 
 	return string(b)
 }
 
-// ==============================
-// Helper: Builder Pool
-// ==============================
-
-var builderPool = sync.Pool{
-	New: func() any {
-		return new(strings.Builder)
-	},
-}
-
-func getBuilder() *strings.Builder {
-	return builderPool.Get().(*strings.Builder)
-}
-
-func putBuilder(b *strings.Builder) {
-	b.Reset()
-	builderPool.Put(b)
+// marshalFailedJSON is the fallback document when the full model cannot be
+// encoded (for example a payload holding a channel or a func). It is built
+// with encoding/json so free-form codes cannot break the JSON.
+func marshalFailedJSON(e *AppError, cause error) string {
+	fallback := struct {
+		Error  string    `json:"error"`
+		ID     string    `json:"id"`
+		Code   ErrorCode `json:"code"`
+		Detail string    `json:"detail"`
+	}{
+		Error:  "marshal_failed",
+		ID:     e.ID,
+		Code:   e.ErrCode,
+		Detail: cause.Error(),
+	}
+	// Only strings: marshalling cannot fail.
+	b, _ := json.Marshal(fallback)
+	return string(b)
 }
 
 // ==============================

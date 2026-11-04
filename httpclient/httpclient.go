@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/trypanic/go-sdk/errorkit"
+	"github.com/trypanic/go-sdk/v2/errorkit"
 )
 
 // Default configuration values for production use
 const (
 	DefaultTimeout               = 60 * time.Second
+	DefaultDialTimeout           = 10 * time.Second
 	DefaultKeepAlive             = 60 * time.Second
 	DefaultMaxIdleConns          = 500
 	DefaultMaxIdleConnsPerHost   = 50
@@ -59,7 +60,7 @@ type ClientConfig struct {
 func newDefaultConfig() *ClientConfig {
 	return &ClientConfig{
 		Timeout:               DefaultTimeout,
-		DialTimeout:           DefaultTimeout,
+		DialTimeout:           DefaultDialTimeout,
 		KeepAlive:             DefaultKeepAlive,
 		TLSHandshakeTimeout:   DefaultTLSHandshakeTimeout,
 		ResponseHeaderTimeout: DefaultResponseHeaderTimeout,
@@ -75,19 +76,25 @@ func newDefaultConfig() *ClientConfig {
 	}
 }
 
+// DefaultConfig returns a new ClientConfig filled with the production
+// defaults (the Default* constants). The caller may change it before
+// passing it to NewClient.
 func DefaultConfig() *ClientConfig {
 	return newDefaultConfig()
 }
 
-// SetupForLLM returns a configuration optimized for LLM API interactor.
-// Suitable for OpenAI, Anthropic, Google AI, and other LLM providers.
+// SetupForLLM returns a configuration for OpenAI-compatible LLM providers.
 //
-// Key optimizations:
-// - Long timeout for generation (120s default, can take 60-120s for complex prompts)
-// - Long response header timeout (30s, some LLMs are slow to start streaming)
-// - Moderate connection pool (not too aggressive to respect rate limits)
-// - Keep-alive enabled for streaming responses
-// - Compression enabled for large prompts/responses
+// Differences from DefaultConfig:
+//   - Timeout 0: no per-attempt client deadline, so long generations are
+//     not cut off. Bound each call with a context deadline (llmclient
+//     applies Config.Timeout, 5 minutes by default).
+//   - ResponseHeaderTimeout 4m: allows for model warm-up and queueing
+//     before the first response byte.
+//   - DialTimeout and TLSHandshakeTimeout 10s.
+//   - A small pool (MaxConnsPerHost 5, MaxIdleConnsPerHost 10) to stay
+//     within provider rate limits; keep-alive and compression enabled.
+//   - MaxRedirects 5.
 func SetupForLLM() *ClientConfig {
 	return &ClientConfig{
 		Timeout:               0, // Streaming and long generations should be bounded by caller contexts.
@@ -133,23 +140,23 @@ func WithKeepAlive(keepAlive time.Duration) ClientOption {
 }
 
 // WithMaxIdleConns sets the maximum idle connections across all hosts.
-func WithMaxIdleConns(max int) ClientOption {
+func WithMaxIdleConns(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxIdleConns = max
+		c.MaxIdleConns = n
 	}
 }
 
 // WithMaxIdleConnsPerHost sets the maximum idle connections per host.
-func WithMaxIdleConnsPerHost(max int) ClientOption {
+func WithMaxIdleConnsPerHost(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxIdleConnsPerHost = max
+		c.MaxIdleConnsPerHost = n
 	}
 }
 
 // WithMaxConnsPerHost sets the maximum total connections per host.
-func WithMaxConnsPerHost(max int) ClientOption {
+func WithMaxConnsPerHost(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxConnsPerHost = max
+		c.MaxConnsPerHost = n
 	}
 }
 
@@ -175,9 +182,9 @@ func WithResponseHeaderTimeout(timeout time.Duration) ClientOption {
 }
 
 // WithMaxRedirects sets the maximum number of redirects to follow.
-func WithMaxRedirects(max int) ClientOption {
+func WithMaxRedirects(n int) ClientOption {
 	return func(c *ClientConfig) {
-		c.MaxRedirects = max
+		c.MaxRedirects = n
 	}
 }
 
@@ -268,9 +275,12 @@ func NewClient(config *ClientConfig) *http.Client {
 		maxRedirects := config.MaxRedirects
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
-				return errorkit.NewError(ERR_EXTERNAL_SERVICE_ERROR).With(
+				appErr := errorkit.NewError(ERR_EXTERNAL_SERVICE_ERROR).With(
 					errorkit.WithReason("stopped after %d redirects", maxRedirects),
 				)
+				// The same redirect chain is followed again on retry.
+				appErr.Metadata.Retriable = false
+				return appErr
 			}
 			return nil
 		}
@@ -293,6 +303,8 @@ func NewClientWithOptions(opts ...ClientOption) *http.Client {
 	return NewClient(config)
 }
 
+// NewDefaultClient returns NewClient(DefaultConfig()). Build it once and
+// share it: every call creates a new connection pool.
 func NewDefaultClient() *http.Client {
 	return NewClient(DefaultConfig())
 }

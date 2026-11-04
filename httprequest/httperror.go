@@ -2,21 +2,23 @@ package httprequest
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/trypanic/go-sdk/errorkit"
-	"github.com/trypanic/go-sdk/httpclient"
-	"github.com/trypanic/go-sdk/logger"
+	"github.com/trypanic/go-sdk/v2/errorkit"
+	"github.com/trypanic/go-sdk/v2/internal/redact"
 )
 
 // redactBody returns the redactor output as a string. It centralizes the
 // nil-safety logic so callers can always call it.
-func (h *HTTPRequest) redactBody(b []byte) string {
+func (h *Request) redactBody(b []byte) string {
 	r := h.redactor
 	if r == nil {
 		r = DefaultBodyRedactor
@@ -26,13 +28,31 @@ func (h *HTTPRequest) redactBody(b []byte) string {
 
 // buildNetworkError creates a structured network error. Request body is only
 // included when WithBodyCapture is enabled, and even then it is redacted.
-func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+// The URL, in the payload and inside a wrapped *url.Error, is sanitized by
+// redact.URL so credentials never reach logs or error payloads.
+func (h *Request) buildNetworkError(err error, requestURL string, requestBody []byte) error {
+	// An *errorkit.AppError raised inside the client (for example by a
+	// CheckRedirect policy) already carries the right classification.
+	if inner, ok := errorkit.As(err); ok {
+		return inner
+	}
+
+	err = redact.URLError(err)
 	payload := map[string]any{
-		"url":            requestURL,
+		"url":            redact.URL(requestURL),
 		"original_error": err.Error(),
 	}
 	if h.captureBodies {
 		payload["request_body"] = h.redactBody(requestBody)
+	}
+
+	if isTLSVerificationError(err) {
+		return errorkit.NewError(errorkit.ERR_EXTERNAL_INVALID_RESPONSE).
+			With(
+				errorkit.WithReason("TLS certificate verification failed"),
+				errorkit.WithWrapped(err),
+				errorkit.WithPayload(payload),
+			)
 	}
 
 	// Check for context errors
@@ -46,7 +66,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	if errors.Is(err, context.Canceled) {
-		return errorkit.NewError(errorkit.ERR_SYSTEM_UNEXPECTED).
+		return errorkit.NewError(ERR_REQUEST_CANCELED).
 			With(
 				errorkit.WithReason("Request was canceled"),
 				errorkit.WithWrapped(err),
@@ -55,8 +75,7 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 	}
 
 	// Check for net.Error timeout
-	var netErr net.Error
-	if errors.As(err, &netErr) && netErr.Timeout() {
+	if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
 		return errorkit.NewError(ERR_NETWORK_TIMEOUT).
 			With(
 				errorkit.WithReason("Network operation timed out"),
@@ -74,10 +93,50 @@ func (h *HTTPRequest) buildNetworkError(err error, requestURL string, requestBod
 		)
 }
 
+// isTLSVerificationError reports whether err is a certificate verification
+// failure, which a retry cannot fix.
+func isTLSVerificationError(err error) bool {
+	return isA[*tls.CertificateVerificationError](err) ||
+		isA[x509.UnknownAuthorityError](err) ||
+		isA[x509.HostnameError](err) ||
+		isA[x509.CertificateInvalidError](err) ||
+		isA[x509.ConstraintViolationError](err) ||
+		isA[x509.InsecureAlgorithmError](err)
+}
+
+// isA reports whether err's chain holds an error of type E.
+func isA[E error](err error) bool {
+	_, ok := errors.AsType[E](err)
+	return ok
+}
+
+// validateURL checks a request URL once, before any attempt: it must parse
+// and name an http or https scheme and a host. The error never echoes the
+// raw URL, which may hold credentials.
+func validateURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	reason := ""
+	switch {
+	case err != nil:
+		reason = "request URL cannot be parsed"
+	case u.Scheme != "http" && u.Scheme != "https":
+		reason = "request URL scheme must be http or https"
+	case u.Host == "":
+		reason = "request URL has no host"
+	default:
+		return nil
+	}
+	return errorkit.NewError(errorkit.ERR_SYSTEM_CONFIG_INVALID).
+		With(
+			errorkit.WithReason("%s", reason),
+			errorkit.WithPayload(map[string]any{"url": redact.URL(rawURL)}),
+		)
+}
+
 // buildHTTPError maps HTTP status codes to structured errors.
-func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
+func (h *Request) buildHTTPError(res *http.Response, bodyBytes []byte, requestBody []byte) error {
 	statusCode := res.StatusCode
-	requestURL := res.Request.URL.String()
+	requestURL := redact.URL(res.Request.URL.String())
 	providerErr := parseProviderError(bodyBytes)
 
 	payload := map[string]any{
@@ -94,8 +153,10 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	if providerErr.Type != "" {
 		payload["provider_error_type"] = providerErr.Type
 	}
-	if providerErr.Message != "" {
-		payload["provider_error_message"] = providerErr.Message
+	// Providers often echo input or partial credentials in the message, so
+	// it follows the same opt-in and redaction policy as the bodies.
+	if h.captureBodies && providerErr.Message != "" {
+		payload["provider_error_message"] = h.redactBody([]byte(providerErr.Message))
 	}
 
 	var errCode errorkit.ErrorCode
@@ -106,13 +167,13 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	switch {
 	// 5xx Server Errors
 	case statusCode == http.StatusServiceUnavailable: // 503
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_UNAVAILABLE
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_UNAVAILABLE
 		reason = fmt.Sprintf("External service unavailable (%d)", statusCode)
 	case statusCode == http.StatusGatewayTimeout: // 504
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_TIMEOUT
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_TIMEOUT
 		reason = fmt.Sprintf("External service timeout (%d)", statusCode)
 	case statusCode >= 500 && statusCode <= 599:
-		errCode = httpclient.ERR_EXTERNAL_SERVICE_ERROR
+		errCode = errorkit.ERR_EXTERNAL_SERVICE_ERROR
 		reason = fmt.Sprintf("External service error (%d)", statusCode)
 
 	// 4xx Client Errors
@@ -136,7 +197,7 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 		errCode = ERR_AUTH_UNAUTHORIZED
 		reason = fmt.Sprintf("Access forbidden (%d)", statusCode)
 	case statusCode >= 400 && statusCode <= 499:
-		errCode = httpclient.ERR_EXTERNAL_INVALID_RESPONSE
+		errCode = errorkit.ERR_EXTERNAL_INVALID_RESPONSE
 		reason = fmt.Sprintf("Invalid request or response (%d)", statusCode)
 
 	// Unexpected status codes
@@ -153,7 +214,8 @@ func (h *HTTPRequest) buildHTTPError(res *http.Response, bodyBytes []byte, reque
 	if forceNonRetriable {
 		appErr.Metadata.Retriable = false
 	}
-	logger.Error(appErr)
+	// Not logged here: the error is returned, and the caller decides
+	// whether and how to log it (handle errors once).
 	return appErr
 }
 
